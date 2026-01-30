@@ -19,4 +19,7 @@ var (
 	ErrBirthDateTooOld      = errors.New("birth date must be within 150 years")
 	ErrInvalidGender        = errors.New("gender must be male, female, or other")
 	ErrInvalidActivityLevel = errors.New("activity level must be sedentary, light, moderate, active, or veryActive")
+
+	// Usecase errors
+	ErrEmailAlreadyExists = errors.New("email already exists")
 )
