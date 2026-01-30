@@ -30,8 +30,31 @@ paths:
 - Getterで値を公開
 
 ### ファクトリ関数
-- `New{Entity}()`: 新規作成（バリデーションあり）
-- `Reconstruct{Entity}()`: DB復元用（バリデーションなし）
+- `New{Entity}()`: 新規作成（プリミティブ型を受け取り、内部でVO変換、エラーをまとめて返す）
+- `Reconstruct{Entity}()`: DB復元用（VOを直接受け取る、バリデーションなし）
+
+### VO変換パターン
+- Entity内でプリミティブ→VO変換は専用のparse関数に分離
+- 条件分岐のネストを避け、フラットに保つ
+- エラーは`appendIfErr`等で集約し、最後にまとめて返す
+
+```go
+// 良い例
+func NewUser(emailStr string, ...) (*User, []error) {
+    var errs []error
+    email, err := parseEmail(emailStr)
+    errs = appendIfErr(errs, err)
+    // ...
+    if len(errs) > 0 {
+        return nil, errs
+    }
+    return &User{...}, nil
+}
+
+func parseEmail(s string) (vo.Email, error) {
+    return vo.NewEmail(s)
+}
+```
 
 ### 振る舞い
 - ドメインロジックはEntityのメソッドとして実装
