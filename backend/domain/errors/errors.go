@@ -11,4 +11,6 @@ var (
 	ErrPasswordTooShort    = errors.New("password must be at least 8 characters")
 	ErrNicknameRequired    = errors.New("nickname is required")
 	ErrNicknameTooLong     = errors.New("nickname must be 50 characters or less")
+	ErrWeightMustBePositive = errors.New("weight must be positive")
+	ErrWeightTooHeavy       = errors.New("weight must be 500kg or less")
 )

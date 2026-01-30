@@ -8,62 +8,36 @@ import (
 	"caltrack/domain/vo"
 )
 
-func TestNewNickname_ValidNickname_ReturnsNickname(t *testing.T) {
-	nickname, err := vo.NewNickname("John")
-
-	if err != nil {
-		t.Errorf("NewNickname should not return error for valid nickname, got: %v", err)
+func TestNewNickname(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantNickname string
+		wantErr      error
+	}{
+		// 正常系
+		{"valid nickname", "John", "John", nil},
+		{"valid with spaces", "John Doe", "John Doe", nil},
+		// 異常系
+		{"empty string", "", "", domainErrors.ErrNicknameRequired},
+		{"too long 51 chars", strings.Repeat("a", 51), "", domainErrors.ErrNicknameTooLong},
+		// 境界値
+		{"min length 1 char", "A", "A", nil},
+		{"max length 50 chars", strings.Repeat("a", 50), strings.Repeat("a", 50), nil},
+		{"exceeds 50 chars", strings.Repeat("a", 51), "", domainErrors.ErrNicknameTooLong},
 	}
-	if nickname.String() != "John" {
-		t.Errorf("Nickname.String() should return the nickname, got: %s", nickname.String())
-	}
-}
 
-func TestNewNickname_EmptyString_ReturnsError(t *testing.T) {
-	_, err := vo.NewNickname("")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := vo.NewNickname(tt.input)
 
-	if err == nil {
-		t.Error("NewNickname should return error for empty string")
-	}
-	if err != domainErrors.ErrNicknameRequired {
-		t.Errorf("NewNickname should return ErrNicknameRequired, got: %v", err)
-	}
-}
-
-func TestNewNickname_TooLong51_ReturnsError(t *testing.T) {
-	longNickname := strings.Repeat("a", 51)
-	_, err := vo.NewNickname(longNickname)
-
-	if err == nil {
-		t.Error("NewNickname should return error for 51 char nickname")
-	}
-	if err != domainErrors.ErrNicknameTooLong {
-		t.Errorf("NewNickname should return ErrNicknameTooLong, got: %v", err)
-	}
-}
-
-func TestNewNickname_MinLength1_ReturnsNickname(t *testing.T) {
-	_, err := vo.NewNickname("A")
-
-	if err != nil {
-		t.Errorf("NewNickname should accept 1 char nickname, got: %v", err)
-	}
-}
-
-func TestNewNickname_MaxLength50_ReturnsNickname(t *testing.T) {
-	nickname50 := strings.Repeat("a", 50)
-	_, err := vo.NewNickname(nickname50)
-
-	if err != nil {
-		t.Errorf("NewNickname should accept 50 char nickname, got: %v", err)
-	}
-}
-
-func TestNewNickname_Exceeds50_ReturnsError(t *testing.T) {
-	nickname51 := strings.Repeat("a", 51)
-	_, err := vo.NewNickname(nickname51)
-
-	if err == nil {
-		t.Error("NewNickname should reject 51 char nickname")
+			if err != tt.wantErr {
+				t.Errorf("NewNickname(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if err == nil && got.String() != tt.wantNickname {
+				t.Errorf("NewNickname(%q).String() = %v, want %v", tt.input, got.String(), tt.wantNickname)
+			}
+		})
 	}
 }
