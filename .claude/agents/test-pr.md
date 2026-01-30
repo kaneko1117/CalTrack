@@ -12,7 +12,7 @@ Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
 ## 入力
 - 実装完了報告（実装したファイル一覧）
-- 詳細設計ドキュメント（PR Body用）
+- 設計Issue番号（例: `#5`）
 - 対象: Backend または Frontend
 
 ## 出力
@@ -152,35 +152,43 @@ feat({feature}/{layer}): {機能の要約}
 ```
 
 ### PR Body
-**詳細設計をそのまま PR Body に記載する。**
+**設計Issueへの参照を記載し、PRマージ時に自動クローズする。**
 
 #### Backend
 ```markdown
-## 詳細設計
+Closes #{design_issue_number}
 
-{入力された詳細設計ドキュメントをそのまま記載}
+## 概要
 
----
+{層名}の実装
 
 ## テスト結果
 
 - Build: ✅ Pass
 - Test: ✅ Pass ({N} tests)
+
+## 設計Issue
+
+詳細設計は #{design_issue_number} を参照
 ```
 
 #### Frontend
 ```markdown
-## 詳細設計
+Closes #{design_issue_number}
 
-{入力された詳細設計ドキュメントをそのまま記載}
+## 概要
 
----
+{layer名}の実装
 
 ## テスト結果
 
 - Build: ✅ Pass
 - Test: ✅ Pass ({N} tests)
 - Lint: ✅ Pass
+
+## 設計Issue
+
+詳細設計は #{design_issue_number} を参照
 ```
 
 ---
@@ -194,6 +202,7 @@ feat({feature}/{layer}): {機能の要約}
 - PR: #{pr_number}
 - タイトル: {title}
 - URL: {url}
+- Closes: #{design_issue_number}
 
 ### テスト結果
 - Build: ✅ Pass
@@ -207,6 +216,7 @@ feat({feature}/{layer}): {機能の要約}
 - PR: #{pr_number}
 - タイトル: {title}
 - URL: {url}
+- Closes: #{design_issue_number}
 
 ### テスト結果
 - Build: ✅ Pass
