@@ -8,68 +8,70 @@ import (
 	"caltrack/domain/vo"
 )
 
-func TestNewUserID_ReturnsValidUUID(t *testing.T) {
+func TestNewUserID(t *testing.T) {
 	userID := vo.NewUserID()
 
 	if userID.String() == "" {
-		t.Error("NewUserID should return non-empty string")
+		t.Error("NewUserID() should return non-empty string")
 	}
-
 	if _, err := uuid.Parse(userID.String()); err != nil {
-		t.Errorf("NewUserID should return valid UUID, got: %s", userID.String())
+		t.Errorf("NewUserID() should return valid UUID, got: %s", userID.String())
 	}
 }
 
-func TestParseUserID_ValidUUID_ReturnsUserID(t *testing.T) {
+func TestParseUserID(t *testing.T) {
 	validUUID := "550e8400-e29b-41d4-a716-446655440000"
 
-	userID, err := vo.ParseUserID(validUUID)
-
-	if err != nil {
-		t.Errorf("ParseUserID should not return error for valid UUID, got: %v", err)
+	tests := []struct {
+		name    string
+		input   string
+		wantID  string
+		wantErr error
+	}{
+		// 正常系
+		{"valid UUID", validUUID, validUUID, nil},
+		// 異常系
+		{"empty string", "", "", domainErrors.ErrInvalidUserID},
+		{"invalid format", "invalid", "", domainErrors.ErrInvalidUserID},
+		{"partial UUID", "550e8400-e29b", "", domainErrors.ErrInvalidUserID},
 	}
-	if userID.String() != validUUID {
-		t.Errorf("ParseUserID should return UserID with same value, expected: %s, got: %s", validUUID, userID.String())
-	}
-}
 
-func TestParseUserID_EmptyString_ReturnsError(t *testing.T) {
-	_, err := vo.ParseUserID("")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := vo.ParseUserID(tt.input)
 
-	if err == nil {
-		t.Error("ParseUserID should return error for empty string")
-	}
-	if err != domainErrors.ErrInvalidUserID {
-		t.Errorf("ParseUserID should return ErrInvalidUserID, got: %v", err)
-	}
-}
-
-func TestParseUserID_InvalidFormat_ReturnsError(t *testing.T) {
-	_, err := vo.ParseUserID("invalid")
-
-	if err == nil {
-		t.Error("ParseUserID should return error for invalid format")
-	}
-	if err != domainErrors.ErrInvalidUserID {
-		t.Errorf("ParseUserID should return ErrInvalidUserID, got: %v", err)
+			if err != tt.wantErr {
+				t.Errorf("ParseUserID(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if err == nil && got.String() != tt.wantID {
+				t.Errorf("ParseUserID(%q).String() = %v, want %v", tt.input, got.String(), tt.wantID)
+			}
+		})
 	}
 }
 
-func TestUserID_Equals_SameValue_ReturnsTrue(t *testing.T) {
+func TestUserID_Equals(t *testing.T) {
 	validUUID := "550e8400-e29b-41d4-a716-446655440000"
-	userID1, _ := vo.ParseUserID(validUUID)
-	userID2, _ := vo.ParseUserID(validUUID)
+	id1, _ := vo.ParseUserID(validUUID)
+	id2, _ := vo.ParseUserID(validUUID)
+	id3 := vo.NewUserID()
 
-	if !userID1.Equals(userID2) {
-		t.Error("Equals should return true for same UUID value")
+	tests := []struct {
+		name string
+		id1  vo.UserID
+		id2  vo.UserID
+		want bool
+	}{
+		{"same value", id1, id2, true},
+		{"different value", id1, id3, false},
 	}
-}
 
-func TestUserID_Equals_DifferentValue_ReturnsFalse(t *testing.T) {
-	userID1 := vo.NewUserID()
-	userID2 := vo.NewUserID()
-
-	if userID1.Equals(userID2) {
-		t.Error("Equals should return false for different UUID values")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.id1.Equals(tt.id2); got != tt.want {
+				t.Errorf("Equals() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
