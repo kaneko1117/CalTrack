@@ -97,28 +97,49 @@ gh issue view で仕様取得
 各層で以下の順序でサブエージェントを呼び出す:
 
 ```
-{layer}-design → 【承認】→ 子Issue作成 → impl → test-pr
-     ↓              ↓           ↓          ↓        ↓
-   設計出力     ユーザー確認  #{issue}   実装完了   PR (Closes #{issue})
+{layer}-design → 【承認】→ 子Issue作成 → impl → test-pr → PR作成 → 自動マージ → 実装完了報告
+     ↓              ↓           ↓          ↓        ↓         ↓          ↓            ↓
+   設計出力     ユーザー確認  #{issue}   実装完了   テスト   PR#{n}     Merged      次の設計へ
 ```
 
 ### 子Issue作成コマンド
 
+**重要: 設計内容はそのままIssueに記載する**
+
+承認された設計（コード例、構成、エラー定義など）をそのまま子Issueのbodyに含める。
+Issueを見れば実装内容が完全に分かる状態にする。
+
 ```bash
 gh issue create \
-  --title "[設計] {機能名}: {層名}" \
+  --title "feat({layer}): {機能名}" \
   --body "$(cat <<'EOF'
-Parent: #{parent_issue_number}
+## 概要
+{親Issue参照と概要}
 
-## 詳細設計
+## 構成
+{ディレクトリ構成}
 
-{設計エージェントの出力}
+## 実装内容
+{設計で提示したコード例をそのまま記載}
+
+## エラー定義
+{エラー定義}
+
+Closes #{parent_issue_number}
 EOF
-)" \
-  --label "design"
+)"
 ```
 
-作成された子Issue番号を `test-pr` エージェントに渡す。
+### PR作成後の自動マージ
+
+PR作成後、以下のコマンドで自動マージ:
+```bash
+gh pr merge {pr_number} --merge --delete-branch
+```
+
+### 実装完了報告
+
+マージ完了後、メインへ報告してから次の設計へ進む。
 
 ---
 
@@ -171,21 +192,21 @@ EOF
 実装を開始します。
 ```
 
-### 3. PR完成時
+### 3. 実装完了時
 
 ```
-## PR完成: {層}
+## 実装完了: {層}
 
-- PR: #{pr_number}
-- タイトル: {title}
-- URL: {url}
-- Closes: #{child_issue_number}
+- PR: #{pr_number} ✅ Merged
+- 設計Issue: #{child_issue_number} ✅ Closed
 
 ### テスト結果
 - Build: ✅ Pass
 - Test: ✅ Pass ({N} tests)
 
-次の層（{next_layer}）の設計に進みます。
+---
+
+次の設計（{next_layer}）に進みます。
 ```
 
 ### 4. エラー発生時
@@ -352,60 +373,36 @@ gh issue view {issue_number} --json title,body,labels,number
 ### メインへの報告
 
 ```
-## 実装完了: {機能名}
+## 機能実装完了: {機能名}
 
 親Issue: #{parent_issue_number}
 
-### 作成された設計Issue
+### マージ済みPR
 
 #### Backend
 | 層 | 設計Issue | PR | ステータス |
 |----|-----------|-----|----------|
-| Domain (VO) | #{n} | #{n} | Open |
-| Domain (Entity) | #{n} | #{n} | Open |
-| Usecase | #{n} | #{n} | Open |
-| Infrastructure | #{n} | #{n} | Open |
-| Handler | #{n} | #{n} | Open |
+| Domain (VO) | #{n} ✅ | #{n} | ✅ Merged |
+| Domain (Entity) | #{n} ✅ | #{n} | ✅ Merged |
+| Usecase | #{n} ✅ | #{n} | ✅ Merged |
+| Infrastructure | #{n} ✅ | #{n} | ✅ Merged |
+| Handler | #{n} ✅ | #{n} | ✅ Merged |
 
 #### Frontend
 | 層 | 設計Issue | PR | ステータス |
 |----|-----------|-----|----------|
-| Data Layer | #{n} | #{n} | Open |
-| UI Layer | #{n} | #{n} | Open |
+| Data Layer | #{n} ✅ | #{n} | ✅ Merged |
+| UI Layer | #{n} ✅ | #{n} | ✅ Merged |
 
-### マージ順序
-**Backend:** Domain (VO) → Domain (Entity) → Usecase → Infrastructure → Handler
-**Frontend:** Data Layer → UI Layer
-
-全てのPRをレビュー後、上記順序でマージしてください。
-PRマージにより対応する設計Issueが自動クローズされます。
+全ての実装がmainブランチにマージされました。
 ```
 
-### 親Issueへのコメント
+### 親Issueのクローズ
 
-完了時、親Issueに以下のコメントを追加:
+全層完了時、親Issueをクローズ:
 
 ```bash
-gh issue comment {parent_issue_number} --body "$(cat <<'EOF'
-## 実装完了
-
-全ての設計と実装が完了しました。
-
-### 設計Issue
-- Domain (VO): #{n}
-- Domain (Entity): #{n}
-- Usecase: #{n}
-- Infrastructure: #{n}
-- Handler: #{n}
-- Frontend Data Layer: #{n}
-- Frontend UI Layer: #{n}
-
-### Pull Requests
-- #{pr1}, #{pr2}, ... (マージ順にリスト)
-
-レビュー後、PRをマージしてください。
-EOF
-)"
+gh issue close {parent_issue_number} --comment "全ての実装が完了しました。"
 ```
 
 ---
