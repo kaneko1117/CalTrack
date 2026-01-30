@@ -15,4 +15,6 @@ var (
 	ErrWeightTooHeavy       = errors.New("weight must be 500kg or less")
 	ErrHeightMustBePositive = errors.New("height must be positive")
 	ErrHeightTooTall        = errors.New("height must be 300cm or less")
+	ErrBirthDateMustBePast  = errors.New("birth date must be in the past")
+	ErrBirthDateTooOld      = errors.New("birth date must be within 150 years")
 )
