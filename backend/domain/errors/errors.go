@@ -9,4 +9,6 @@ var (
 	ErrInvalidUserID       = errors.New("invalid user id: must be a valid UUID")
 	ErrPasswordRequired    = errors.New("password is required")
 	ErrPasswordTooShort    = errors.New("password must be at least 8 characters")
+	ErrNicknameRequired    = errors.New("nickname is required")
+	ErrNicknameTooLong     = errors.New("nickname must be 50 characters or less")
 )
