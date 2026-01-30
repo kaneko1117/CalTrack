@@ -1,0 +1,183 @@
+package entity
+
+import (
+	"time"
+
+	"caltrack/domain/vo"
+)
+
+type User struct {
+	id             vo.UserID
+	email          vo.Email
+	hashedPassword vo.HashedPassword
+	nickname       vo.Nickname
+	weight         vo.Weight
+	height         vo.Height
+	birthDate      vo.BirthDate
+	gender         vo.Gender
+	activityLevel  vo.ActivityLevel
+	createdAt      time.Time
+	updatedAt      time.Time
+}
+
+func NewUser(
+	emailStr string,
+	hashedPasswordStr string,
+	nicknameStr string,
+	weightVal float64,
+	heightVal float64,
+	birthDateVal time.Time,
+	genderStr string,
+	activityLevelStr string,
+) (*User, []error) {
+	var errs []error
+
+	email, err := parseEmail(emailStr)
+	errs = appendIfErr(errs, err)
+
+	hashedPassword := vo.NewHashedPassword(hashedPasswordStr)
+
+	nickname, err := parseNickname(nicknameStr)
+	errs = appendIfErr(errs, err)
+
+	weight, err := parseWeight(weightVal)
+	errs = appendIfErr(errs, err)
+
+	height, err := parseHeight(heightVal)
+	errs = appendIfErr(errs, err)
+
+	birthDate, err := parseBirthDate(birthDateVal)
+	errs = appendIfErr(errs, err)
+
+	gender, err := parseGender(genderStr)
+	errs = appendIfErr(errs, err)
+
+	activityLevel, err := parseActivityLevel(activityLevelStr)
+	errs = appendIfErr(errs, err)
+
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	now := time.Now()
+	return &User{
+		id:             vo.NewUserID(),
+		email:          email,
+		hashedPassword: hashedPassword,
+		nickname:       nickname,
+		weight:         weight,
+		height:         height,
+		birthDate:      birthDate,
+		gender:         gender,
+		activityLevel:  activityLevel,
+		createdAt:      now,
+		updatedAt:      now,
+	}, nil
+}
+
+func appendIfErr(errs []error, err error) []error {
+	if err != nil {
+		return append(errs, err)
+	}
+	return errs
+}
+
+func parseEmail(s string) (vo.Email, error) {
+	return vo.NewEmail(s)
+}
+
+func parseNickname(s string) (vo.Nickname, error) {
+	return vo.NewNickname(s)
+}
+
+func parseWeight(v float64) (vo.Weight, error) {
+	return vo.NewWeight(v)
+}
+
+func parseHeight(v float64) (vo.Height, error) {
+	return vo.NewHeight(v)
+}
+
+func parseBirthDate(v time.Time) (vo.BirthDate, error) {
+	return vo.NewBirthDate(v)
+}
+
+func parseGender(s string) (vo.Gender, error) {
+	return vo.NewGender(s)
+}
+
+func parseActivityLevel(s string) (vo.ActivityLevel, error) {
+	return vo.NewActivityLevel(s)
+}
+
+func ReconstructUser(
+	id vo.UserID,
+	email vo.Email,
+	hashedPassword vo.HashedPassword,
+	nickname vo.Nickname,
+	weight vo.Weight,
+	height vo.Height,
+	birthDate vo.BirthDate,
+	gender vo.Gender,
+	activityLevel vo.ActivityLevel,
+	createdAt time.Time,
+	updatedAt time.Time,
+) *User {
+	return &User{
+		id:             id,
+		email:          email,
+		hashedPassword: hashedPassword,
+		nickname:       nickname,
+		weight:         weight,
+		height:         height,
+		birthDate:      birthDate,
+		gender:         gender,
+		activityLevel:  activityLevel,
+		createdAt:      createdAt,
+		updatedAt:      updatedAt,
+	}
+}
+
+func (u *User) ID() vo.UserID {
+	return u.id
+}
+
+func (u *User) Email() vo.Email {
+	return u.email
+}
+
+func (u *User) HashedPassword() vo.HashedPassword {
+	return u.hashedPassword
+}
+
+func (u *User) Nickname() vo.Nickname {
+	return u.nickname
+}
+
+func (u *User) Weight() vo.Weight {
+	return u.weight
+}
+
+func (u *User) Height() vo.Height {
+	return u.height
+}
+
+func (u *User) BirthDate() vo.BirthDate {
+	return u.birthDate
+}
+
+func (u *User) Gender() vo.Gender {
+	return u.gender
+}
+
+func (u *User) ActivityLevel() vo.ActivityLevel {
+	return u.activityLevel
+}
+
+func (u *User) CreatedAt() time.Time {
+	return u.createdAt
+}
+
+func (u *User) UpdatedAt() time.Time {
+	return u.updatedAt
+}

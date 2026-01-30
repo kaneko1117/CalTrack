@@ -22,18 +22,29 @@ Test{対象}_{条件}_{期待結果}
 
 ## テーブル駆動テスト
 
-境界値テストはテーブル駆動で:
+**使うべき場面:**
+- 同じロジックを異なる入力でテストする場合
+- 境界値テスト
+- 入力→出力が単純なマッピングの場合
+
+**使わないべき場面:**
+- テストごとに検証ロジックが異なる場合
+- 条件分岐がテスト内で多くなる場合
+- 正常系の詳細な検証（個別テストの方が読みやすい）
 
 ```go
+// 良い例: シンプルなバリデーションエラーテスト
 tests := []struct {
     name    string
     input   string
-    want    Type
     wantErr error
 }{
-    {"valid case", "input", expected, nil},
-    {"invalid case", "bad", nil, ErrInvalid},
+    {"invalid email", "invalid", ErrInvalidEmailFormat},
+    {"empty email", "", ErrEmailRequired},
 }
+
+// 悪い例: 条件分岐が多いテーブル駆動
+// → 個別のテスト関数に分ける
 ```
 
 ## モック戦略
