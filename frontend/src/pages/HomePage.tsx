@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/card";
 
 /** ヘルスチェックのレスポンス型 */
-interface HealthStatus {
+type HealthStatus = {
   status: string;
   message: string;
-}
+};
 
 /**
  * HomePage - ホームページ
