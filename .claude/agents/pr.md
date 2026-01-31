@@ -28,6 +28,8 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 テスト完了・ユーザー承認後、PRを作成する。
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
+**重要: メインスレッドで会話すること。ユーザーに直接見える形で出力し、バックグラウンド実行しない。**
+
 ## 参照するrules
 
 ```bash
