@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"caltrack/config"
+	"caltrack/handler/auth"
 	"caltrack/handler/user"
 	gormPersistence "caltrack/infrastructure/persistence/gorm"
 	"caltrack/pkg/logger"
@@ -24,11 +25,18 @@ func main() {
 	// Connect to database
 	config.ConnectDatabase()
 
-	// DI
+	// DI - Repository
 	userRepo := gormPersistence.NewGormUserRepository(config.DB)
+	sessionRepo := gormPersistence.NewGormSessionRepository(config.DB)
 	txManager := gormPersistence.NewGormTransactionManager(config.DB)
+
+	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
+	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+
+	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
+	authHandler := auth.NewAuthHandler(authUsecase)
 
 	// Setup router
 	r := gin.Default()
@@ -52,6 +60,13 @@ func main() {
 	api := r.Group("/api/v1")
 	{
 		api.POST("/users", userHandler.Register)
+	}
+
+	// Auth routes
+	authGroup := api.Group("/auth")
+	{
+		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/logout", authHandler.Logout)
 	}
 
 	// Start server
