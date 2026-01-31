@@ -19,3 +19,7 @@ export { registerUser, ApiError } from "./api";
 // Hooks
 export { useRegisterUser } from "./hooks";
 export type { UseRegisterUserReturn } from "./hooks";
+
+// Components
+export { RegisterForm, RegisterPage } from "./components";
+export type { RegisterFormProps, RegisterPageProps } from "./components";
