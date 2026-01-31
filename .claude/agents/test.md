@@ -1,22 +1,21 @@
 ---
-name: test-pr
-description: 実装完了後、Build・Testを実行し、成功したらPRを作成するエージェント。Backend（Go）とFrontend（TypeScript/React）の両方に対応。implエージェントの後に呼び出す。
+name: test
+description: 実装完了後、Build・Testを実行するエージェント。Backend（Go）とFrontend（TypeScript/React）の両方に対応。implエージェントの後に呼び出す。
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-# Test & PR エージェント
+# Test エージェント
 
 ## 概要
-実装完了後、Build・Test を実行し、成功したらPRを作成するエージェント。
+実装完了後、Build・Test を実行するエージェント。
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
 ## 入力
 - 実装完了報告（実装したファイル一覧）
-- 設計Issue番号（例: `#5`）
 - 対象: Backend または Frontend
 
 ## 出力
-- PR作成完了報告 または エラー報告
+- テスト結果報告（成功 または エラー報告）
 
 ## 実行フロー
 
@@ -27,9 +26,7 @@ Backend（Go）とFrontend（TypeScript/React）の両方に対応。
    ↓ 失敗時: エラー修正試行（最大3回）
 3. Lint 実行（Frontendの場合）
    ↓ 失敗時: エラー修正試行（最大3回）
-4. /commit-commands:commit-push-pr 実行
-   ↓
-5. 結果報告
+4. 結果報告
 ```
 
 ---
@@ -125,103 +122,41 @@ cd frontend && npm run lint
 
 ---
 
-## PR 作成
-
-Build & Test (& Lint) 成功後:
-
-```
-/commit-commands:commit-push-pr
-```
-
-### コミットメッセージ
-
-#### Backend
-```
-feat({層}): {機能の要約}
-
-- {実装内容1}
-- {実装内容2}
-```
-
-#### Frontend
-```
-feat({feature}/{layer}): {機能の要約}
-
-- {実装内容1}
-- {実装内容2}
-```
-
-### PR Body
-**設計Issueへの参照を記載し、PRマージ時に自動クローズする。**
-
-#### Backend
-```markdown
-Closes #{design_issue_number}
-
-## 概要
-
-{層名}の実装
-
-## テスト結果
-
-- Build: ✅ Pass
-- Test: ✅ Pass ({N} tests)
-
-## 設計Issue
-
-詳細設計は #{design_issue_number} を参照
-```
-
-#### Frontend
-```markdown
-Closes #{design_issue_number}
-
-## 概要
-
-{layer名}の実装
-
-## テスト結果
-
-- Build: ✅ Pass
-- Test: ✅ Pass ({N} tests)
-- Lint: ✅ Pass
-
-## 設計Issue
-
-詳細設計は #{design_issue_number} を参照
-```
-
----
-
 ## 成功報告
 
 ### Backend
 ```
-## PR作成完了: Backend {層}層
-
-- PR: #{pr_number}
-- タイトル: {title}
-- URL: {url}
-- Closes: #{design_issue_number}
+## テスト完了: Backend {層}層
 
 ### テスト結果
 - Build: ✅ Pass
 - Test: ✅ Pass ({N} tests)
+
+### 実装ファイル
+| ファイル | 種別 |
+|---------|------|
+| {path} | 本体 |
+| {path} | テスト |
+
+ユーザー承認後、PRを作成します。
 ```
 
 ### Frontend
 ```
-## PR作成完了: Frontend {layer}
-
-- PR: #{pr_number}
-- タイトル: {title}
-- URL: {url}
-- Closes: #{design_issue_number}
+## テスト完了: Frontend {layer}
 
 ### テスト結果
 - Build: ✅ Pass
 - Test: ✅ Pass ({N} tests)
 - Lint: ✅ Pass
+
+### 実装ファイル
+| ファイル | 種別 |
+|---------|------|
+| {path} | 本体 |
+| {path} | テスト |
+
+ユーザー承認後、PRを作成します。
 ```
 
 ---
@@ -232,7 +167,7 @@ Closes #{design_issue_number}
 
 ### Backend
 ```
-## テスト/PR エラー: Backend {層}層
+## テストエラー: Backend {層}層
 
 ### エラー種別
 {Build / Test}
@@ -259,7 +194,7 @@ Closes #{design_issue_number}
 
 ### Frontend
 ```
-## テスト/PR エラー: Frontend {layer}
+## テストエラー: Frontend {layer}
 
 ### エラー種別
 {Build / Test / Lint}
