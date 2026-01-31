@@ -1,0 +1,17 @@
+-- +migrate Up
+CREATE TABLE users (
+    id VARCHAR(36) PRIMARY KEY,
+    email VARCHAR(254) NOT NULL UNIQUE,
+    hashed_password VARCHAR(60) NOT NULL,
+    nickname VARCHAR(50) NOT NULL,
+    weight DOUBLE NOT NULL,
+    height DOUBLE NOT NULL,
+    birth_date DATE NOT NULL,
+    gender VARCHAR(10) NOT NULL,
+    activity_level VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- +migrate Down
+DROP TABLE users;
