@@ -4,9 +4,8 @@ import (
 	"testing"
 	"time"
 
-	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/entity"
-	"caltrack/domain/vo"
+	domainErrors "caltrack/domain/errors"
 )
 
 func TestNewUser_Success(t *testing.T) {
@@ -92,32 +91,62 @@ func TestNewUser_GeneratesUniqueIDs(t *testing.T) {
 	}
 }
 
-func TestReconstructUser(t *testing.T) {
-	userID := vo.NewUserID()
-	email, _ := vo.NewEmail("test@example.com")
-	hashedPassword := vo.NewHashedPassword("$2a$10$hashedpassword")
-	nickname, _ := vo.NewNickname("testuser")
-	weight, _ := vo.NewWeight(70.5)
-	height, _ := vo.NewHeight(175.0)
-	birthDate, _ := vo.NewBirthDate(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC))
-	gender, _ := vo.NewGender("male")
-	activityLevel, _ := vo.NewActivityLevel("moderate")
+func TestReconstructUser_Success(t *testing.T) {
+	userID := "550e8400-e29b-41d4-a716-446655440000"
 	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	user := entity.ReconstructUser(
-		userID, email, hashedPassword, nickname,
-		weight, height, birthDate, gender, activityLevel,
-		createdAt, updatedAt,
+	user, err := entity.ReconstructUser(
+		userID,
+		"test@example.com",
+		"$2a$10$hashedpassword",
+		"testuser",
+		70.5,
+		175.0,
+		birthDate,
+		"male",
+		"moderate",
+		createdAt,
+		updatedAt,
 	)
 
-	if !user.ID().Equals(userID) {
-		t.Errorf("ID mismatch")
+	if err != nil {
+		t.Fatalf("ReconstructUser() unexpected error: %v", err)
+	}
+	if user.ID().String() != userID {
+		t.Errorf("ID = %v, want %v", user.ID().String(), userID)
+	}
+	if user.Email().String() != "test@example.com" {
+		t.Errorf("Email = %v, want test@example.com", user.Email().String())
 	}
 	if !user.CreatedAt().Equal(createdAt) {
 		t.Errorf("CreatedAt = %v, want %v", user.CreatedAt(), createdAt)
 	}
 	if !user.UpdatedAt().Equal(updatedAt) {
 		t.Errorf("UpdatedAt = %v, want %v", user.UpdatedAt(), updatedAt)
+	}
+}
+
+func TestReconstructUser_InvalidID(t *testing.T) {
+	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	_, err := entity.ReconstructUser(
+		"invalid-uuid",
+		"test@example.com",
+		"$2a$10$hashedpassword",
+		"testuser",
+		70.5,
+		175.0,
+		birthDate,
+		"male",
+		"moderate",
+		createdAt,
+		createdAt,
+	)
+
+	if err == nil {
+		t.Error("ReconstructUser() should return error for invalid UUID")
 	}
 }

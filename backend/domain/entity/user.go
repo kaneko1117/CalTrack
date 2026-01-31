@@ -110,19 +110,65 @@ func parseActivityLevel(s string) (vo.ActivityLevel, error) {
 	return vo.NewActivityLevel(s)
 }
 
+// ReconstructUser はDBからの復元用。
+// NOTE: DBデータは保存時にバリデーション済みなのでVO変換は本来不要だが、
+// データ破損検知のため一旦バリデーションありで実装。
+// パフォーマンス問題が出たらReconstruct系関数（バリデーションなし）を検討。
 func ReconstructUser(
-	id vo.UserID,
-	email vo.Email,
-	hashedPassword vo.HashedPassword,
-	nickname vo.Nickname,
-	weight vo.Weight,
-	height vo.Height,
-	birthDate vo.BirthDate,
-	gender vo.Gender,
-	activityLevel vo.ActivityLevel,
+	idStr string,
+	emailStr string,
+	hashedPasswordStr string,
+	nicknameStr string,
+	weightVal float64,
+	heightVal float64,
+	birthDateVal time.Time,
+	genderStr string,
+	activityLevelStr string,
 	createdAt time.Time,
 	updatedAt time.Time,
-) *User {
+) (*User, error) {
+	id, err := vo.ParseUserID(idStr)
+	if err != nil {
+		return nil, err
+	}
+
+	email, err := vo.NewEmail(emailStr)
+	if err != nil {
+		return nil, err
+	}
+
+	hashedPassword := vo.NewHashedPassword(hashedPasswordStr)
+
+	nickname, err := vo.NewNickname(nicknameStr)
+	if err != nil {
+		return nil, err
+	}
+
+	weight, err := vo.NewWeight(weightVal)
+	if err != nil {
+		return nil, err
+	}
+
+	height, err := vo.NewHeight(heightVal)
+	if err != nil {
+		return nil, err
+	}
+
+	birthDate, err := vo.NewBirthDate(birthDateVal)
+	if err != nil {
+		return nil, err
+	}
+
+	gender, err := vo.NewGender(genderStr)
+	if err != nil {
+		return nil, err
+	}
+
+	activityLevel, err := vo.NewActivityLevel(activityLevelStr)
+	if err != nil {
+		return nil, err
+	}
+
 	return &User{
 		id:             id,
 		email:          email,
@@ -135,7 +181,7 @@ func ReconstructUser(
 		activityLevel:  activityLevel,
 		createdAt:      createdAt,
 		updatedAt:      updatedAt,
-	}
+	}, nil
 }
 
 func (u *User) ID() vo.UserID {
