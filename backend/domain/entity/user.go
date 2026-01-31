@@ -22,7 +22,7 @@ type User struct {
 
 func NewUser(
 	emailStr string,
-	hashedPasswordStr string,
+	passwordStr string,
 	nicknameStr string,
 	weightVal float64,
 	heightVal float64,
@@ -35,7 +35,16 @@ func NewUser(
 	email, err := parseEmail(emailStr)
 	errs = appendIfErr(errs, err)
 
-	hashedPassword := vo.NewHashedPassword(hashedPasswordStr)
+	password, err := parsePassword(passwordStr)
+	errs = appendIfErr(errs, err)
+
+	var hashedPassword vo.HashedPassword
+	if err == nil {
+		hashedPassword, err = password.Hash()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
 
 	nickname, err := parseNickname(nicknameStr)
 	errs = appendIfErr(errs, err)
@@ -84,6 +93,10 @@ func appendIfErr(errs []error, err error) []error {
 
 func parseEmail(s string) (vo.Email, error) {
 	return vo.NewEmail(s)
+}
+
+func parsePassword(s string) (vo.Password, error) {
+	return vo.NewPassword(s)
 }
 
 func parseNickname(s string) (vo.Nickname, error) {

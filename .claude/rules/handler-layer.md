@@ -5,48 +5,64 @@ paths:
 
 # Handler層規則
 
-## Request DTO
+## ファイル構成
 
-### 定義場所
-- `handler/request/{handler}_request.go`
+**ドメイン単位でディレクトリ**:
+```
+handler/
+  common/
+    error_code.go    # エラーコード定義
+    response.go      # レスポンスヘルパー関数
+  {domain}/
+    handler.go       # {Domain}Handler
+    handler_test.go
+    dto/
+      request.go     # リクエストDTO + ToDomain()
+      response.go    # レスポンスDTO
+```
+
+## 命名規則
+
+- 構造体: `{Domain}Handler`（例: `UserHandler`）
+- メソッド: 動詞形（例: `Register`, `Login`, `Create`）
+- コンストラクタ: `New{Domain}Handler`
+
+## Request DTO
 
 ### 構造
 - JSONタグ使用（`json:`）
-- バリデーションタグ使用（`binding:`）
-- path/query/body/headerからのマッピング
+- `ToDomain()` メソッドでEntityに変換
+
+```go
+func (r RegisterUserRequest) ToDomain() (*entity.User, error, []error) {
+    // パース処理
+    // entity.NewUser() を呼び出し
+}
+```
 
 ## Response DTO
 
-### 定義場所
-- `handler/response/{handler}_response.go`
-
 ### 構造
 - JSONタグ使用
-- Usecase Outputから変換
+- Entityから必要なフィールドのみ抽出
 
-### エラーレスポンス
+## 共通ヘルパー（handler/common）
+
+共通化できる処理はヘルパー関数として定義:
+
 ```go
-type ErrorResponse struct {
-    Code    string `json:"code"`
-    Message string `json:"message"`
-}
+// response.go
+func RespondError(c echo.Context, status int, code, message string) error
+func RespondValidationError(c echo.Context, details []string) error
 ```
 
 ## Handler
 
-### 定義場所
-- `handler/handler/{handler}.go`
-
-### 構造
-- Usecaseを依存として持つ
-- Output Portを実装
-
 ### 処理フロー
 1. リクエストのバインド
-2. バリデーション
-3. Usecase Input生成
-4. Usecase実行
-5. レスポンス返却
+2. `req.ToDomain()` でEntity変換
+3. Usecase実行
+4. レスポンス返却
 
 ### エラーハンドリング
 | ドメインエラー | HTTPステータス |
