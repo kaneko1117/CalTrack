@@ -1,8 +1,8 @@
 package vo
 
 import (
-	"github.com/google/uuid"
 	domainErrors "caltrack/domain/errors"
+	"github.com/google/uuid"
 )
 
 type UserID struct {

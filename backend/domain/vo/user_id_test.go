@@ -3,9 +3,9 @@ package vo_test
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
+	"github.com/google/uuid"
 )
 
 func TestNewUserID(t *testing.T) {

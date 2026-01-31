@@ -56,8 +56,8 @@ func TestHashedPassword_Compare(t *testing.T) {
 	hashed, _ := password.Hash()
 
 	tests := []struct {
-		name     string
-		input    string
+		name      string
+		input     string
 		wantMatch bool
 	}{
 		{"correct password", "12345678", true},
