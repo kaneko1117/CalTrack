@@ -3,7 +3,7 @@
  * 新規ユーザー登録のためのフォームUI
  */
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +19,13 @@ import { useRegisterUser } from "../hooks";
 import type { Gender, ActivityLevel } from "../types";
 
 /** RegisterFormコンポーネントのProps */
-export interface RegisterFormProps {
+export type RegisterFormProps = {
   /** 登録成功時のコールバック */
   onSuccess?: () => void;
-}
+};
 
 /** フォームの内部状態 */
-interface FormState {
+type FormState = {
   email: string;
   password: string;
   nickname: string;
@@ -34,10 +34,10 @@ interface FormState {
   birthDate: string;
   gender: Gender | "";
   activityLevel: ActivityLevel | "";
-}
+};
 
 /** バリデーションエラー */
-interface FormErrors {
+type FormErrors = {
   email?: string;
   password?: string;
   nickname?: string;
@@ -46,7 +46,7 @@ interface FormErrors {
   birthDate?: string;
   gender?: string;
   activityLevel?: string;
-}
+};
 
 /** フォームの初期状態 */
 const initialFormState: FormState = {
@@ -76,6 +76,9 @@ const ACTIVITY_LEVEL_OPTIONS = [
   { value: "veryActive", label: "非常に活動的（毎日激しい運動）" },
 ] as const;
 
+/** メールアドレスバリデーション用パターン（モジュールレベルでホイスト） */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * フォームバリデーション関数
  * @param form - フォームの状態
@@ -92,7 +95,7 @@ function validateForm(form: FormState): FormErrors {
   // email: 必須、形式チェック
   if (!form.email.trim()) {
     errors.email = "メールアドレスを入力してください";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+  } else if (!EMAIL_PATTERN.test(form.email)) {
     errors.email = "正しいメールアドレス形式で入力してください";
   }
 
@@ -163,13 +166,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const { register, isLoading, error, isSuccess, reset } = useRegisterUser();
 
-  // 成功時にコールバックを呼び出す
-  useEffect(() => {
-    if (isSuccess) {
-      onSuccess?.();
-    }
-  }, [isSuccess, onSuccess]);
-
   /**
    * フィールド値の変更ハンドラ
    */
@@ -201,17 +197,20 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       return;
     }
 
-    // API呼び出し
-    await register({
-      email: formState.email,
-      password: formState.password,
-      nickname: formState.nickname,
-      weight: parseFloat(formState.weight),
-      height: parseFloat(formState.height),
-      birthDate: formState.birthDate,
-      gender: formState.gender as Gender,
-      activityLevel: formState.activityLevel as ActivityLevel,
-    });
+    // API呼び出し（成功時のコールバックを引数として渡す）
+    await register(
+      {
+        email: formState.email,
+        password: formState.password,
+        nickname: formState.nickname,
+        weight: parseFloat(formState.weight),
+        height: parseFloat(formState.height),
+        birthDate: formState.birthDate,
+        gender: formState.gender as Gender,
+        activityLevel: formState.activityLevel as ActivityLevel,
+      },
+      onSuccess
+    );
   };
 
   return (

@@ -6,10 +6,10 @@ import { useNavigate } from "react-router-dom";
 import { RegisterForm } from "./RegisterForm";
 
 /** RegisterPageコンポーネントのProps */
-export interface RegisterPageProps {
+export type RegisterPageProps = {
   /** 登録成功時の遷移先URL */
   redirectTo?: string;
-}
+};
 
 /**
  * RegisterPage - 新規登録ページ

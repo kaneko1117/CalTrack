@@ -179,16 +179,45 @@ describe("RegisterForm", () => {
       fireEvent.click(screen.getByRole("button", { name: "登録する" }));
 
       await waitFor(() => {
-        expect(mockRegister).toHaveBeenCalledWith({
-          email: "test@example.com",
-          password: "password123",
-          nickname: "TestUser",
-          weight: 70,
-          height: 175,
-          birthDate: "1990-01-01",
-          gender: "male",
-          activityLevel: "moderate",
-        });
+        expect(mockRegister).toHaveBeenCalledWith(
+          {
+            email: "test@example.com",
+            password: "password123",
+            nickname: "TestUser",
+            weight: 70,
+            height: 175,
+            birthDate: "1990-01-01",
+            gender: "male",
+            activityLevel: "moderate",
+          },
+          undefined // onSuccessコールバック（未指定時はundefined）
+        );
+      });
+    });
+
+    it("onSuccessコールバックがregister関数に渡される", async () => {
+      const onSuccess = vi.fn();
+      const user = userEvent.setup();
+      render(<RegisterForm onSuccess={onSuccess} />);
+
+      // フォームに入力
+      await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
+      await user.type(screen.getByLabelText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+      await user.type(screen.getByLabelText("体重 (kg)"), "70");
+      await user.type(screen.getByLabelText("身長 (cm)"), "175");
+      await user.type(screen.getByLabelText("生年月日"), "1990-01-01");
+      await user.selectOptions(screen.getByLabelText("性別"), "male");
+      await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
+
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith(
+          expect.any(Object),
+          onSuccess // onSuccessコールバックが渡される
+        );
       });
     });
   });
@@ -288,16 +317,37 @@ describe("RegisterForm", () => {
       expect(screen.getByText("登録が完了しました")).toBeInTheDocument();
     });
 
-    it("isSuccessがtrueの時、onSuccessコールバックが呼ばれる", () => {
+    it("register関数成功時にonSuccessコールバックが呼ばれる", async () => {
+      // register関数が成功時にonSuccessを呼び出すようにモック
       const onSuccess = vi.fn();
-      mockUseRegisterUser.mockReturnValue({
+      mockUseRegisterUser.mockImplementation(() => ({
         ...defaultHookReturn,
+        register: vi.fn().mockImplementation(async (_request, callback) => {
+          // 成功をシミュレート
+          callback?.();
+        }),
         isSuccess: true,
-      });
+      }));
 
+      const user = userEvent.setup();
       render(<RegisterForm onSuccess={onSuccess} />);
 
-      expect(onSuccess).toHaveBeenCalled();
+      // フォームに入力
+      await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
+      await user.type(screen.getByLabelText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+      await user.type(screen.getByLabelText("体重 (kg)"), "70");
+      await user.type(screen.getByLabelText("身長 (cm)"), "175");
+      await user.type(screen.getByLabelText("生年月日"), "1990-01-01");
+      await user.selectOptions(screen.getByLabelText("性別"), "male");
+      await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled();
+      });
     });
   });
 

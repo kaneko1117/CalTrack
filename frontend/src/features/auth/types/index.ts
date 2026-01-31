@@ -28,7 +28,7 @@ export const ERROR_CODE_INTERNAL_ERROR: ErrorCode = "INTERNAL_ERROR";
 export const ERROR_MESSAGE_UNEXPECTED = "予期しないエラーが発生しました";
 
 /** ユーザー登録リクエスト */
-export interface RegisterUserRequest {
+export type RegisterUserRequest = {
   email: string;
   password: string;
   nickname: string;
@@ -37,16 +37,16 @@ export interface RegisterUserRequest {
   birthDate: string; // YYYY-MM-DD形式
   gender: Gender;
   activityLevel: ActivityLevel;
-}
+};
 
 /** ユーザー登録レスポンス */
-export interface RegisterUserResponse {
+export type RegisterUserResponse = {
   userId: string;
-}
+};
 
 /** APIエラーレスポンス */
-export interface ApiErrorResponse {
+export type ApiErrorResponse = {
   code: ErrorCode;
   message: string;
   details?: string[];
-}
+};

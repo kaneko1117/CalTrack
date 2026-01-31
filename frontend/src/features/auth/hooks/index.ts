@@ -14,13 +14,13 @@ import {
 /**
  * useRegisterUserフックの戻り値の型
  */
-export interface UseRegisterUserReturn {
-  register: (request: RegisterUserRequest) => Promise<void>;
+export type UseRegisterUserReturn = {
+  register: (request: RegisterUserRequest, onSuccess?: () => void) => Promise<void>;
   isLoading: boolean;
   error: ApiError | null;
   isSuccess: boolean;
   reset: () => void;
-}
+};
 
 /**
  * ユーザー登録フック
@@ -42,7 +42,10 @@ export function useRegisterUser(): UseRegisterUserReturn {
   const [error, setError] = useState<ApiError | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const register = useCallback(async (request: RegisterUserRequest) => {
+  const register = useCallback(async (
+    request: RegisterUserRequest,
+    onSuccess?: () => void
+  ) => {
     setIsLoading(true);
     setError(null);
     setIsSuccess(false);
@@ -50,6 +53,8 @@ export function useRegisterUser(): UseRegisterUserReturn {
     try {
       await registerUser(request);
       setIsSuccess(true);
+      // 成功時にコールバックを直接呼び出し
+      onSuccess?.();
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err);
