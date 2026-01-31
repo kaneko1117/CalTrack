@@ -3,7 +3,7 @@ package common
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 type ErrorResponse struct {
@@ -12,12 +12,12 @@ type ErrorResponse struct {
 	Details []string `json:"details,omitempty"`
 }
 
-func RespondError(c echo.Context, status int, code, message string) error {
-	return c.JSON(status, ErrorResponse{Code: code, Message: message})
+func RespondError(c *gin.Context, status int, code, message string) {
+	c.JSON(status, ErrorResponse{Code: code, Message: message})
 }
 
-func RespondValidationError(c echo.Context, details []string) error {
-	return c.JSON(http.StatusBadRequest, ErrorResponse{
+func RespondValidationError(c *gin.Context, details []string) {
+	c.JSON(http.StatusBadRequest, ErrorResponse{
 		Code:    CodeValidationError,
 		Message: "Validation failed",
 		Details: details,

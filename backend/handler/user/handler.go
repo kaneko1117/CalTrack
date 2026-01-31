@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 
 	domainErrors "caltrack/domain/errors"
 	"caltrack/handler/common"
@@ -20,37 +20,42 @@ func NewUserHandler(uc *usecase.UserUsecase) *UserHandler {
 	return &UserHandler{usecase: uc}
 }
 
-func (h *UserHandler) Register(c echo.Context) error {
+func (h *UserHandler) Register(c *gin.Context) {
 	var req dto.RegisterUserRequest
-	if err := c.Bind(&req); err != nil {
-		return common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid request body")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid request body")
+		return
 	}
 
 	user, parseErr, validationErrs := req.ToDomain()
 	if parseErr != nil {
-		return common.RespondError(c, http.StatusBadRequest, common.CodeValidationError, "Invalid birth date format. Use YYYY-MM-DD")
+		common.RespondError(c, http.StatusBadRequest, common.CodeValidationError, "Invalid birth date format. Use YYYY-MM-DD")
+		return
 	}
 	if validationErrs != nil {
 		details := extractErrorMessages(validationErrs)
-		return common.RespondValidationError(c, details)
+		common.RespondValidationError(c, details)
+		return
 	}
 
-	registeredUser, err := h.usecase.Register(c.Request().Context(), user)
+	registeredUser, err := h.usecase.Register(c.Request.Context(), user)
 	if err != nil {
-		return h.handleError(c, err)
+		h.handleError(c, err)
+		return
 	}
 
-	return c.JSON(http.StatusCreated, dto.RegisterUserResponse{
+	c.JSON(http.StatusCreated, dto.RegisterUserResponse{
 		UserID: registeredUser.ID().String(),
 	})
 }
 
-func (h *UserHandler) handleError(c echo.Context, err error) error {
+func (h *UserHandler) handleError(c *gin.Context, err error) {
 	if errors.Is(err, domainErrors.ErrEmailAlreadyExists) {
-		return common.RespondError(c, http.StatusConflict, common.CodeEmailAlreadyExists, err.Error())
+		common.RespondError(c, http.StatusConflict, common.CodeEmailAlreadyExists, err.Error())
+		return
 	}
 
-	return common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error")
+	common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error")
 }
 
 func extractErrorMessages(errs []error) []string {

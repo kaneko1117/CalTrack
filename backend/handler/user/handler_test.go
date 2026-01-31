@@ -7,14 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 
 	"caltrack/domain/entity"
-	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
 	"caltrack/handler/user"
 	"caltrack/usecase"
 )
+
+func init() {
+	gin.SetMode(gin.TestMode)
+}
 
 type mockUserRepository struct {
 	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
@@ -39,7 +42,7 @@ func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx contex
 	return fn(ctx)
 }
 
-func TestRegisterHandler_Success(t *testing.T) {
+func TestUserHandler_Register_Success(t *testing.T) {
 	repo := &mockUserRepository{
 		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
 			return false, nil
@@ -52,7 +55,6 @@ func TestRegisterHandler_Success(t *testing.T) {
 	uc := usecase.NewUserUsecase(repo, txManager)
 	handler := user.NewUserHandler(uc)
 
-	e := echo.New()
 	reqBody := `{
 		"email": "test@example.com",
 		"password": "password123",
@@ -63,22 +65,20 @@ func TestRegisterHandler_Success(t *testing.T) {
 		"gender": "male",
 		"activityLevel": "moderate"
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
 
-	err := handler.Register(c)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+	c.Request.Header.Set("Content-Type", "application/json")
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if rec.Code != http.StatusCreated {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusCreated)
+	handler.Register(c)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
 	}
 }
 
-func TestRegisterHandler_EmailAlreadyExists(t *testing.T) {
+func TestUserHandler_Register_EmailAlreadyExists(t *testing.T) {
 	repo := &mockUserRepository{
 		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
 			return true, nil
@@ -91,7 +91,6 @@ func TestRegisterHandler_EmailAlreadyExists(t *testing.T) {
 	uc := usecase.NewUserUsecase(repo, txManager)
 	handler := user.NewUserHandler(uc)
 
-	e := echo.New()
 	reqBody := `{
 		"email": "test@example.com",
 		"password": "password123",
@@ -102,22 +101,20 @@ func TestRegisterHandler_EmailAlreadyExists(t *testing.T) {
 		"gender": "male",
 		"activityLevel": "moderate"
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
 
-	err := handler.Register(c)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+	c.Request.Header.Set("Content-Type", "application/json")
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if rec.Code != http.StatusConflict {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusConflict)
+	handler.Register(c)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
 	}
 }
 
-func TestRegisterHandler_ValidationError(t *testing.T) {
+func TestUserHandler_Register_ValidationError(t *testing.T) {
 	repo := &mockUserRepository{
 		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
 			return false, nil
@@ -130,7 +127,6 @@ func TestRegisterHandler_ValidationError(t *testing.T) {
 	uc := usecase.NewUserUsecase(repo, txManager)
 	handler := user.NewUserHandler(uc)
 
-	e := echo.New()
 	reqBody := `{
 		"email": "invalid-email",
 		"password": "password123",
@@ -141,28 +137,25 @@ func TestRegisterHandler_ValidationError(t *testing.T) {
 		"gender": "male",
 		"activityLevel": "moderate"
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
 
-	err := handler.Register(c)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+	c.Request.Header.Set("Content-Type", "application/json")
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+	handler.Register(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
 
-func TestRegisterHandler_InvalidBirthDateFormat(t *testing.T) {
+func TestUserHandler_Register_InvalidBirthDateFormat(t *testing.T) {
 	repo := &mockUserRepository{}
 	txManager := &mockTransactionManager{}
 	uc := usecase.NewUserUsecase(repo, txManager)
 	handler := user.NewUserHandler(uc)
 
-	e := echo.New()
 	reqBody := `{
 		"email": "test@example.com",
 		"password": "password123",
@@ -173,37 +166,15 @@ func TestRegisterHandler_InvalidBirthDateFormat(t *testing.T) {
 		"gender": "male",
 		"activityLevel": "moderate"
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
 
-	err := handler.Register(c)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+	c.Request.Header.Set("Content-Type", "application/json")
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
-	}
-}
+	handler.Register(c)
 
-func TestIsValidationError(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{"email required", domainErrors.ErrEmailRequired, true},
-		{"invalid email", domainErrors.ErrInvalidEmailFormat, true},
-		{"password too short", domainErrors.ErrPasswordTooShort, true},
-		{"email already exists", domainErrors.ErrEmailAlreadyExists, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// isValidationError is not exported, so we test through handleError behavior
-			// This is covered by the integration tests above
-		})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }

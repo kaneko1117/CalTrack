@@ -3,22 +3,24 @@ package main
 import (
 	"log"
 
-	"caltrack/config"
-	"caltrack/handlers"
-	"caltrack/models"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	"caltrack/config"
+	"caltrack/handler/user"
+	gormPersistence "caltrack/infrastructure/persistence/gorm"
+	"caltrack/usecase"
 )
 
 func main() {
 	// Connect to database
 	config.ConnectDatabase()
 
-	// Run migrations
-	if err := models.MigrateUsers(config.DB); err != nil {
-		log.Fatal("Failed to migrate database:", err)
-	}
+	// DI
+	userRepo := gormPersistence.NewGormUserRepository(config.DB)
+	txManager := gormPersistence.NewGormTransactionManager(config.DB)
+	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
+	userHandler := user.NewUserHandler(userUsecase)
 
 	// Setup router
 	r := gin.Default()
@@ -32,7 +34,14 @@ func main() {
 	}))
 
 	// Routes
-	r.GET("/health", handlers.HealthCheck)
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "message": "CalTrack API is running"})
+	})
+
+	api := r.Group("/api/v1")
+	{
+		api.POST("/users", userHandler.Register)
+	}
 
 	// Start server
 	log.Println("Starting server on :8080")
