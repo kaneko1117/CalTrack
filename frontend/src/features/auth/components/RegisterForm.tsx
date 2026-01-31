@@ -1,6 +1,7 @@
 /**
  * RegisterForm - ユーザー登録フォームコンポーネント
  * 新規ユーザー登録のためのフォームUI
+ * Warm & Organicトーンのデザイン
  */
 import * as React from "react";
 import { useState } from "react";
@@ -159,6 +160,66 @@ function getErrorMessage(code: string): string {
 }
 
 /**
+ * AlertCircleアイコン - エラー表示用
+ * SVGインラインアイコン
+ */
+function AlertCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  );
+}
+
+/**
+ * CheckCircleアイコン - 成功表示用
+ * SVGインラインアイコン
+ */
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+/**
+ * フィールドエラー表示コンポーネント
+ * アイコン付きのエラーメッセージを表示
+ */
+function FieldError({ id, message }: { id: string; message: string }) {
+  return (
+    <p id={id} className="flex items-center gap-1.5 text-sm text-destructive">
+      <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+      <span>{message}</span>
+    </p>
+  );
+}
+
+/**
  * RegisterForm - ユーザー登録フォーム
  */
 export function RegisterForm({ onSuccess }: RegisterFormProps) {
@@ -214,45 +275,55 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>新規登録</CardTitle>
-        <CardDescription>
+    <Card className="w-full shadow-warm-lg border-0">
+      <CardHeader className="space-y-1 pb-6">
+        <CardTitle className="text-2xl font-semibold text-center">
+          新規登録
+        </CardTitle>
+        <CardDescription className="text-center text-muted-foreground">
           アカウントを作成して、カロリー管理を始めましょう
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* APIエラー表示 */}
           {error && (
             <div
-              className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md"
+              className="flex items-start gap-3 p-4 text-sm rounded-lg bg-destructive/10 border border-destructive/20"
               role="alert"
             >
-              <p>{getErrorMessage(error.code)}</p>
-              {error.details && error.details.length > 0 && (
-                <ul className="mt-1 list-disc list-inside">
-                  {error.details.map((detail, index) => (
-                    <li key={index}>{detail}</li>
-                  ))}
-                </ul>
-              )}
+              <AlertCircleIcon className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-destructive">
+                  {getErrorMessage(error.code)}
+                </p>
+                {error.details && error.details.length > 0 && (
+                  <ul className="mt-1.5 list-disc list-inside text-destructive/80">
+                    {error.details.map((detail, index) => (
+                      <li key={index}>{detail}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
 
           {/* 成功メッセージ */}
           {isSuccess && (
             <div
-              className="p-3 text-sm text-green-500 bg-green-50 border border-green-200 rounded-md"
+              className="flex items-center gap-3 p-4 text-sm rounded-lg bg-success/10 border border-success/20"
               role="status"
             >
-              登録が完了しました
+              <CheckCircleIcon className="w-5 h-5 text-success flex-shrink-0" />
+              <p className="font-medium text-success">登録が完了しました</p>
             </div>
           )}
 
           {/* ニックネーム */}
           <div className="space-y-2">
-            <Label htmlFor="nickname">ニックネーム</Label>
+            <Label htmlFor="nickname" className="text-foreground font-medium">
+              ニックネーム
+            </Label>
             <Input
               id="nickname"
               name="nickname"
@@ -262,18 +333,21 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               placeholder="ニックネームを入力"
               disabled={isLoading}
               aria-invalid={!!formErrors.nickname}
-              aria-describedby={formErrors.nickname ? "nickname-error" : undefined}
+              aria-describedby={
+                formErrors.nickname ? "nickname-error" : undefined
+              }
+              className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
             {formErrors.nickname && (
-              <p id="nickname-error" className="text-sm text-red-500">
-                {formErrors.nickname}
-              </p>
+              <FieldError id="nickname-error" message={formErrors.nickname} />
             )}
           </div>
 
           {/* メールアドレス */}
           <div className="space-y-2">
-            <Label htmlFor="email">メールアドレス</Label>
+            <Label htmlFor="email" className="text-foreground font-medium">
+              メールアドレス
+            </Label>
             <Input
               id="email"
               name="email"
@@ -284,17 +358,18 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               disabled={isLoading}
               aria-invalid={!!formErrors.email}
               aria-describedby={formErrors.email ? "email-error" : undefined}
+              className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
             {formErrors.email && (
-              <p id="email-error" className="text-sm text-red-500">
-                {formErrors.email}
-              </p>
+              <FieldError id="email-error" message={formErrors.email} />
             )}
           </div>
 
           {/* パスワード */}
           <div className="space-y-2">
-            <Label htmlFor="password">パスワード</Label>
+            <Label htmlFor="password" className="text-foreground font-medium">
+              パスワード
+            </Label>
             <Input
               id="password"
               name="password"
@@ -304,64 +379,76 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               placeholder="8文字以上で入力"
               disabled={isLoading}
               aria-invalid={!!formErrors.password}
-              aria-describedby={formErrors.password ? "password-error" : undefined}
+              aria-describedby={
+                formErrors.password ? "password-error" : undefined
+              }
+              className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
             {formErrors.password && (
-              <p id="password-error" className="text-sm text-red-500">
-                {formErrors.password}
-              </p>
+              <FieldError id="password-error" message={formErrors.password} />
             )}
           </div>
 
-          {/* 体重 */}
-          <div className="space-y-2">
-            <Label htmlFor="weight">体重 (kg)</Label>
-            <Input
-              id="weight"
-              name="weight"
-              type="number"
-              step="0.1"
-              min="0"
-              value={formState.weight}
-              onChange={handleChange}
-              placeholder="60"
-              disabled={isLoading}
-              aria-invalid={!!formErrors.weight}
-              aria-describedby={formErrors.weight ? "weight-error" : undefined}
-            />
-            {formErrors.weight && (
-              <p id="weight-error" className="text-sm text-red-500">
-                {formErrors.weight}
-              </p>
-            )}
-          </div>
+          {/* 体重・身長（2カラム） */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* 体重 */}
+            <div className="space-y-2">
+              <Label htmlFor="weight" className="text-foreground font-medium">
+                体重 (kg)
+              </Label>
+              <Input
+                id="weight"
+                name="weight"
+                type="number"
+                step="0.1"
+                min="0"
+                value={formState.weight}
+                onChange={handleChange}
+                placeholder="60"
+                disabled={isLoading}
+                aria-invalid={!!formErrors.weight}
+                aria-describedby={
+                  formErrors.weight ? "weight-error" : undefined
+                }
+                className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
+              />
+              {formErrors.weight && (
+                <FieldError id="weight-error" message={formErrors.weight} />
+              )}
+            </div>
 
-          {/* 身長 */}
-          <div className="space-y-2">
-            <Label htmlFor="height">身長 (cm)</Label>
-            <Input
-              id="height"
-              name="height"
-              type="number"
-              step="0.1"
-              min="0"
-              value={formState.height}
-              onChange={handleChange}
-              placeholder="170"
-              disabled={isLoading}
-              aria-invalid={!!formErrors.height}
-              aria-describedby={formErrors.height ? "height-error" : undefined}
-            />
-            {formErrors.height && (
-              <p id="height-error" className="text-sm text-red-500">
-                {formErrors.height}
-              </p>
-            )}
+            {/* 身長 */}
+            <div className="space-y-2">
+              <Label htmlFor="height" className="text-foreground font-medium">
+                身長 (cm)
+              </Label>
+              <Input
+                id="height"
+                name="height"
+                type="number"
+                step="0.1"
+                min="0"
+                value={formState.height}
+                onChange={handleChange}
+                placeholder="170"
+                disabled={isLoading}
+                aria-invalid={!!formErrors.height}
+                aria-describedby={
+                  formErrors.height ? "height-error" : undefined
+                }
+                className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
+              />
+              {formErrors.height && (
+                <FieldError id="height-error" message={formErrors.height} />
+              )}
+            </div>
           </div>
 
           {/* 生年月日 */}
           <div className="space-y-2">
-            <Label htmlFor="birthDate">生年月日</Label>
+            <Label htmlFor="birthDate" className="text-foreground font-medium">
+              生年月日
+            </Label>
             <Input
               id="birthDate"
               name="birthDate"
@@ -370,18 +457,21 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               onChange={handleChange}
               disabled={isLoading}
               aria-invalid={!!formErrors.birthDate}
-              aria-describedby={formErrors.birthDate ? "birthDate-error" : undefined}
+              aria-describedby={
+                formErrors.birthDate ? "birthDate-error" : undefined
+              }
+              className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
             {formErrors.birthDate && (
-              <p id="birthDate-error" className="text-sm text-red-500">
-                {formErrors.birthDate}
-              </p>
+              <FieldError id="birthDate-error" message={formErrors.birthDate} />
             )}
           </div>
 
           {/* 性別 */}
           <div className="space-y-2">
-            <Label htmlFor="gender">性別</Label>
+            <Label htmlFor="gender" className="text-foreground font-medium">
+              性別
+            </Label>
             <Select
               id="gender"
               name="gender"
@@ -390,6 +480,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               disabled={isLoading}
               aria-invalid={!!formErrors.gender}
               aria-describedby={formErrors.gender ? "gender-error" : undefined}
+              className="h-11"
             >
               <SelectOption value="">選択してください</SelectOption>
               {GENDER_OPTIONS.map((option) => (
@@ -399,15 +490,18 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               ))}
             </Select>
             {formErrors.gender && (
-              <p id="gender-error" className="text-sm text-red-500">
-                {formErrors.gender}
-              </p>
+              <FieldError id="gender-error" message={formErrors.gender} />
             )}
           </div>
 
           {/* 活動レベル */}
           <div className="space-y-2">
-            <Label htmlFor="activityLevel">活動レベル</Label>
+            <Label
+              htmlFor="activityLevel"
+              className="text-foreground font-medium"
+            >
+              活動レベル
+            </Label>
             <Select
               id="activityLevel"
               name="activityLevel"
@@ -418,6 +512,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               aria-describedby={
                 formErrors.activityLevel ? "activityLevel-error" : undefined
               }
+              className="h-11"
             >
               <SelectOption value="">選択してください</SelectOption>
               {ACTIVITY_LEVEL_OPTIONS.map((option) => (
@@ -427,14 +522,19 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               ))}
             </Select>
             {formErrors.activityLevel && (
-              <p id="activityLevel-error" className="text-sm text-red-500">
-                {formErrors.activityLevel}
-              </p>
+              <FieldError
+                id="activityLevel-error"
+                message={formErrors.activityLevel}
+              />
             )}
           </div>
 
           {/* 送信ボタン */}
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button
+            type="submit"
+            className="w-full h-12 text-base font-medium mt-6 bg-primary hover:bg-primary/90 transition-colors"
+            disabled={isLoading}
+          >
             {isLoading ? "登録中..." : "登録する"}
           </Button>
         </form>
