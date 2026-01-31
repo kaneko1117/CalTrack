@@ -1,21 +1,20 @@
 /**
- * 認証フック
- * ユーザー認証に関するカスタムフック
+ * ログアウトフック
+ * ユーザーログアウトに関するカスタムフック
  */
 
 import { useState, useCallback } from "react";
-import { registerUser, ApiError } from "../api";
-import type { RegisterUserRequest } from "../types";
+import { logout, ApiError } from "../api";
 import {
   ERROR_CODE_INTERNAL_ERROR,
   ERROR_MESSAGE_UNEXPECTED,
 } from "../types";
 
 /**
- * useRegisterUserフックの戻り値の型
+ * useLogoutフックの戻り値の型
  */
-export type UseRegisterUserReturn = {
-  register: (request: RegisterUserRequest, onSuccess?: () => void) => Promise<void>;
+export type UseLogoutReturn = {
+  logout: (onSuccess?: () => void) => Promise<void>;
   isLoading: boolean;
   error: ApiError | null;
   isSuccess: boolean;
@@ -23,27 +22,29 @@ export type UseRegisterUserReturn = {
 };
 
 /**
- * ユーザー登録フック
+ * ユーザーログアウトフック
  * ローディング状態、エラー状態、成功状態を管理
  *
- * @returns UseRegisterUserReturn
+ * @returns UseLogoutReturn
  *
  * @example
  * ```tsx
- * const { register, isLoading, error, isSuccess, reset } = useRegisterUser();
+ * const { logout, isLoading, error, isSuccess, reset } = useLogout();
  *
- * const handleSubmit = async (data: RegisterUserRequest) => {
- *   await register(data);
+ * const handleLogout = async () => {
+ *   await logout(() => {
+ *     // ログアウト成功時の処理
+ *     navigate('/login');
+ *   });
  * };
  * ```
  */
-export function useRegisterUser(): UseRegisterUserReturn {
+export function useLogout(): UseLogoutReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const register = useCallback(async (
-    request: RegisterUserRequest,
+  const logoutHandler = useCallback(async (
     onSuccess?: () => void
   ) => {
     setIsLoading(true);
@@ -51,7 +52,7 @@ export function useRegisterUser(): UseRegisterUserReturn {
     setIsSuccess(false);
 
     try {
-      await registerUser(request);
+      await logout();
       setIsSuccess(true);
       // 成功時にコールバックを直接呼び出し
       onSuccess?.();
@@ -75,16 +76,10 @@ export function useRegisterUser(): UseRegisterUserReturn {
   }, []);
 
   return {
-    register,
+    logout: logoutHandler,
     isLoading,
     error,
     isSuccess,
     reset,
   };
 }
-
-// useLogin, useLogout フックのエクスポート
-export { useLogin } from "./useLogin";
-export type { UseLoginReturn } from "./useLogin";
-export { useLogout } from "./useLogout";
-export type { UseLogoutReturn } from "./useLogout";

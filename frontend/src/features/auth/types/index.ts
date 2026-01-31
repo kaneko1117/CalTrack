@@ -19,13 +19,16 @@ export type ErrorCode =
   | "INVALID_REQUEST"
   | "VALIDATION_ERROR"
   | "EMAIL_ALREADY_EXISTS"
+  | "INVALID_CREDENTIALS"
   | "INTERNAL_ERROR";
 
 /** エラーコード定数 */
 export const ERROR_CODE_INTERNAL_ERROR: ErrorCode = "INTERNAL_ERROR";
+export const ERROR_CODE_INVALID_CREDENTIALS: ErrorCode = "INVALID_CREDENTIALS";
 
 /** エラーメッセージ定数 */
 export const ERROR_MESSAGE_UNEXPECTED = "予期しないエラーが発生しました";
+export const ERROR_MESSAGE_INVALID_CREDENTIALS = "メールアドレスまたはパスワードが間違っています";
 
 /** ユーザー登録リクエスト */
 export type RegisterUserRequest = {
@@ -49,4 +52,22 @@ export type ApiErrorResponse = {
   code: ErrorCode;
   message: string;
   details?: string[];
+};
+
+/** ログインリクエスト */
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+/** ログインレスポンス */
+export type LoginResponse = {
+  userId: string;
+  email: string;
+  nickname: string;
+};
+
+/** ログアウトレスポンス */
+export type LogoutResponse = {
+  message: string;
 };
