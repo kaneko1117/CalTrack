@@ -23,6 +23,11 @@ var (
 	// Usecase errors
 	ErrEmailAlreadyExists = errors.New("email already exists")
 
+	// Auth errors
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrSessionNotFound    = errors.New("session not found")
+	ErrUserNotFound       = errors.New("user not found")
+
 	// Session errors
 	ErrSessionIDGenerationFailed = errors.New("failed to generate session id")
 	ErrInvalidSessionID          = errors.New("invalid session id")
