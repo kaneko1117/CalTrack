@@ -22,7 +22,11 @@ func NewGormUserRepository(db *gorm.DB) *GormUserRepository {
 func (r *GormUserRepository) Save(ctx context.Context, user *entity.User) error {
 	tx := GetTx(ctx, r.db)
 	m := toUserModel(user)
-	return tx.Create(&m).Error
+	if err := tx.Create(&m).Error; err != nil {
+		logError("Save", err, "user_id", user.ID().String())
+		return err
+	}
+	return nil
 }
 
 func (r *GormUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
@@ -33,6 +37,7 @@ func (r *GormUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*
 		return nil, nil
 	}
 	if err != nil {
+		logError("FindByEmail", err, "email", email.String())
 		return nil, err
 	}
 	return toUserEntity(&m)
@@ -42,7 +47,11 @@ func (r *GormUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) 
 	tx := GetTx(ctx, r.db)
 	var count int64
 	err := tx.Model(&model.User{}).Where("email = ?", email.String()).Count(&count).Error
-	return count > 0, err
+	if err != nil {
+		logError("ExistsByEmail", err, "email", email.String())
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func toUserModel(user *entity.User) model.User {
