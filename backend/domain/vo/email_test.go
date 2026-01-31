@@ -23,17 +23,17 @@ func TestNewEmail(t *testing.T) {
 		wantErr   error
 	}{
 		// 正常系
-		{"valid email", "user@example.com", "user@example.com", nil},
-		{"valid email with subdomain", "user@mail.example.com", "user@mail.example.com", nil},
-		{"valid email with plus", "user+tag@example.com", "user+tag@example.com", nil},
+		{"正常なメールアドレス", "user@example.com", "user@example.com", nil},
+		{"サブドメイン付きメールアドレス", "user@mail.example.com", "user@mail.example.com", nil},
+		{"プラス記号付きメールアドレス", "user+tag@example.com", "user+tag@example.com", nil},
 		// 異常系
-		{"empty string", "", "", domainErrors.ErrEmailRequired},
-		{"no at sign", "userexample.com", "", domainErrors.ErrInvalidEmailFormat},
-		{"no domain", "user@", "", domainErrors.ErrInvalidEmailFormat},
-		{"no local part", "@example.com", "", domainErrors.ErrInvalidEmailFormat},
+		{"空文字の場合はエラー", "", "", domainErrors.ErrEmailRequired},
+		{"@がない場合はエラー", "userexample.com", "", domainErrors.ErrInvalidEmailFormat},
+		{"ドメインがない場合はエラー", "user@", "", domainErrors.ErrInvalidEmailFormat},
+		{"ローカルパートがない場合はエラー", "@example.com", "", domainErrors.ErrInvalidEmailFormat},
 		// 境界値
-		{"max length 254", email254, email254, nil},
-		{"exceeds 254", email255, "", domainErrors.ErrEmailTooLong},
+		{"最大長254文字は有効", email254, email254, nil},
+		{"255文字以上はエラー", email255, "", domainErrors.ErrEmailTooLong},
 	}
 
 	for _, tt := range tests {
@@ -58,8 +58,8 @@ func TestEmail_Equals(t *testing.T) {
 		email2 string
 		want   bool
 	}{
-		{"same value", "user@example.com", "user@example.com", true},
-		{"different value", "user1@example.com", "user2@example.com", false},
+		{"同じ値の場合はtrue", "user@example.com", "user@example.com", true},
+		{"異なる値の場合はfalse", "user1@example.com", "user2@example.com", false},
 	}
 
 	for _, tt := range tests {

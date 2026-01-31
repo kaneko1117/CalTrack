@@ -15,16 +15,16 @@ func TestNewHeight(t *testing.T) {
 		wantErr error
 	}{
 		// 正常系
-		{"valid height 170.5cm", 170.5, 170.5, nil},
-		{"valid height 100cm", 100, 100, nil},
+		{"正常な身長170.5cm", 170.5, 170.5, nil},
+		{"正常な身長100cm", 100, 100, nil},
 		// 異常系
-		{"zero", 0, 0, domainErrors.ErrHeightMustBePositive},
-		{"negative", -10, 0, domainErrors.ErrHeightMustBePositive},
-		{"too tall 301cm", 301, 0, domainErrors.ErrHeightTooTall},
+		{"0はエラー", 0, 0, domainErrors.ErrHeightMustBePositive},
+		{"負の値はエラー", -10, 0, domainErrors.ErrHeightMustBePositive},
+		{"301cm以上はエラー", 301, 0, domainErrors.ErrHeightTooTall},
 		// 境界値
-		{"min positive 0.1cm", 0.1, 0.1, nil},
-		{"max height 300cm", 300, 300, nil},
-		{"exceeds max 300.1cm", 300.1, 0, domainErrors.ErrHeightTooTall},
+		{"最小値0.1cmは有効", 0.1, 0.1, nil},
+		{"最大値300cmは有効", 300, 300, nil},
+		{"300.1cmは無効", 300.1, 0, domainErrors.ErrHeightTooTall},
 	}
 
 	for _, tt := range tests {
@@ -48,9 +48,9 @@ func TestHeight_Meters(t *testing.T) {
 		inputCm    float64
 		wantMeters float64
 	}{
-		{"170cm to 1.7m", 170, 1.7},
-		{"100cm to 1m", 100, 1.0},
-		{"185.5cm to 1.855m", 185.5, 1.855},
+		{"170cmは1.7mに変換", 170, 1.7},
+		{"100cmは1mに変換", 100, 1.0},
+		{"185.5cmは1.855mに変換", 185.5, 1.855},
 	}
 
 	for _, tt := range tests {

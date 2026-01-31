@@ -15,15 +15,15 @@ func TestNewActivityLevel(t *testing.T) {
 		wantErr   error
 	}{
 		// 正常系
-		{"sedentary", "sedentary", "sedentary", nil},
-		{"light", "light", "light", nil},
-		{"moderate", "moderate", "moderate", nil},
-		{"active", "active", "active", nil},
-		{"veryActive", "veryActive", "veryActive", nil},
+		{"sedentaryは有効", "sedentary", "sedentary", nil},
+		{"lightは有効", "light", "light", nil},
+		{"moderateは有効", "moderate", "moderate", nil},
+		{"activeは有効", "active", "active", nil},
+		{"veryActiveは有効", "veryActive", "veryActive", nil},
 		// 異常系
-		{"empty", "", "", domainErrors.ErrInvalidActivityLevel},
-		{"invalid", "unknown", "", domainErrors.ErrInvalidActivityLevel},
-		{"wrong case", "Sedentary", "", domainErrors.ErrInvalidActivityLevel},
+		{"空文字はエラー", "", "", domainErrors.ErrInvalidActivityLevel},
+		{"無効な値はエラー", "unknown", "", domainErrors.ErrInvalidActivityLevel},
+		{"大文字始まりはエラー", "Sedentary", "", domainErrors.ErrInvalidActivityLevel},
 	}
 
 	for _, tt := range tests {
@@ -47,11 +47,11 @@ func TestActivityLevel_Multiplier(t *testing.T) {
 		level          string
 		wantMultiplier float64
 	}{
-		{"sedentary", "sedentary", 1.2},
-		{"light", "light", 1.375},
-		{"moderate", "moderate", 1.55},
-		{"active", "active", 1.725},
-		{"veryActive", "veryActive", 1.9},
+		{"sedentaryの係数は1.2", "sedentary", 1.2},
+		{"lightの係数は1.375", "light", 1.375},
+		{"moderateの係数は1.55", "moderate", 1.55},
+		{"activeの係数は1.725", "active", 1.725},
+		{"veryActiveの係数は1.9", "veryActive", 1.9},
 	}
 
 	for _, tt := range tests {

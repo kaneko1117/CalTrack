@@ -56,8 +56,8 @@ func TestNewUser_ValidationErrors(t *testing.T) {
 		email   string
 		wantErr error
 	}{
-		{"invalid email", "invalid", domainErrors.ErrInvalidEmailFormat},
-		{"empty email", "", domainErrors.ErrEmailRequired},
+		{"無効なメールアドレス形式", "invalid", domainErrors.ErrInvalidEmailFormat},
+		{"空のメールアドレス", "", domainErrors.ErrEmailRequired},
 	}
 
 	for _, tt := range tests {

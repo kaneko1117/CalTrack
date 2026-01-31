@@ -198,6 +198,7 @@ docker compose up --build
 
 ### 共通
 - **コメントは日本語で記述**
+- **テストケース名は日本語で記述**
 - マジックナンバー禁止（定数化）
 - エラーコード・メッセージは定数化
 - Usecase, Handler はドメイン単位で1ファイル
@@ -206,6 +207,7 @@ docker compose up --build
 - `go fmt` でフォーマット
 - テストファイル: `{file}_test.go`
 - テストパッケージ: `{package}_test`
+- **テストケース名は日本語**: `t.Run` の第1引数、テーブル駆動テストのnameは日本語
 
 ### Frontend (TypeScript/React)
 - ESLint / Prettier でフォーマット
@@ -213,6 +215,7 @@ docker compose up --build
 - **`interface` ではなく `type` を使用**
 - テストファイル: `{file}.test.ts(x)`
 - 定数: `ERROR_CODE_XXX`, `ERROR_MESSAGE_XXX`
+- **テストケース名は日本語**: `describe`, `it` の第1引数は日本語
 - **必須スキル参照**: `.claude/skills/` 配下のスキルを必ず読む
   - `vercel-react-best-practices` - パフォーマンス最適化
   - `vercel-composition-patterns` - コンポーネント構成

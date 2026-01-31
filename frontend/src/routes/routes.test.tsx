@@ -16,7 +16,7 @@ global.fetch = vi.fn(() =>
 );
 
 describe("ルーティング", () => {
-  describe("/register ルート", () => {
+  describe("/registerルート", () => {
     it("RegisterPageが表示される", async () => {
       const router = createMemoryRouter(routes, {
         initialEntries: ["/register"],
@@ -43,7 +43,7 @@ describe("ルーティング", () => {
     });
   });
 
-  describe("/ ルート", () => {
+  describe("/ルート", () => {
     it("HomePageが表示される", async () => {
       const router = createMemoryRouter(routes, {
         initialEntries: ["/"],

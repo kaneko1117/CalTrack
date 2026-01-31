@@ -14,14 +14,14 @@ func TestNewPassword(t *testing.T) {
 		wantErr error
 	}{
 		// 正常系
-		{"valid 8 chars", "12345678", nil},
-		{"valid long password", "verylongpassword123", nil},
+		{"8文字のパスワードは有効", "12345678", nil},
+		{"長いパスワードは有効", "verylongpassword123", nil},
 		// 異常系
-		{"empty string", "", domainErrors.ErrPasswordRequired},
-		{"too short 7 chars", "1234567", domainErrors.ErrPasswordTooShort},
+		{"空文字はエラー", "", domainErrors.ErrPasswordRequired},
+		{"7文字はエラー", "1234567", domainErrors.ErrPasswordTooShort},
 		// 境界値
-		{"exactly 8 chars", "abcdefgh", nil},
-		{"only 7 chars", "abcdefg", domainErrors.ErrPasswordTooShort},
+		{"ちょうど8文字は有効", "abcdefgh", nil},
+		{"7文字は無効", "abcdefg", domainErrors.ErrPasswordTooShort},
 	}
 
 	for _, tt := range tests {
@@ -60,8 +60,8 @@ func TestHashedPassword_Compare(t *testing.T) {
 		input     string
 		wantMatch bool
 	}{
-		{"correct password", "12345678", true},
-		{"wrong password", "wrongpassword", false},
+		{"正しいパスワードは一致", "12345678", true},
+		{"間違ったパスワードは不一致", "wrongpassword", false},
 	}
 
 	for _, tt := range tests {

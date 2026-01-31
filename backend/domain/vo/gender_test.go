@@ -15,13 +15,13 @@ func TestNewGender(t *testing.T) {
 		wantErr    error
 	}{
 		// 正常系
-		{"male", "male", "male", nil},
-		{"female", "female", "female", nil},
-		{"other", "other", "other", nil},
+		{"maleは有効", "male", "male", nil},
+		{"femaleは有効", "female", "female", nil},
+		{"otherは有効", "other", "other", nil},
 		// 異常系
-		{"empty", "", "", domainErrors.ErrInvalidGender},
-		{"invalid", "unknown", "", domainErrors.ErrInvalidGender},
-		{"uppercase MALE", "MALE", "", domainErrors.ErrInvalidGender},
+		{"空文字はエラー", "", "", domainErrors.ErrInvalidGender},
+		{"無効な値はエラー", "unknown", "", domainErrors.ErrInvalidGender},
+		{"大文字MALEはエラー", "MALE", "", domainErrors.ErrInvalidGender},
 	}
 
 	for _, tt := range tests {

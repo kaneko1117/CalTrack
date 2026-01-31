@@ -36,8 +36,8 @@ describe("useRegisterUser", () => {
     vi.resetAllMocks();
   });
 
-  describe("initial state", () => {
-    it("should have correct initial state", () => {
+  describe("初期状態", () => {
+    it("正しい初期状態を持つ", () => {
       const { result } = renderHook(() => useRegisterUser());
 
       expect(result.current.isLoading).toBe(false);
@@ -48,8 +48,8 @@ describe("useRegisterUser", () => {
     });
   });
 
-  describe("successful registration", () => {
-    it("should set isSuccess to true on successful registration", async () => {
+  describe("登録成功", () => {
+    it("登録成功時にisSuccessがtrueになる", async () => {
       mockRegisterUser.mockResolvedValueOnce({ userId: "user-123" });
 
       const { result } = renderHook(() => useRegisterUser());
@@ -68,7 +68,7 @@ describe("useRegisterUser", () => {
       expect(mockRegisterUser).toHaveBeenCalledTimes(1);
     });
 
-    it("should set isLoading to true during registration", async () => {
+    it("登録中はisLoadingがtrueになる", async () => {
       let resolvePromise: (value: { userId: string }) => void;
       const pendingPromise = new Promise<{ userId: string }>((resolve) => {
         resolvePromise = resolve;
@@ -95,8 +95,8 @@ describe("useRegisterUser", () => {
     });
   });
 
-  describe("validation error", () => {
-    it("should set error on validation error", async () => {
+  describe("バリデーションエラー", () => {
+    it("バリデーションエラー時にエラーが設定される", async () => {
       const validationError = new authApi.ApiError(
         "VALIDATION_ERROR",
         "Validation failed",
@@ -124,8 +124,8 @@ describe("useRegisterUser", () => {
     });
   });
 
-  describe("email already exists error", () => {
-    it("should set error when email already exists", async () => {
+  describe("メールアドレス重複エラー", () => {
+    it("メールアドレス重複時にエラーが設定される", async () => {
       const emailExistsError = new authApi.ApiError(
         "EMAIL_ALREADY_EXISTS",
         "Email already registered",
@@ -148,8 +148,8 @@ describe("useRegisterUser", () => {
     });
   });
 
-  describe("server error", () => {
-    it("should set error on server error", async () => {
+  describe("サーバーエラー", () => {
+    it("サーバーエラー時にエラーが設定される", async () => {
       const serverError = new authApi.ApiError(
         ERROR_CODE_INTERNAL_ERROR,
         "Internal server error",
@@ -171,7 +171,7 @@ describe("useRegisterUser", () => {
       });
     });
 
-    it("should handle unexpected error", async () => {
+    it("予期しないエラー時にINTERNAL_ERRORが設定される", async () => {
       mockRegisterUser.mockRejectedValueOnce(new Error("Network error"));
 
       const { result } = renderHook(() => useRegisterUser());
@@ -189,8 +189,8 @@ describe("useRegisterUser", () => {
     });
   });
 
-  describe("reset", () => {
-    it("should reset all state", async () => {
+  describe("リセット", () => {
+    it("全ての状態がリセットされる", async () => {
       const validationError = new authApi.ApiError(
         "VALIDATION_ERROR",
         "Validation failed",

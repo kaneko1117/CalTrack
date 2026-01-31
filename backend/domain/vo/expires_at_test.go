@@ -43,11 +43,11 @@ func TestExpiresAt_IsExpired(t *testing.T) {
 		want      bool
 	}{
 		// 有効期限内
-		{"future", fixedNow.Add(1 * time.Hour), false},
-		{"exactly now", fixedNow, false},
+		{"未来の時刻は期限切れでない", fixedNow.Add(1 * time.Hour), false},
+		{"現在時刻は期限切れでない", fixedNow, false},
 		// 有効期限切れ
-		{"past by 1 second", fixedNow.Add(-1 * time.Second), true},
-		{"past by 1 day", fixedNow.AddDate(0, 0, -1), true},
+		{"1秒前は期限切れ", fixedNow.Add(-1 * time.Second), true},
+		{"1日前は期限切れ", fixedNow.AddDate(0, 0, -1), true},
 	}
 
 	for _, tt := range tests {
@@ -72,9 +72,9 @@ func TestExpiresAt_ValidateNotExpired(t *testing.T) {
 		wantErr   error
 	}{
 		// 有効期限内
-		{"valid", fixedNow.Add(1 * time.Hour), nil},
+		{"有効期限内はエラーなし", fixedNow.Add(1 * time.Hour), nil},
 		// 有効期限切れ
-		{"expired", fixedNow.Add(-1 * time.Second), domainErrors.ErrSessionExpired},
+		{"有効期限切れはエラー", fixedNow.Add(-1 * time.Second), domainErrors.ErrSessionExpired},
 	}
 
 	for _, tt := range tests {
