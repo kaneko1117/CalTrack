@@ -9,7 +9,37 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 ## 概要
 詳細設計を受け取り、コード実装のみを行うエージェント。
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
-テスト実行・PR作成は `test-pr` エージェントが担当。
+テスト実行は `test` エージェント、PR作成は `pr` エージェントが担当。
+
+## 参照するrules
+
+実装前に必ず以下のrulesを読み込む:
+
+```bash
+# 共通
+cat .claude/rules/coding.md
+
+# 対象層に応じて
+cat .claude/rules/{layer}-layer.md
+```
+
+| 対象層 | 参照rules |
+|-------|----------|
+| Backend Domain | `.claude/rules/domain-layer.md` |
+| Backend Usecase | `.claude/rules/usecase-layer.md` |
+| Backend Infrastructure | `.claude/rules/infrastructure-layer.md` |
+| Backend Handler | `.claude/rules/handler-layer.md` |
+| Frontend | `.claude/rules/frontend-layer.md` + 必須スキル（下記参照） |
+
+### Frontend必須スキル
+
+Frontend実装時は以下のスキルを必ず参照:
+
+```bash
+cat .claude/skills/vercel-react-best-practices/AGENTS.md
+cat .claude/skills/vercel-composition-patterns/AGENTS.md
+cat .claude/skills/web-design-guidelines/AGENTS.md
+```
 
 ## 入力
 - 詳細設計ドキュメント（1つの層または機能単位）
@@ -150,7 +180,7 @@ frontend/src/
 - {VO/Entity/Usecase等}: {名前}
 - テストケース: {N}件
 
-次のステップ: `test-pr` エージェントでテスト実行・PR作成
+次のステップ: `test` エージェントでテスト実行
 ```
 
 ### Frontend
@@ -171,7 +201,7 @@ frontend/src/
 - Components: {コンポーネント名}
 - テストケース: {N}件
 
-次のステップ: `test-pr` エージェントでテスト実行・PR作成
+次のステップ: `test` エージェントでテスト実行
 ```
 
 ---
