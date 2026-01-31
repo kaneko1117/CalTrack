@@ -10,6 +10,14 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 実装完了後、Build・Test を実行するエージェント。
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
+## 参照するrules
+
+テスト修正時に以下のrulesを参照:
+
+```bash
+cat .claude/rules/coding.md
+```
+
 ## 入力
 - 実装完了報告（実装したファイル一覧）
 - 対象: Backend または Frontend

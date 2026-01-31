@@ -10,6 +10,14 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 テスト完了・ユーザー承認後、PRを作成するエージェント。
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
+## 参照するrules
+
+コミットメッセージ作成時に以下のrulesを参照:
+
+```bash
+cat .claude/rules/coding.md
+```
+
 ## 入力
 - テスト結果報告
 - 設計Issue番号（例: `#5`）
