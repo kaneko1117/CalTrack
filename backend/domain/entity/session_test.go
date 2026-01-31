@@ -37,8 +37,8 @@ func TestNewSession_InvalidUserID(t *testing.T) {
 		userID  string
 		wantErr error
 	}{
-		{"empty user id", "", domainErrors.ErrInvalidUserID},
-		{"invalid uuid format", "invalid-uuid", domainErrors.ErrInvalidUserID},
+		{"空のユーザーIDはエラー", "", domainErrors.ErrInvalidUserID},
+		{"無効なUUID形式はエラー", "invalid-uuid", domainErrors.ErrInvalidUserID},
 	}
 
 	for _, tt := range tests {
@@ -140,9 +140,9 @@ func TestReconstructSession_InvalidSessionID(t *testing.T) {
 		name      string
 		sessionID string
 	}{
-		{"empty session id", ""},
-		{"invalid base64", "not-valid-base64!!!"},
-		{"too short base64", "YWJjZA=="},
+		{"空のセッションIDはエラー", ""},
+		{"無効なbase64はエラー", "not-valid-base64!!!"},
+		{"短すぎるbase64はエラー", "YWJjZA=="},
 	}
 
 	for _, tt := range tests {
@@ -171,8 +171,8 @@ func TestReconstructSession_InvalidUserID(t *testing.T) {
 		name   string
 		userID string
 	}{
-		{"empty user id", ""},
-		{"invalid uuid format", "invalid-uuid"},
+		{"空のユーザーIDはエラー", ""},
+		{"無効なUUID形式はエラー", "invalid-uuid"},
 	}
 
 	for _, tt := range tests {
@@ -203,9 +203,9 @@ func TestSession_IsExpired(t *testing.T) {
 		want      bool
 	}{
 		// 有効期限内（未来）
-		{"not expired", time.Now().Add(24 * time.Hour), false},
+		{"期限内は期限切れでない", time.Now().Add(24 * time.Hour), false},
 		// 有効期限切れ（過去）
-		{"expired", time.Now().Add(-24 * time.Hour), true},
+		{"期限切れは期限切れ", time.Now().Add(-24 * time.Hour), true},
 	}
 
 	for _, tt := range tests {
@@ -236,9 +236,9 @@ func TestSession_ValidateNotExpired(t *testing.T) {
 		wantErr   error
 	}{
 		// 有効期限内（未来）
-		{"valid", time.Now().Add(24 * time.Hour), nil},
+		{"有効期限内はエラーなし", time.Now().Add(24 * time.Hour), nil},
 		// 有効期限切れ（過去）
-		{"expired", time.Now().Add(-24 * time.Hour), domainErrors.ErrSessionExpired},
+		{"有効期限切れはエラー", time.Now().Add(-24 * time.Hour), domainErrors.ErrSessionExpired},
 	}
 
 	for _, tt := range tests {

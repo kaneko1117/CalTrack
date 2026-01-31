@@ -29,11 +29,11 @@ func TestParseUserID(t *testing.T) {
 		wantErr error
 	}{
 		// 正常系
-		{"valid UUID", validUUID, validUUID, nil},
+		{"有効なUUID", validUUID, validUUID, nil},
 		// 異常系
-		{"empty string", "", "", domainErrors.ErrInvalidUserID},
-		{"invalid format", "invalid", "", domainErrors.ErrInvalidUserID},
-		{"partial UUID", "550e8400-e29b", "", domainErrors.ErrInvalidUserID},
+		{"空文字はエラー", "", "", domainErrors.ErrInvalidUserID},
+		{"無効な形式はエラー", "invalid", "", domainErrors.ErrInvalidUserID},
+		{"不完全なUUIDはエラー", "550e8400-e29b", "", domainErrors.ErrInvalidUserID},
 	}
 
 	for _, tt := range tests {
@@ -63,8 +63,8 @@ func TestUserID_Equals(t *testing.T) {
 		id2  vo.UserID
 		want bool
 	}{
-		{"same value", id1, id2, true},
-		{"different value", id1, id3, false},
+		{"同じ値はtrue", id1, id2, true},
+		{"異なる値はfalse", id1, id3, false},
 	}
 
 	for _, tt := range tests {

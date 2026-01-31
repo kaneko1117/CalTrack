@@ -43,11 +43,11 @@ func TestParseSessionID(t *testing.T) {
 		wantErr error
 	}{
 		// 正常系
-		{"valid session id", validID.String(), nil},
+		{"有効なセッションID", validID.String(), nil},
 		// 異常系
-		{"empty string", "", domainErrors.ErrInvalidSessionID},
-		{"invalid base64", "not-valid-base64!!!", domainErrors.ErrInvalidSessionID},
-		{"too short", "YWJjZA==", domainErrors.ErrInvalidSessionID}, // "abcd" in base64
+		{"空文字はエラー", "", domainErrors.ErrInvalidSessionID},
+		{"無効なbase64はエラー", "not-valid-base64!!!", domainErrors.ErrInvalidSessionID},
+		{"短すぎるとエラー", "YWJjZA==", domainErrors.ErrInvalidSessionID}, // "abcd" in base64
 	}
 
 	for _, tt := range tests {
@@ -76,8 +76,8 @@ func TestSessionID_Equals(t *testing.T) {
 		id2  vo.SessionID
 		want bool
 	}{
-		{"same value", id1, id2, true},
-		{"different value", id1, id3, false},
+		{"同じ値はtrue", id1, id2, true},
+		{"異なる値はfalse", id1, id3, false},
 	}
 
 	for _, tt := range tests {

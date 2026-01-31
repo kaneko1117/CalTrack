@@ -161,7 +161,7 @@ describe("RegisterForm", () => {
   });
 
   describe("フォーム送信", () => {
-    it("有効なデータでフォームを送信するとregister関数が呼ばれる", async () => {
+    it("有効なデータでフォームを送信すると登録関数が呼ばれる", async () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
@@ -195,7 +195,7 @@ describe("RegisterForm", () => {
       });
     });
 
-    it("onSuccessコールバックがregister関数に渡される", async () => {
+    it("onSuccessコールバックが登録関数に渡される", async () => {
       const onSuccess = vi.fn();
       const user = userEvent.setup();
       render(<RegisterForm onSuccess={onSuccess} />);
@@ -223,7 +223,7 @@ describe("RegisterForm", () => {
   });
 
   describe("ローディング状態", () => {
-    it("isLoadingがtrueの時、ボタンが無効化される", () => {
+    it("ローディング中はボタンが無効化される", () => {
       mockUseRegisterUser.mockReturnValue({
         ...defaultHookReturn,
         isLoading: true,
@@ -235,7 +235,7 @@ describe("RegisterForm", () => {
       expect(submitButton).toBeDisabled();
     });
 
-    it("isLoadingがtrueの時、フォームフィールドが無効化される", () => {
+    it("ローディング中はフォームフィールドが無効化される", () => {
       mockUseRegisterUser.mockReturnValue({
         ...defaultHookReturn,
         isLoading: true,
@@ -255,7 +255,7 @@ describe("RegisterForm", () => {
   });
 
   describe("エラー表示", () => {
-    it("EMAIL_ALREADY_EXISTSエラーが表示される", () => {
+    it("メールアドレス重複エラーが表示される", () => {
       const error = new ApiError(
         "EMAIL_ALREADY_EXISTS",
         "Email already exists",
@@ -273,7 +273,7 @@ describe("RegisterForm", () => {
       ).toBeInTheDocument();
     });
 
-    it("VALIDATION_ERRORとdetailsが表示される", () => {
+    it("バリデーションエラーと詳細が表示される", () => {
       const error = new ApiError("VALIDATION_ERROR", "Validation failed", 400, [
         "email: 不正な形式です",
         "password: 短すぎます",
@@ -290,7 +290,7 @@ describe("RegisterForm", () => {
       expect(screen.getByText("password: 短すぎます")).toBeInTheDocument();
     });
 
-    it("INTERNAL_ERRORが表示される", () => {
+    it("内部エラーが表示される", () => {
       const error = new ApiError("INTERNAL_ERROR", "Internal error", 500);
       mockUseRegisterUser.mockReturnValue({
         ...defaultHookReturn,
@@ -306,7 +306,7 @@ describe("RegisterForm", () => {
   });
 
   describe("成功状態", () => {
-    it("isSuccessがtrueの時、成功メッセージが表示される", () => {
+    it("成功時に成功メッセージが表示される", () => {
       mockUseRegisterUser.mockReturnValue({
         ...defaultHookReturn,
         isSuccess: true,
@@ -317,7 +317,7 @@ describe("RegisterForm", () => {
       expect(screen.getByText("登録が完了しました")).toBeInTheDocument();
     });
 
-    it("register関数成功時にonSuccessコールバックが呼ばれる", async () => {
+    it("登録成功時にonSuccessコールバックが呼ばれる", async () => {
       // register関数が成功時にonSuccessを呼び出すようにモック
       const onSuccess = vi.fn();
       mockUseRegisterUser.mockImplementation(() => ({

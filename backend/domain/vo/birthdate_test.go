@@ -25,15 +25,15 @@ func TestNewBirthDate(t *testing.T) {
 		wantErr error
 	}{
 		// 正常系
-		{"valid birthdate 1990-01-01", time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), nil},
-		{"valid birthdate 2000-12-31", time.Date(2000, 12, 31, 0, 0, 0, 0, time.UTC), nil},
+		{"正常な生年月日1990-01-01", time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), nil},
+		{"正常な生年月日2000-12-31", time.Date(2000, 12, 31, 0, 0, 0, 0, time.UTC), nil},
 		// 異常系
-		{"future date", tomorrow, domainErrors.ErrBirthDateMustBePast},
-		{"today", today, domainErrors.ErrBirthDateMustBePast},
-		{"too old 151 years ago", yearsAgo151, domainErrors.ErrBirthDateTooOld},
+		{"未来の日付はエラー", tomorrow, domainErrors.ErrBirthDateMustBePast},
+		{"今日の日付はエラー", today, domainErrors.ErrBirthDateMustBePast},
+		{"151年前はエラー", yearsAgo151, domainErrors.ErrBirthDateTooOld},
 		// 境界値
-		{"yesterday", yesterday, nil},
-		{"exactly 150 years ago", yearsAgo150, nil},
+		{"昨日は有効", yesterday, nil},
+		{"ちょうど150年前は有効", yearsAgo150, nil},
 	}
 
 	for _, tt := range tests {
@@ -58,10 +58,10 @@ func TestBirthDate_Age(t *testing.T) {
 		birthDate time.Time
 		wantAge   int
 	}{
-		{"born 1990-01-01, age 34", time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), 34},
-		{"born 2000-06-15, age 24 (birthday today)", time.Date(2000, 6, 15, 0, 0, 0, 0, time.UTC), 24},
-		{"born 2000-06-16, age 23 (birthday tomorrow)", time.Date(2000, 6, 16, 0, 0, 0, 0, time.UTC), 23},
-		{"born 2000-06-14, age 24 (birthday yesterday)", time.Date(2000, 6, 14, 0, 0, 0, 0, time.UTC), 24},
+		{"1990-01-01生まれは34歳", time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), 34},
+		{"2000-06-15生まれは24歳（誕生日当日）", time.Date(2000, 6, 15, 0, 0, 0, 0, time.UTC), 24},
+		{"2000-06-16生まれは23歳（誕生日前日）", time.Date(2000, 6, 16, 0, 0, 0, 0, time.UTC), 23},
+		{"2000-06-14生まれは24歳（誕生日翌日）", time.Date(2000, 6, 14, 0, 0, 0, 0, time.UTC), 24},
 	}
 
 	for _, tt := range tests {

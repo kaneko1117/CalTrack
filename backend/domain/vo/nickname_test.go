@@ -16,15 +16,15 @@ func TestNewNickname(t *testing.T) {
 		wantErr      error
 	}{
 		// 正常系
-		{"valid nickname", "John", "John", nil},
-		{"valid with spaces", "John Doe", "John Doe", nil},
+		{"正常なニックネーム", "John", "John", nil},
+		{"スペース付きニックネーム", "John Doe", "John Doe", nil},
 		// 異常系
-		{"empty string", "", "", domainErrors.ErrNicknameRequired},
-		{"too long 51 chars", strings.Repeat("a", 51), "", domainErrors.ErrNicknameTooLong},
+		{"空文字の場合はエラー", "", "", domainErrors.ErrNicknameRequired},
+		{"51文字以上はエラー", strings.Repeat("a", 51), "", domainErrors.ErrNicknameTooLong},
 		// 境界値
-		{"min length 1 char", "A", "A", nil},
-		{"max length 50 chars", strings.Repeat("a", 50), strings.Repeat("a", 50), nil},
-		{"exceeds 50 chars", strings.Repeat("a", 51), "", domainErrors.ErrNicknameTooLong},
+		{"最小長1文字は有効", "A", "A", nil},
+		{"最大長50文字は有効", strings.Repeat("a", 50), strings.Repeat("a", 50), nil},
+		{"51文字は無効", strings.Repeat("a", 51), "", domainErrors.ErrNicknameTooLong},
 	}
 
 	for _, tt := range tests {

@@ -15,16 +15,16 @@ func TestNewWeight(t *testing.T) {
 		wantErr error
 	}{
 		// 正常系
-		{"valid weight 70.5kg", 70.5, 70.5, nil},
-		{"valid weight 1kg", 1.0, 1.0, nil},
+		{"正常な体重70.5kg", 70.5, 70.5, nil},
+		{"正常な体重1kg", 1.0, 1.0, nil},
 		// 異常系
-		{"zero", 0, 0, domainErrors.ErrWeightMustBePositive},
-		{"negative", -10, 0, domainErrors.ErrWeightMustBePositive},
-		{"too heavy 501kg", 501, 0, domainErrors.ErrWeightTooHeavy},
+		{"0はエラー", 0, 0, domainErrors.ErrWeightMustBePositive},
+		{"負の値はエラー", -10, 0, domainErrors.ErrWeightMustBePositive},
+		{"501kg以上はエラー", 501, 0, domainErrors.ErrWeightTooHeavy},
 		// 境界値
-		{"min positive 0.1kg", 0.1, 0.1, nil},
-		{"max weight 500kg", 500, 500, nil},
-		{"exceeds max 500.1kg", 500.1, 0, domainErrors.ErrWeightTooHeavy},
+		{"最小値0.1kgは有効", 0.1, 0.1, nil},
+		{"最大値500kgは有効", 500, 500, nil},
+		{"500.1kgは無効", 500.1, 0, domainErrors.ErrWeightTooHeavy},
 	}
 
 	for _, tt := range tests {
