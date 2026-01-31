@@ -104,6 +104,18 @@ gh issue view で仕様取得
 
 ### 子Issue作成コマンド
 
+**Issueタイトル**:
+
+| 層 | タイトル例 |
+|----|-----------|
+| Domain VO | `feat(vo): Email, Password, ...` |
+| Domain Entity | `feat(entity)` |
+| Usecase | `feat(usecase)` |
+| Infrastructure | `feat(infrastructure)` |
+| Handler | `feat(handler)` |
+
+※ VOのみ実装するVO名を付ける（複数VOがある場合の区別のため）
+
 **重要: 設計内容はそのままIssueに記載する**
 
 承認された設計（コード例、構成、エラー定義など）をそのまま子Issueのbodyに含める。
@@ -111,24 +123,72 @@ Issueを見れば実装内容が完全に分かる状態にする。
 
 ```bash
 gh issue create \
-  --title "feat({layer}): {機能名}" \
+  --title "feat(handler)" \
   --body "$(cat <<'EOF'
-## 概要
-{親Issue参照と概要}
-
-## 構成
-{ディレクトリ構成}
-
-## 実装内容
-{設計で提示したコード例をそのまま記載}
-
-## エラー定義
-{エラー定義}
+{設計提示内容をそのまま記載}
 
 Closes #{parent_issue_number}
 EOF
 )"
 ```
+
+---
+
+## 設計提示フォーマット
+
+ユーザーへの設計提示は以下のフォーマットで行う:
+
+```markdown
+## Handler設計: User
+
+### 構成
+
+\`\`\`
+handler/
+  common/
+    error_code.go
+    response.go
+  user/
+    handler.go
+    handler_test.go
+    dto/
+      request.go
+      response.go
+\`\`\`
+
+### UserHandler
+
+\`\`\`go
+type UserHandler struct {
+    usecase *usecase.UserUsecase
+}
+
+func (h *UserHandler) Register(c echo.Context) error {
+    // ...
+}
+\`\`\`
+
+### DTO
+
+\`\`\`go
+type RegisterUserRequest struct {
+    Email string `json:"email"`
+    // ...
+}
+
+func (r RegisterUserRequest) ToDomain() (*entity.User, error, []error) {
+    // ...
+}
+\`\`\`
+
+この設計で進めてよいですか？
+```
+
+**ポイント**:
+- 構成（ディレクトリ）を最初に示す
+- コード例は実装可能なレベルで具体的に
+- テーブル形式で整理できるものはテーブルで
+- 最後に承認確認
 
 ### PR作成後の自動マージ
 

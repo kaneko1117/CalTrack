@@ -5,22 +5,35 @@ paths:
 
 # Usecase層規則
 
-## Input/Output DTO
+## ファイル構成
 
-### Input
-- Usecaseへの入力データ構造
-- バリデーションタグ使用可（`validate:`）
-- Handler層からのみ生成
+**ドメイン単位で1ファイル**:
+- `usecase/{domain}.go` - Usecase実装
+- `usecase/{domain}_test.go` - テスト
 
-### Output
-- Usecaseからの出力データ構造
-- Entity/VOから変換して生成
-- プリミティブ型またはDTO型のみ
+```
+usecase/
+  user.go          # UserUsecase（Register, Login等のメソッドを持つ）
+  user_test.go
+  meal.go          # MealUsecase
+  meal_test.go
+```
+
+## 命名規則
+
+- 構造体: `{Domain}Usecase`（例: `UserUsecase`）
+- メソッド: 動詞形（例: `Register`, `Login`, `Create`）
+- コンストラクタ: `New{Domain}Usecase`
+
+## 入出力
+
+- **入力**: Handler層で変換された`*entity.{Domain}`を受け取る
+- **出力**: `*entity.{Domain}`をそのまま返す（Output DTOは不要）
 
 ## Repository Interface
 
 ### 定義場所
-- `usecase/repository/{entity}_repository.go`
+- `domain/repository/{entity}_repository.go`
 
 ### メソッド規則
 - 第一引数は `context.Context`
