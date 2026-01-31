@@ -1,18 +1,26 @@
 package main
 
 import (
-	"log"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"caltrack/config"
 	"caltrack/handler/user"
 	gormPersistence "caltrack/infrastructure/persistence/gorm"
+	"caltrack/pkg/logger"
 	"caltrack/usecase"
 )
 
 func main() {
+	// ロガー初期化
+	logger.Init()
+
+	// マイグレーションを実行
+	if err := config.RunMigrations(); err != nil {
+		logger.Error("マイグレーション失敗", "error", err.Error())
+		panic(err)
+	}
+
 	// Connect to database
 	config.ConnectDatabase()
 
@@ -24,6 +32,9 @@ func main() {
 
 	// Setup router
 	r := gin.Default()
+
+	// ロガーミドルウェア追加
+	r.Use(logger.Middleware())
 
 	// CORS configuration
 	r.Use(cors.New(cors.Config{
@@ -44,8 +55,9 @@ func main() {
 	}
 
 	// Start server
-	log.Println("Starting server on :8080")
+	logger.Info("Starting server", "port", 8080)
 	if err := r.Run(":8080"); err != nil {
-		log.Fatal("Failed to start server:", err)
+		logger.Error("Failed to start server", "error", err.Error())
+		panic(err)
 	}
 }

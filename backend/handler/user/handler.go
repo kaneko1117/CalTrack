@@ -23,13 +23,13 @@ func NewUserHandler(uc *usecase.UserUsecase) *UserHandler {
 func (h *UserHandler) Register(c *gin.Context) {
 	var req dto.RegisterUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid request body")
+		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid request body", nil)
 		return
 	}
 
 	user, parseErr, validationErrs := req.ToDomain()
 	if parseErr != nil {
-		common.RespondError(c, http.StatusBadRequest, common.CodeValidationError, "Invalid birth date format. Use YYYY-MM-DD")
+		common.RespondError(c, http.StatusBadRequest, common.CodeValidationError, "Invalid birth date format. Use YYYY-MM-DD", nil)
 		return
 	}
 	if validationErrs != nil {
@@ -51,11 +51,13 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 func (h *UserHandler) handleError(c *gin.Context, err error) {
 	if errors.Is(err, domainErrors.ErrEmailAlreadyExists) {
-		common.RespondError(c, http.StatusConflict, common.CodeEmailAlreadyExists, err.Error())
+		common.RespondError(c, http.StatusConflict, common.CodeEmailAlreadyExists, err.Error(), nil)
 		return
 	}
 
-	common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error")
+	// 500エラーの場合はHandler層のログヘルパーでログ出力
+	common.LogError("handleError", err, "method", c.Request.Method, "path", c.Request.URL.Path)
+	common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error", nil)
 }
 
 func extractErrorMessages(errs []error) []string {

@@ -27,13 +27,19 @@ func (u *UserUsecase) Register(ctx context.Context, user *entity.User) (*entity.
 	err := u.txManager.Execute(ctx, func(txCtx context.Context) error {
 		exists, err := u.userRepo.ExistsByEmail(txCtx, user.Email())
 		if err != nil {
+			logError("Register", err, "email", user.Email().String())
 			return err
 		}
 		if exists {
+			logWarn("Register", "email already exists", "email", user.Email().String())
 			return domainErrors.ErrEmailAlreadyExists
 		}
 
-		return u.userRepo.Save(txCtx, user)
+		if err := u.userRepo.Save(txCtx, user); err != nil {
+			logError("Register", err, "user_id", user.ID().String())
+			return err
+		}
+		return nil
 	})
 
 	if err != nil {
