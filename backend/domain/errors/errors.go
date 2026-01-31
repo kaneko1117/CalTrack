@@ -3,14 +3,14 @@ package errors
 import "errors"
 
 var (
-	ErrEmailRequired       = errors.New("email is required")
-	ErrInvalidEmailFormat  = errors.New("invalid email format")
-	ErrEmailTooLong        = errors.New("email must be 254 characters or less")
-	ErrInvalidUserID       = errors.New("invalid user id: must be a valid UUID")
-	ErrPasswordRequired    = errors.New("password is required")
-	ErrPasswordTooShort    = errors.New("password must be at least 8 characters")
-	ErrNicknameRequired    = errors.New("nickname is required")
-	ErrNicknameTooLong     = errors.New("nickname must be 50 characters or less")
+	ErrEmailRequired        = errors.New("email is required")
+	ErrInvalidEmailFormat   = errors.New("invalid email format")
+	ErrEmailTooLong         = errors.New("email must be 254 characters or less")
+	ErrInvalidUserID        = errors.New("invalid user id: must be a valid UUID")
+	ErrPasswordRequired     = errors.New("password is required")
+	ErrPasswordTooShort     = errors.New("password must be at least 8 characters")
+	ErrNicknameRequired     = errors.New("nickname is required")
+	ErrNicknameTooLong      = errors.New("nickname must be 50 characters or less")
 	ErrWeightMustBePositive = errors.New("weight must be positive")
 	ErrWeightTooHeavy       = errors.New("weight must be 500kg or less")
 	ErrHeightMustBePositive = errors.New("height must be positive")
@@ -22,4 +22,9 @@ var (
 
 	// Usecase errors
 	ErrEmailAlreadyExists = errors.New("email already exists")
+
+	// Session errors
+	ErrSessionIDGenerationFailed = errors.New("failed to generate session id")
+	ErrInvalidSessionID          = errors.New("invalid session id")
+	ErrSessionExpired            = errors.New("session has expired")
 )
