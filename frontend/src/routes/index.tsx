@@ -8,6 +8,7 @@ import { createBrowserRouter, RouteObject } from "react-router-dom";
 import { RootLayout } from "./RootLayout";
 import { HomePage } from "../pages/HomePage";
 import { RegisterPage } from "../features/auth/components/RegisterPage";
+import { LoginPage } from "../features/auth/components/LoginPage";
 
 /**
  * 認証関連のルート定義
@@ -18,7 +19,6 @@ const authRoutes: RouteObject[] = [
     element: <RegisterPage redirectTo="/" />,
   },
   // 将来追加予定:
-  // { path: "/login", element: <LoginPage /> },
   // { path: "/forgot-password", element: <ForgotPasswordPage /> },
 ];
 
@@ -28,6 +28,10 @@ const authRoutes: RouteObject[] = [
 const mainRoutes: RouteObject[] = [
   {
     path: "/",
+    element: <LoginPage redirectTo="/" />,
+  },
+  {
+    path: "/home",
     element: <HomePage />,
   },
   // 将来追加予定:
