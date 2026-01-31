@@ -8,6 +8,9 @@ import { apiClient } from "@/lib/api";
 import type {
   RegisterUserRequest,
   RegisterUserResponse,
+  LoginRequest,
+  LoginResponse,
+  LogoutResponse,
   ApiErrorResponse,
   ErrorCode,
 } from "../types";
@@ -63,6 +66,65 @@ export async function registerUser(
       throw ApiError.fromResponse(errorData, error.response.status);
     }
     // ネットワークエラーまたは予期しないエラー
+    throw new ApiError(
+      ERROR_CODE_INTERNAL_ERROR,
+      ERROR_MESSAGE_UNEXPECTED,
+      500
+    );
+  }
+}
+
+/**
+ * ユーザーログイン
+ * @param request - ログインデータ（email, password）
+ * @returns Promise<LoginResponse> - ログインしたユーザー情報
+ * @throws ApiError - 認証エラー、サーバーエラー時
+ */
+export async function login(
+  request: LoginRequest
+): Promise<LoginResponse> {
+  try {
+    const response = await apiClient.post<LoginResponse>(
+      "/api/v1/auth/login",
+      request,
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
+      const errorData = error.response.data as ApiErrorResponse;
+      throw ApiError.fromResponse(errorData, error.response.status);
+    }
+    throw new ApiError(
+      ERROR_CODE_INTERNAL_ERROR,
+      ERROR_MESSAGE_UNEXPECTED,
+      500
+    );
+  }
+}
+
+/**
+ * ユーザーログアウト
+ * @returns Promise<LogoutResponse> - ログアウト成功メッセージ
+ * @throws ApiError - サーバーエラー時
+ */
+export async function logout(): Promise<LogoutResponse> {
+  try {
+    const response = await apiClient.post<LogoutResponse>(
+      "/api/v1/auth/logout",
+      {},
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
+      const errorData = error.response.data as ApiErrorResponse;
+      throw ApiError.fromResponse(errorData, error.response.status);
+    }
     throw new ApiError(
       ERROR_CODE_INTERNAL_ERROR,
       ERROR_MESSAGE_UNEXPECTED,

@@ -1,21 +1,21 @@
 /**
- * 認証フック
- * ユーザー認証に関するカスタムフック
+ * ログインフック
+ * ユーザーログインに関するカスタムフック
  */
 
 import { useState, useCallback } from "react";
-import { registerUser, ApiError } from "../api";
-import type { RegisterUserRequest } from "../types";
+import { login, ApiError } from "../api";
+import type { LoginRequest, LoginResponse } from "../types";
 import {
   ERROR_CODE_INTERNAL_ERROR,
   ERROR_MESSAGE_UNEXPECTED,
 } from "../types";
 
 /**
- * useRegisterUserフックの戻り値の型
+ * useLoginフックの戻り値の型
  */
-export type UseRegisterUserReturn = {
-  register: (request: RegisterUserRequest, onSuccess?: () => void) => Promise<void>;
+export type UseLoginReturn = {
+  login: (request: LoginRequest, onSuccess?: (response: LoginResponse) => void) => Promise<void>;
   isLoading: boolean;
   error: ApiError | null;
   isSuccess: boolean;
@@ -23,38 +23,41 @@ export type UseRegisterUserReturn = {
 };
 
 /**
- * ユーザー登録フック
+ * ユーザーログインフック
  * ローディング状態、エラー状態、成功状態を管理
  *
- * @returns UseRegisterUserReturn
+ * @returns UseLoginReturn
  *
  * @example
  * ```tsx
- * const { register, isLoading, error, isSuccess, reset } = useRegisterUser();
+ * const { login, isLoading, error, isSuccess, reset } = useLogin();
  *
- * const handleSubmit = async (data: RegisterUserRequest) => {
- *   await register(data);
+ * const handleSubmit = async (data: LoginRequest) => {
+ *   await login(data, (response) => {
+ *     // ログイン成功時の処理
+ *     console.log('Logged in:', response.nickname);
+ *   });
  * };
  * ```
  */
-export function useRegisterUser(): UseRegisterUserReturn {
+export function useLogin(): UseLoginReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const register = useCallback(async (
-    request: RegisterUserRequest,
-    onSuccess?: () => void
+  const loginHandler = useCallback(async (
+    request: LoginRequest,
+    onSuccess?: (response: LoginResponse) => void
   ) => {
     setIsLoading(true);
     setError(null);
     setIsSuccess(false);
 
     try {
-      await registerUser(request);
+      const response = await login(request);
       setIsSuccess(true);
       // 成功時にコールバックを直接呼び出し
-      onSuccess?.();
+      onSuccess?.(response);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err);
@@ -75,16 +78,10 @@ export function useRegisterUser(): UseRegisterUserReturn {
   }, []);
 
   return {
-    register,
+    login: loginHandler,
     isLoading,
     error,
     isSuccess,
     reset,
   };
 }
-
-// useLogin, useLogout フックのエクスポート
-export { useLogin } from "./useLogin";
-export type { UseLoginReturn } from "./useLogin";
-export { useLogout } from "./useLogout";
-export type { UseLogoutReturn } from "./useLogout";

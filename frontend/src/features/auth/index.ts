@@ -10,15 +10,25 @@ export type {
   ErrorCode,
   RegisterUserRequest,
   RegisterUserResponse,
+  LoginRequest,
+  LoginResponse,
+  LogoutResponse,
   ApiErrorResponse,
 } from "./types";
 
+export {
+  ERROR_CODE_INTERNAL_ERROR,
+  ERROR_CODE_INVALID_CREDENTIALS,
+  ERROR_MESSAGE_UNEXPECTED,
+  ERROR_MESSAGE_INVALID_CREDENTIALS,
+} from "./types";
+
 // API
-export { registerUser, ApiError } from "./api";
+export { registerUser, login, logout, ApiError } from "./api";
 
 // Hooks
-export { useRegisterUser } from "./hooks";
-export type { UseRegisterUserReturn } from "./hooks";
+export { useRegisterUser, useLogin, useLogout } from "./hooks";
+export type { UseRegisterUserReturn, UseLoginReturn, UseLogoutReturn } from "./hooks";
 
 // Components
 export { RegisterForm, RegisterPage } from "./components";
