@@ -39,7 +39,7 @@ export function HomePage() {
       const response = await fetch("http://localhost:8080/health");
       const data = await response.json();
       setHealth(data);
-    } catch (err) {
+    } catch {
       setError("Failed to connect to backend");
       setHealth(null);
     } finally {
