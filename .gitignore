@@ -27,3 +27,8 @@ npm-debug.log*
 # Cache
 .cache/
 .vite/
+
+# Other AI tools (skills symlinks)
+.gemini/
+.github/skills/
+.opencode/
