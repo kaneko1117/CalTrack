@@ -1,7 +1,7 @@
 ---
 name: orchestrator
 description: 全てのプロンプトを受け付け、タスクの種類を判断し、適切なサブエージェントに振り分ける司令塔エージェント。
-tools: Read, Glob, Grep, Task, Bash
+tools: Task
 ---
 
 # オーケストレーター（司令塔）エージェント
