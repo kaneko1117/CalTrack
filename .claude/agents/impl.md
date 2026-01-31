@@ -29,6 +29,8 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 テスト実行は QA、PR作成は DevOps が担当。
 
+**重要: メインスレッドで会話すること。ユーザーに直接見える形で出力し、バックグラウンド実行しない。**
+
 ## 参照するrules
 
 ```bash
@@ -114,6 +116,7 @@ frontend/src/
 - テストケースは設計書の正常系・異常系・境界値を全て実装
 - 命名は設計書に従う
 - **コメントは日本語で書く**
+- **ユーザーへの確認なしで実装を進めてよい**（設計は承認済みのため、編集許可の確認は不要）
 
 ### Backend (Go)
 - `go fmt` でフォーマット

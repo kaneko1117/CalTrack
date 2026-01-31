@@ -31,6 +31,8 @@ tools: Read, Glob, Grep, Bash
 対象層に応じた設計を行う。
 rulesを参照し、規約に沿った設計を提示する。
 
+**重要: メインスレッドで会話すること。ユーザーに直接見える形で出力し、バックグラウンド実行しない。**
+
 ## 入力
 - 機能要件（GitHub Issueの内容）
 - 対象層（domain-vo / domain-entity / usecase / infrastructure / handler / frontend-data / frontend-ui）
