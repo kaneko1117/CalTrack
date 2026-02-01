@@ -3,7 +3,6 @@ package entity
 import (
 	"time"
 
-	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
 )
 
@@ -20,41 +19,29 @@ type Record struct {
 func NewRecord(
 	userID vo.UserID,
 	eatenAtTime time.Time,
-	itemInputs []RecordItemInput,
-) (*Record, []error) {
-	var errs []error
-
-	if len(itemInputs) == 0 {
-		errs = append(errs, domainErrors.ErrRecordItemsRequired)
-		return nil, errs
-	}
-
+) (*Record, error) {
 	eatenAt, err := vo.NewEatenAt(eatenAtTime)
-	errs = appendIfErr(errs, err)
-
-	recordID := vo.NewRecordID()
-
-	var items []RecordItem
-	for _, input := range itemInputs {
-		item, itemErrs := newRecordItem(recordID, input)
-		if len(itemErrs) > 0 {
-			errs = append(errs, itemErrs...)
-		} else {
-			items = append(items, *item)
-		}
-	}
-
-	if len(errs) > 0 {
-		return nil, errs
+	if err != nil {
+		return nil, err
 	}
 
 	return &Record{
-		id:        recordID,
+		id:        vo.NewRecordID(),
 		userID:    userID,
 		eatenAt:   eatenAt,
-		items:     items,
+		items:     []RecordItem{},
 		createdAt: time.Now(),
 	}, nil
+}
+
+// AddItem はRecordにRecordItemを追加する
+func (r *Record) AddItem(nameStr string, caloriesVal int) error {
+	item, errs := NewRecordItem(r.id, nameStr, caloriesVal)
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	r.items = append(r.items, *item)
+	return nil
 }
 
 // ReconstructRecord はDBからRecordを復元する

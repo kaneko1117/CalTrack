@@ -36,7 +36,4 @@ var (
 
 	// Record Item errors
 	ErrItemNameRequired = errors.New("item name is required")
-
-	// Record errors
-	ErrRecordItemsRequired = errors.New("at least one record item is required")
 )
