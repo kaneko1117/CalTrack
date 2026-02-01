@@ -44,6 +44,7 @@ tools: Bash
 ## 参照するrules
 
 以下のルールを理解した上で判断すること（メインから概要が共有される）:
+
 - env-file-policy.md: 環境変数・秘匿情報の取り扱い（全員共通）
 - clean-architecture.md: 層の依存関係、実装順序
 - coding.md: コーディング規約
@@ -149,13 +150,13 @@ OKもらえたらDevOpsにPR作成振るよ。
 
 ## チームメンバー
 
-| メンバー | 役割 | 入力 | 出力 |
-|---------|------|------|------|
-| プランナー | 設計 | 機能要件、対象層 | 設計ドキュメント |
-| エンジニア | 実装 | 設計ドキュメント | 実装ファイル一覧 |
-| QA | テスト | 実装ファイル一覧 | テスト結果 |
-| DevOps | リリース | テスト結果、Issue番号 | PR URL |
-| 技術リード | リファクタ | 対象コード、改善点 | 修正ファイル一覧 |
+| メンバー   | 役割       | 入力                  | 出力             |
+| ---------- | ---------- | --------------------- | ---------------- |
+| プランナー | 設計       | 機能要件、対象層      | 設計ドキュメント |
+| エンジニア | 実装       | 設計ドキュメント      | 実装ファイル一覧 |
+| QA         | テスト     | 実装ファイル一覧      | テスト結果       |
+| DevOps     | リリース   | テスト結果、Issue番号 | PR URL           |
+| 技術リード | リファクタ | 対象コード、改善点    | 修正ファイル一覧 |
 
 ---
 
@@ -209,34 +210,34 @@ OKもらえたらDevOpsにPR作成振るよ。
 
 ### 層の順番
 
-| # | 層 | 設計内容 |
-|---|---|---------|
-| 1 | Domain VO | 値オブジェクト |
-| 2 | Domain Entity | エンティティ |
-| 3 | Domain Repository | リポジトリIF |
-| 4 | Usecase | ユースケース |
-| 5 | Infrastructure | リポジトリ実装、マイグレーション |
-| 6 | Handler | DTO、ハンドラ |
-| 7 | Frontend Data | 型、API、Hooks |
-| 8 | Frontend UI | コンポーネント |
+| #   | 層                | 設計内容                         |
+| --- | ----------------- | -------------------------------- |
+| 1   | Domain VO         | 値オブジェクト                   |
+| 2   | Domain Entity     | エンティティ                     |
+| 3   | Domain Repository | リポジトリIF                     |
+| 4   | Usecase           | ユースケース                     |
+| 5   | Infrastructure    | リポジトリ実装、マイグレーション |
+| 6   | Handler           | DTO、ハンドラ                    |
+| 7   | Frontend Domain   | VO、Entity                       |
+| 8   | Frontend          | 型、API、Hooks、コンポーネント   |
 
 ---
 
 ## 状態管理
 
-| 前の担当 | 結果 | 次のアクション |
-|---------|------|---------------|
-| なし（初回） | - | プランナーに振る |
-| プランナー | 設計完了 | ユーザー承認待ち |
-| （ユーザー承認） | 設計承認 | **子Issue作成** → エンジニア |
-| エンジニア | 実装完了 | QAに振る |
-| QA | テスト成功 | ユーザー承認 → DevOps |
-| QA | テスト失敗 | エラー報告、対応確認 |
-| DevOps | PR完了 | 次の層へ or 完了 |
+| 前の担当         | 結果       | 次のアクション               |
+| ---------------- | ---------- | ---------------------------- |
+| なし（初回）     | -          | プランナーに振る             |
+| プランナー       | 設計完了   | ユーザー承認待ち             |
+| （ユーザー承認） | 設計承認   | **子Issue作成** → エンジニア |
+| エンジニア       | 実装完了   | QAに振る                     |
+| QA               | テスト成功 | ユーザー承認 → DevOps        |
+| QA               | テスト失敗 | エラー報告、対応確認         |
+| DevOps           | PR完了     | 次の層へ or 完了             |
 
 ### 子Issue作成ルール
 
-設計が承認されたら、メインが子Issueを作成する:
+**子Issue作成はPMの仕事。** 設計が承認されたら、PMが子Issueを作成してエンジニアに振る。
 
 ```bash
 gh issue create \
@@ -247,15 +248,15 @@ Closes #{親Issue番号}"
 ```
 
 **Issueタイトル例**:
-| 層 | タイトル例 |
-|----|-----------|
-| Domain VO | `feat(vo): Email, Password` |
-| Domain Entity | `feat(entity): User` |
-| Usecase | `feat(usecase): RegisterUser` |
-| Infrastructure | `feat(infrastructure): UserRepository` |
-| Handler | `feat(handler): POST /users` |
-| Frontend Data | `feat(frontend-data): auth types/api/hooks` |
-| Frontend UI | `feat(frontend-ui): RegisterForm` |
+| 層              | タイトル例                                   |
+| --------------- | -------------------------------------------- |
+| Domain VO       | `feat(vo): Email, Password`                  |
+| Domain Entity   | `feat(entity): User`                         |
+| Usecase         | `feat(usecase): RegisterUser`                |
+| Infrastructure  | `feat(infrastructure): UserRepository`       |
+| Handler         | `feat(handler): POST /users`                 |
+| Frontend Domain | `feat(frontend-domain): User VO/Entity`      |
+| Frontend        | `feat(frontend): auth types/api/hooks/UI`    |
 
 ---
 
@@ -269,9 +270,9 @@ gh issue view {issue_number} --json title,body,labels
 
 ## コマンド認識
 
-| コマンド | 意味 |
-|---------|------|
-| `承認` / `ok` / `進めて` | 承認 |
-| `修正: {内容}` | 修正指示 |
-| `スキップ` | スキップ |
-| `中止` | 終了 |
+| コマンド                 | 意味     |
+| ------------------------ | -------- |
+| `承認` / `ok` / `進めて` | 承認     |
+| `修正: {内容}`           | 修正指示 |
+| `スキップ`               | スキップ |
+| `中止`                   | 終了     |

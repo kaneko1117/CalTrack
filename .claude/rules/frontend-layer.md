@@ -28,6 +28,10 @@ cat .claude/skills/web-design-guidelines/AGENTS.md
 
 ```
 frontend/src/
+├── domain/             # DDD Domain層
+│   ├── shared/         # 共通型（Result, DomainError）
+│   ├── valueObjects/   # Value Object
+│   └── entities/       # Entity
 ├── features/           # 機能単位
 │   └── {feature}/
 │       ├── types/
@@ -53,7 +57,43 @@ frontend/src/
 
 ---
 
-## Data Layer（types / api / hooks）
+## Domain層（domain/）
+
+フロントエンドでもDDDを採用し、バリデーションロジックをドメイン層に集約する。
+
+### 構成
+
+```
+domain/
+├── shared/           # Result型、DomainError型
+├── valueObjects/     # Value Object
+└── entities/         # Entity
+```
+
+### 設計思想
+
+| 項目 | 内容 |
+|------|------|
+| Result型 | 成功/失敗を型安全に表現（Ok/Err） |
+| DomainError型 | エラーコード + メッセージを保持 |
+| Value Object | 不変、ファクトリ関数で生成、バリデーション内包 |
+| Entity | 複数VOを組み合わせ、エラーを集約して返す |
+
+### VOの特徴
+
+- 不変（`Object.freeze`）
+- `new{VO}()` でバリデーション付き生成
+- `Result<VO, DomainError>` を返す
+- エラーはcode + messageを持つ（hooksから単独呼び出し可能）
+- `equals()` で等価性比較
+
+### 禁止事項
+
+- 外部ライブラリの使用禁止（純粋なTypeScriptのみ）
+
+---
+
+## Frontend Layer（types / api / hooks / components）
 
 ### Types
 
@@ -104,10 +144,6 @@ export function use{Feature}(): Use{Feature}Return {
   // useState, useCallback で状態管理
 }
 ```
-
----
-
-## UI Layer（components）
 
 ### コンポーネント設計
 
