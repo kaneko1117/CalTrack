@@ -1,5 +1,5 @@
 package dto
 
 type RegisterUserResponse struct {
-	UserID string `json:"userId"`
+	UserID string `json:"userId" example:"550e8400-e29b-41d4-a716-446655440000"`
 }

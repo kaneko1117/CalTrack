@@ -20,6 +20,18 @@ func NewUserHandler(uc *usecase.UserUsecase) *UserHandler {
 	return &UserHandler{usecase: uc}
 }
 
+// Register はユーザー登録を行う
+// @Summary ユーザー登録
+// @Description 新規ユーザーを登録する
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body dto.RegisterUserRequest true "ユーザー登録リクエスト"
+// @Success 201 {object} dto.RegisterUserResponse "登録成功"
+// @Failure 400 {object} common.ErrorResponse "バリデーションエラー"
+// @Failure 409 {object} common.ErrorResponse "メールアドレス重複"
+// @Failure 500 {object} common.ErrorResponse "サーバーエラー"
+// @Router /users [post]
 func (h *UserHandler) Register(c *gin.Context) {
 	var req dto.RegisterUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

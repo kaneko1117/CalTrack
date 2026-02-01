@@ -3,14 +3,23 @@ package main
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"caltrack/config"
+	_ "caltrack/docs"
 	"caltrack/handler/auth"
 	"caltrack/handler/user"
 	gormPersistence "caltrack/infrastructure/persistence/gorm"
 	"caltrack/pkg/logger"
 	"caltrack/usecase"
 )
+
+// @title CalTrack API
+// @version 1.0
+// @description カロリー管理アプリケーションのAPI
+// @host localhost:8080
+// @BasePath /api/v1
 
 func main() {
 	// ロガー初期化
@@ -51,6 +60,9 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	// Swagger
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Routes
 	r.GET("/health", func(c *gin.Context) {

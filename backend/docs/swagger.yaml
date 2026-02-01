@@ -1,0 +1,171 @@
+basePath: /api/v1
+definitions:
+  common.ErrorResponse:
+    properties:
+      code:
+        type: string
+      details:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+    type: object
+  dto.LoginResponse:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      nickname:
+        example: John
+        type: string
+      userId:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.RegisterUserRequest:
+    properties:
+      activityLevel:
+        example: moderate
+        type: string
+      birthDate:
+        description: '"2006-01-02"形式'
+        example: "1990-01-15"
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      gender:
+        example: male
+        type: string
+      height:
+        example: 175
+        type: number
+      nickname:
+        example: John
+        type: string
+      password:
+        example: password123
+        type: string
+      weight:
+        example: 70.5
+        type: number
+    type: object
+  dto.RegisterUserResponse:
+    properties:
+      userId:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: カロリー管理アプリケーションのAPI
+  title: CalTrack API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: メールアドレスとパスワードでログインし、セッションを開始する
+      parameters:
+      - description: ログインリクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ログイン成功
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: リクエスト不正
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+        "401":
+          description: 認証失敗
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+      summary: ログイン
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: セッションを終了してログアウトする
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ログアウト成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: リクエスト不正
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+        "401":
+          description: 認証失敗
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+      summary: ログアウト
+      tags:
+      - auth
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: 新規ユーザーを登録する
+      parameters:
+      - description: ユーザー登録リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 登録成功
+          schema:
+            $ref: '#/definitions/dto.RegisterUserResponse'
+        "400":
+          description: バリデーションエラー
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+        "409":
+          description: メールアドレス重複
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/common.ErrorResponse'
+      summary: ユーザー登録
+      tags:
+      - users
+swagger: "2.0"
