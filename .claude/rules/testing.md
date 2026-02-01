@@ -13,12 +13,27 @@ paths:
 ## テスト命名
 
 ```
-Test{対象}_{条件}_{期待結果}
+Test{対象}_{メソッド名}
 ```
 
 例:
-- `TestNewEmail_ValidFormat_ReturnsEmail`
-- `TestUser_ChangePassword_UpdatesPassword`
+- `TestNewEmail`
+- `TestRecordHandler_Create`
+
+### サブテスト（t.Run）
+- t.Runを使用してサブテストを定義する
+- **テストケース名は日本語**で記述
+
+```go
+func TestRecordHandler_Create(t *testing.T) {
+    t.Run("正常系_記録が作成される", func(t *testing.T) {
+        // ...
+    })
+    t.Run("異常系_認証エラー", func(t *testing.T) {
+        // ...
+    })
+}
+```
 
 ## テーブル駆動テスト
 

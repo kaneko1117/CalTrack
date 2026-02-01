@@ -42,139 +42,141 @@ func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx contex
 	return fn(ctx)
 }
 
-func TestUserHandler_Register_Success(t *testing.T) {
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return false, nil
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewUserUsecase(repo, txManager)
-	handler := user.NewUserHandler(uc)
+func TestUserHandler_Register(t *testing.T) {
+	t.Run("正常系_登録成功", func(t *testing.T) {
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return false, nil
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
 
-	reqBody := `{
-		"email": "test@example.com",
-		"password": "password123",
-		"nickname": "testuser",
-		"weight": 70.5,
-		"height": 175.0,
-		"birthDate": "1990-01-01",
-		"gender": "male",
-		"activityLevel": "moderate"
-	}`
+		reqBody := `{
+			"email": "test@example.com",
+			"password": "password123",
+			"nickname": "testuser",
+			"weight": 70.5,
+			"height": 175.0,
+			"birthDate": "1990-01-01",
+			"gender": "male",
+			"activityLevel": "moderate"
+		}`
 
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
 
-	handler.Register(c)
+		handler.Register(c)
 
-	if w.Code != http.StatusCreated {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
-	}
-}
+		if w.Code != http.StatusCreated {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
+		}
+	})
 
-func TestUserHandler_Register_EmailAlreadyExists(t *testing.T) {
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return true, nil
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewUserUsecase(repo, txManager)
-	handler := user.NewUserHandler(uc)
+	t.Run("異常系_メールアドレス重複", func(t *testing.T) {
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return true, nil
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
 
-	reqBody := `{
-		"email": "test@example.com",
-		"password": "password123",
-		"nickname": "testuser",
-		"weight": 70.5,
-		"height": 175.0,
-		"birthDate": "1990-01-01",
-		"gender": "male",
-		"activityLevel": "moderate"
-	}`
+		reqBody := `{
+			"email": "test@example.com",
+			"password": "password123",
+			"nickname": "testuser",
+			"weight": 70.5,
+			"height": 175.0,
+			"birthDate": "1990-01-01",
+			"gender": "male",
+			"activityLevel": "moderate"
+		}`
 
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
 
-	handler.Register(c)
+		handler.Register(c)
 
-	if w.Code != http.StatusConflict {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
-	}
-}
+		if w.Code != http.StatusConflict {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
+		}
+	})
 
-func TestUserHandler_Register_ValidationError(t *testing.T) {
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return false, nil
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewUserUsecase(repo, txManager)
-	handler := user.NewUserHandler(uc)
+	t.Run("異常系_バリデーションエラー", func(t *testing.T) {
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return false, nil
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
 
-	reqBody := `{
-		"email": "invalid-email",
-		"password": "password123",
-		"nickname": "testuser",
-		"weight": 70.5,
-		"height": 175.0,
-		"birthDate": "1990-01-01",
-		"gender": "male",
-		"activityLevel": "moderate"
-	}`
+		reqBody := `{
+			"email": "invalid-email",
+			"password": "password123",
+			"nickname": "testuser",
+			"weight": 70.5,
+			"height": 175.0,
+			"birthDate": "1990-01-01",
+			"gender": "male",
+			"activityLevel": "moderate"
+		}`
 
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
 
-	handler.Register(c)
+		handler.Register(c)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
-}
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+	})
 
-func TestUserHandler_Register_InvalidBirthDateFormat(t *testing.T) {
-	repo := &mockUserRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewUserUsecase(repo, txManager)
-	handler := user.NewUserHandler(uc)
+	t.Run("異常系_不正な生年月日フォーマット", func(t *testing.T) {
+		repo := &mockUserRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
 
-	reqBody := `{
-		"email": "test@example.com",
-		"password": "password123",
-		"nickname": "testuser",
-		"weight": 70.5,
-		"height": 175.0,
-		"birthDate": "invalid-date",
-		"gender": "male",
-		"activityLevel": "moderate"
-	}`
+		reqBody := `{
+			"email": "test@example.com",
+			"password": "password123",
+			"nickname": "testuser",
+			"weight": 70.5,
+			"height": 175.0,
+			"birthDate": "invalid-date",
+			"gender": "male",
+			"activityLevel": "moderate"
+		}`
 
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
 
-	handler.Register(c)
+		handler.Register(c)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+	})
 }

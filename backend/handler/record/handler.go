@@ -1,0 +1,85 @@
+package record
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"caltrack/handler/common"
+	"caltrack/handler/record/dto"
+	"caltrack/usecase"
+)
+
+// RecordHandler はカロリー記録関連のHTTPハンドラ
+type RecordHandler struct {
+	usecase *usecase.RecordUsecase
+}
+
+// NewRecordHandler は RecordHandler のインスタンスを生成する
+func NewRecordHandler(uc *usecase.RecordUsecase) *RecordHandler {
+	return &RecordHandler{usecase: uc}
+}
+
+// Create はカロリー記録を作成する
+// @Summary カロリー記録作成
+// @Description 食事のカロリー記録を作成する
+// @Tags records
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateRecordRequest true "カロリー記録作成リクエスト"
+// @Success 201 {object} dto.CreateRecordResponse "作成成功"
+// @Failure 400 {object} common.ErrorResponse "リクエスト不正"
+// @Failure 401 {object} common.ErrorResponse "認証失敗"
+// @Failure 500 {object} common.ErrorResponse "サーバーエラー"
+// @Router /records [post]
+func (h *RecordHandler) Create(c *gin.Context) {
+	// コンテキストからユーザーIDを取得
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		common.RespondError(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated", nil)
+		return
+	}
+
+	// リクエストボディのバインド
+	var req dto.CreateRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid request body", nil)
+		return
+	}
+
+	// 明細が空の場合はバリデーションエラー
+	if len(req.Items) == 0 {
+		common.RespondValidationError(c, []string{"at least one item is required"})
+		return
+	}
+
+	// リクエストをEntityに変換
+	record, parseErr, validationErrs := req.ToDomain(userIDStr.(string))
+	if parseErr != nil {
+		common.RespondError(c, http.StatusBadRequest, common.CodeValidationError, "Invalid eatenAt format", nil)
+		return
+	}
+	if validationErrs != nil {
+		details := extractErrorMessages(validationErrs)
+		common.RespondValidationError(c, details)
+		return
+	}
+
+	// Usecase実行
+	if err := h.usecase.Create(c.Request.Context(), record); err != nil {
+		common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error", err)
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusCreated, dto.NewCreateRecordResponse(record))
+}
+
+// extractErrorMessages はエラーリストからメッセージを抽出する
+func extractErrorMessages(errs []error) []string {
+	details := make([]string, len(errs))
+	for i, err := range errs {
+		details[i] = err.Error()
+	}
+	return details
+}

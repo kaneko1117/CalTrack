@@ -105,406 +105,396 @@ func validSession(t *testing.T, userID vo.UserID) *entity.Session {
 // Login テスト
 // =============================================================================
 
-// TestLogin_Success はログイン成功のテスト
-func TestLogin_Success(t *testing.T) {
-	user := validUserForAuth(t)
+// TestAuthUsecase_Login はログイン機能のテスト
+func TestAuthUsecase_Login(t *testing.T) {
+	t.Run("正常系_ログイン成功", func(t *testing.T) {
+		user := validUserForAuth(t)
 
-	userRepo := &mockUserRepositoryForAuth{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return user, nil
-		},
-	}
-	sessionRepo := &mockSessionRepository{
-		save: func(ctx context.Context, session *entity.Session) error {
-			return nil
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		sessionRepo := &mockSessionRepository{
+			save: func(ctx context.Context, session *entity.Session) error {
+				return nil
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	output, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "test@example.com",
-		Password: "password123",
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		output, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "test@example.com",
+			Password: "password123",
+		})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if output == nil {
+			t.Fatal("output should not be nil")
+		}
+		if output.Session == nil {
+			t.Error("session should not be nil")
+		}
+		if output.User == nil {
+			t.Error("user should not be nil")
+		}
+		if output.Session.UserID().String() != user.ID().String() {
+			t.Errorf("session user id mismatch: got %v, want %v", output.Session.UserID().String(), user.ID().String())
+		}
 	})
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if output == nil {
-		t.Fatal("output should not be nil")
-	}
-	if output.Session == nil {
-		t.Error("session should not be nil")
-	}
-	if output.User == nil {
-		t.Error("user should not be nil")
-	}
-	if output.Session.UserID().String() != user.ID().String() {
-		t.Errorf("session user id mismatch: got %v, want %v", output.Session.UserID().String(), user.ID().String())
-	}
-}
+	t.Run("異常系_無効なメールアドレス形式", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-// TestLogin_InvalidEmailFormat は無効なメールアドレス形式のテスト
-func TestLogin_InvalidEmailFormat(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "invalid-email",
+			Password: "password123",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "invalid-email",
-		Password: "password123",
+		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
+			t.Errorf("got %v, want ErrInvalidCredentials", err)
+		}
 	})
 
-	if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-		t.Errorf("got %v, want ErrInvalidCredentials", err)
-	}
-}
+	t.Run("異常系_空のメールアドレス", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-// TestLogin_EmptyEmail は空のメールアドレスのテスト
-func TestLogin_EmptyEmail(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "",
+			Password: "password123",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "",
-		Password: "password123",
+		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
+			t.Errorf("got %v, want ErrInvalidCredentials", err)
+		}
 	})
 
-	if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-		t.Errorf("got %v, want ErrInvalidCredentials", err)
-	}
-}
+	t.Run("異常系_無効なパスワード形式", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-// TestLogin_InvalidPasswordFormat は無効なパスワード形式のテスト（短すぎる）
-func TestLogin_InvalidPasswordFormat(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "test@example.com",
+			Password: "short",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "test@example.com",
-		Password: "short",
+		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
+			t.Errorf("got %v, want ErrInvalidCredentials", err)
+		}
 	})
 
-	if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-		t.Errorf("got %v, want ErrInvalidCredentials", err)
-	}
-}
+	t.Run("異常系_空のパスワード", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-// TestLogin_EmptyPassword は空のパスワードのテスト
-func TestLogin_EmptyPassword(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "test@example.com",
+			Password: "",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "test@example.com",
-		Password: "",
+		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
+			t.Errorf("got %v, want ErrInvalidCredentials", err)
+		}
 	})
 
-	if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-		t.Errorf("got %v, want ErrInvalidCredentials", err)
-	}
-}
+	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return nil, nil
+			},
+		}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-// TestLogin_UserNotFound はユーザーが見つからない場合のテスト
-func TestLogin_UserNotFound(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return nil, nil
-		},
-	}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "notfound@example.com",
+			Password: "password123",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "notfound@example.com",
-		Password: "password123",
+		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
+			t.Errorf("got %v, want ErrInvalidCredentials", err)
+		}
 	})
 
-	if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-		t.Errorf("got %v, want ErrInvalidCredentials", err)
-	}
-}
+	t.Run("異常系_パスワードが一致しない", func(t *testing.T) {
+		user := validUserForAuth(t)
 
-// TestLogin_PasswordMismatch はパスワードが一致しない場合のテスト
-func TestLogin_PasswordMismatch(t *testing.T) {
-	user := validUserForAuth(t)
+		userRepo := &mockUserRepositoryForAuth{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-	userRepo := &mockUserRepositoryForAuth{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return user, nil
-		},
-	}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "test@example.com",
+			Password: "wrongpassword",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "test@example.com",
-		Password: "wrongpassword",
+		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
+			t.Errorf("got %v, want ErrInvalidCredentials", err)
+		}
 	})
 
-	if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-		t.Errorf("got %v, want ErrInvalidCredentials", err)
-	}
-}
+	t.Run("異常系_ユーザーリポジトリエラー", func(t *testing.T) {
+		repoErr := errors.New("db error")
+		userRepo := &mockUserRepositoryForAuth{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return nil, repoErr
+			},
+		}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-// TestLogin_UserRepositoryError はユーザーリポジトリエラーのテスト
-func TestLogin_UserRepositoryError(t *testing.T) {
-	repoErr := errors.New("db error")
-	userRepo := &mockUserRepositoryForAuth{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return nil, repoErr
-		},
-	}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "test@example.com",
+			Password: "password123",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "test@example.com",
-		Password: "password123",
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
 	})
 
-	if !errors.Is(err, repoErr) {
-		t.Errorf("got %v, want repoErr", err)
-	}
-}
+	t.Run("異常系_セッション保存エラー", func(t *testing.T) {
+		user := validUserForAuth(t)
+		saveErr := errors.New("session save error")
 
-// TestLogin_SessionSaveError はセッション保存エラーのテスト
-func TestLogin_SessionSaveError(t *testing.T) {
-	user := validUserForAuth(t)
-	saveErr := errors.New("session save error")
+		userRepo := &mockUserRepositoryForAuth{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		sessionRepo := &mockSessionRepository{
+			save: func(ctx context.Context, session *entity.Session) error {
+				return saveErr
+			},
+		}
+		txManager := &mockTxManager{}
 
-	userRepo := &mockUserRepositoryForAuth{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return user, nil
-		},
-	}
-	sessionRepo := &mockSessionRepository{
-		save: func(ctx context.Context, session *entity.Session) error {
-			return saveErr
-		},
-	}
-	txManager := &mockTxManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.Login(context.Background(), usecase.LoginInput{
+			Email:    "test@example.com",
+			Password: "password123",
+		})
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.Login(context.Background(), usecase.LoginInput{
-		Email:    "test@example.com",
-		Password: "password123",
+		if !errors.Is(err, saveErr) {
+			t.Errorf("got %v, want saveErr", err)
+		}
 	})
-
-	if !errors.Is(err, saveErr) {
-		t.Errorf("got %v, want saveErr", err)
-	}
 }
 
 // =============================================================================
 // Logout テスト
 // =============================================================================
 
-// TestLogout_Success はログアウト成功のテスト
-func TestLogout_Success(t *testing.T) {
-	sid := validSessionID(t)
+// TestAuthUsecase_Logout はログアウト機能のテスト
+func TestAuthUsecase_Logout(t *testing.T) {
+	t.Run("正常系_ログアウト成功", func(t *testing.T) {
+		sid := validSessionID(t)
 
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{
-		deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
-			return nil
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{
+			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
+				return nil
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	err := uc.Logout(context.Background(), sid.String())
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		err := uc.Logout(context.Background(), sid.String())
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 
-// TestLogout_InvalidSessionID は無効なセッションIDのテスト
-func TestLogout_InvalidSessionID(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+	t.Run("異常系_無効なセッションID", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	err := uc.Logout(context.Background(), "invalid-session-id")
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		err := uc.Logout(context.Background(), "invalid-session-id")
 
-	if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-		t.Errorf("got %v, want ErrInvalidSessionID", err)
-	}
-}
+		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
+			t.Errorf("got %v, want ErrInvalidSessionID", err)
+		}
+	})
 
-// TestLogout_EmptySessionID は空のセッションIDのテスト
-func TestLogout_EmptySessionID(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+	t.Run("異常系_空のセッションID", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	err := uc.Logout(context.Background(), "")
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		err := uc.Logout(context.Background(), "")
 
-	if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-		t.Errorf("got %v, want ErrInvalidSessionID", err)
-	}
-}
+		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
+			t.Errorf("got %v, want ErrInvalidSessionID", err)
+		}
+	})
 
-// TestLogout_DeleteError はセッション削除エラーのテスト
-func TestLogout_DeleteError(t *testing.T) {
-	sid := validSessionID(t)
-	deleteErr := errors.New("delete error")
+	t.Run("異常系_セッション削除エラー", func(t *testing.T) {
+		sid := validSessionID(t)
+		deleteErr := errors.New("delete error")
 
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{
-		deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
-			return deleteErr
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{
+			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
+				return deleteErr
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	err := uc.Logout(context.Background(), sid.String())
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		err := uc.Logout(context.Background(), sid.String())
 
-	if !errors.Is(err, deleteErr) {
-		t.Errorf("got %v, want deleteErr", err)
-	}
+		if !errors.Is(err, deleteErr) {
+			t.Errorf("got %v, want deleteErr", err)
+		}
+	})
 }
 
 // =============================================================================
 // ValidateSession テスト
 // =============================================================================
 
-// TestValidateSession_Success はセッション検証成功のテスト
-func TestValidateSession_Success(t *testing.T) {
-	userID := vo.NewUserID()
-	session := validSession(t, userID)
+// TestAuthUsecase_ValidateSession はセッション検証機能のテスト
+func TestAuthUsecase_ValidateSession(t *testing.T) {
+	t.Run("正常系_セッション検証成功", func(t *testing.T) {
+		userID := vo.NewUserID()
+		session := validSession(t, userID)
 
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{
-		findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-			return session, nil
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{
+			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
+				return session, nil
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	result, err := uc.ValidateSession(context.Background(), session.ID().String())
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		result, err := uc.ValidateSession(context.Background(), session.ID().String())
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("result should not be nil")
-	}
-	if result.ID().String() != session.ID().String() {
-		t.Errorf("session id mismatch: got %v, want %v", result.ID().String(), session.ID().String())
-	}
-}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result == nil {
+			t.Fatal("result should not be nil")
+		}
+		if result.ID().String() != session.ID().String() {
+			t.Errorf("session id mismatch: got %v, want %v", result.ID().String(), session.ID().String())
+		}
+	})
 
-// TestValidateSession_InvalidSessionID は無効なセッションIDのテスト
-func TestValidateSession_InvalidSessionID(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+	t.Run("異常系_無効なセッションID", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.ValidateSession(context.Background(), "invalid-session-id")
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.ValidateSession(context.Background(), "invalid-session-id")
 
-	if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-		t.Errorf("got %v, want ErrInvalidSessionID", err)
-	}
-}
+		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
+			t.Errorf("got %v, want ErrInvalidSessionID", err)
+		}
+	})
 
-// TestValidateSession_EmptySessionID は空のセッションIDのテスト
-func TestValidateSession_EmptySessionID(t *testing.T) {
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTxManager{}
+	t.Run("異常系_空のセッションID", func(t *testing.T) {
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.ValidateSession(context.Background(), "")
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.ValidateSession(context.Background(), "")
 
-	if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-		t.Errorf("got %v, want ErrInvalidSessionID", err)
-	}
-}
+		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
+			t.Errorf("got %v, want ErrInvalidSessionID", err)
+		}
+	})
 
-// TestValidateSession_SessionNotFound はセッションが見つからない場合のテスト
-func TestValidateSession_SessionNotFound(t *testing.T) {
-	sid := validSessionID(t)
+	t.Run("異常系_セッションが見つからない", func(t *testing.T) {
+		sid := validSessionID(t)
 
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{
-		findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-			return nil, nil
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{
+			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
+				return nil, nil
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.ValidateSession(context.Background(), sid.String())
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.ValidateSession(context.Background(), sid.String())
 
-	if !errors.Is(err, domainErrors.ErrSessionNotFound) {
-		t.Errorf("got %v, want ErrSessionNotFound", err)
-	}
-}
+		if !errors.Is(err, domainErrors.ErrSessionNotFound) {
+			t.Errorf("got %v, want ErrSessionNotFound", err)
+		}
+	})
 
-// TestValidateSession_SessionExpired は有効期限切れセッションのテスト
-func TestValidateSession_SessionExpired(t *testing.T) {
-	userID := vo.NewUserID()
-	// 期限切れのセッションを作成
-	expiredSession, err := entity.ReconstructSession(
-		validSessionID(t).String(),
-		userID.String(),
-		time.Now().AddDate(0, 0, -1), // 1日前に期限切れ
-		time.Now().AddDate(0, 0, -8), // 8日前に作成
-	)
-	if err != nil {
-		t.Fatalf("failed to create expired session: %v", err)
-	}
+	t.Run("異常系_セッション有効期限切れ", func(t *testing.T) {
+		userID := vo.NewUserID()
+		// 期限切れのセッションを作成
+		expiredSession, err := entity.ReconstructSession(
+			validSessionID(t).String(),
+			userID.String(),
+			time.Now().AddDate(0, 0, -1), // 1日前に期限切れ
+			time.Now().AddDate(0, 0, -8), // 8日前に作成
+		)
+		if err != nil {
+			t.Fatalf("failed to create expired session: %v", err)
+		}
 
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{
-		findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-			return expiredSession, nil
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{
+			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
+				return expiredSession, nil
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err = uc.ValidateSession(context.Background(), expiredSession.ID().String())
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err = uc.ValidateSession(context.Background(), expiredSession.ID().String())
 
-	if !errors.Is(err, domainErrors.ErrSessionExpired) {
-		t.Errorf("got %v, want ErrSessionExpired", err)
-	}
-}
+		if !errors.Is(err, domainErrors.ErrSessionExpired) {
+			t.Errorf("got %v, want ErrSessionExpired", err)
+		}
+	})
 
-// TestValidateSession_RepositoryError はリポジトリエラーのテスト
-func TestValidateSession_RepositoryError(t *testing.T) {
-	sid := validSessionID(t)
-	repoErr := errors.New("db error")
+	t.Run("異常系_リポジトリエラー", func(t *testing.T) {
+		sid := validSessionID(t)
+		repoErr := errors.New("db error")
 
-	userRepo := &mockUserRepositoryForAuth{}
-	sessionRepo := &mockSessionRepository{
-		findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-			return nil, repoErr
-		},
-	}
-	txManager := &mockTxManager{}
+		userRepo := &mockUserRepositoryForAuth{}
+		sessionRepo := &mockSessionRepository{
+			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
+				return nil, repoErr
+			},
+		}
+		txManager := &mockTxManager{}
 
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	_, err := uc.ValidateSession(context.Background(), sid.String())
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		_, err := uc.ValidateSession(context.Background(), sid.String())
 
-	if !errors.Is(err, repoErr) {
-		t.Errorf("got %v, want repoErr", err)
-	}
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
 }

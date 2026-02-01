@@ -9,6 +9,8 @@ import (
 	"caltrack/config"
 	_ "caltrack/docs"
 	"caltrack/handler/auth"
+	"caltrack/handler/middleware"
+	"caltrack/handler/record"
 	"caltrack/handler/user"
 	gormPersistence "caltrack/infrastructure/persistence/gorm"
 	"caltrack/pkg/logger"
@@ -37,15 +39,18 @@ func main() {
 	// DI - Repository
 	userRepo := gormPersistence.NewGormUserRepository(config.DB)
 	sessionRepo := gormPersistence.NewGormSessionRepository(config.DB)
+	recordRepo := gormPersistence.NewGormRecordRepository(config.DB)
 	txManager := gormPersistence.NewGormTransactionManager(config.DB)
 
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+	recordUsecase := usecase.NewRecordUsecase(recordRepo, txManager)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
 	authHandler := auth.NewAuthHandler(authUsecase)
+	recordHandler := record.NewRecordHandler(recordUsecase)
 
 	// Setup router
 	r := gin.Default()
@@ -79,6 +84,13 @@ func main() {
 	{
 		authGroup.POST("/login", authHandler.Login)
 		authGroup.POST("/logout", authHandler.Logout)
+	}
+
+	// 認証が必要なルート
+	authenticated := api.Group("")
+	authenticated.Use(middleware.AuthMiddleware(authUsecase))
+	{
+		authenticated.POST("/records", recordHandler.Create)
 	}
 
 	// Start server
