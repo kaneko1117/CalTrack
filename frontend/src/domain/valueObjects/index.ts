@@ -6,3 +6,6 @@ export * from "./height";
 export * from "./birthDate";
 export * from "./gender";
 export * from "./activityLevel";
+export * from "./itemName";
+export * from "./calories";
+export * from "./eatenAt";
