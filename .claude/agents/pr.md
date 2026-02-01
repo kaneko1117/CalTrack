@@ -33,6 +33,9 @@ Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 ## 参照するrules
 
 ```bash
+# 全員共通
+cat .claude/rules/env-file-policy.md
+
 cat .claude/rules/coding.md
 ```
 

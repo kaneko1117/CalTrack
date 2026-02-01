@@ -12,10 +12,10 @@ import (
 func TestNewSession_Success(t *testing.T) {
 	validUserID := "550e8400-e29b-41d4-a716-446655440000"
 
-	session, errs := entity.NewSession(validUserID)
+	session, err := entity.NewSession(validUserID)
 
-	if errs != nil {
-		t.Fatalf("NewSession() unexpected errors: %v", errs)
+	if err != nil {
+		t.Fatalf("NewSession() unexpected error: %v", err)
 	}
 	if session.ID().String() == "" {
 		t.Error("ID should not be empty")
@@ -31,30 +31,6 @@ func TestNewSession_Success(t *testing.T) {
 	}
 }
 
-func TestNewSession_InvalidUserID(t *testing.T) {
-	tests := []struct {
-		name    string
-		userID  string
-		wantErr error
-	}{
-		{"空のユーザーIDはエラー", "", domainErrors.ErrInvalidUserID},
-		{"無効なUUID形式はエラー", "invalid-uuid", domainErrors.ErrInvalidUserID},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, errs := entity.NewSession(tt.userID)
-
-			if len(errs) != 1 {
-				t.Fatalf("got %d errors, want 1: %v", len(errs), errs)
-			}
-			if errs[0] != tt.wantErr {
-				t.Errorf("got err = %v, want %v", errs[0], tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestNewSession_GeneratesUniqueIDs(t *testing.T) {
 	validUserID := "550e8400-e29b-41d4-a716-446655440000"
 
@@ -67,7 +43,7 @@ func TestNewSession_GeneratesUniqueIDs(t *testing.T) {
 }
 
 func TestNewSessionWithUserID_Success(t *testing.T) {
-	userID, _ := vo.ParseUserID("550e8400-e29b-41d4-a716-446655440000")
+	userID := vo.ReconstructUserID("550e8400-e29b-41d4-a716-446655440000")
 
 	session, err := entity.NewSessionWithUserID(userID)
 
@@ -89,7 +65,7 @@ func TestNewSessionWithUserID_Success(t *testing.T) {
 }
 
 func TestNewSessionWithUserID_GeneratesUniqueIDs(t *testing.T) {
-	userID, _ := vo.ParseUserID("550e8400-e29b-41d4-a716-446655440000")
+	userID := vo.ReconstructUserID("550e8400-e29b-41d4-a716-446655440000")
 
 	session1, _ := entity.NewSessionWithUserID(userID)
 	session2, _ := entity.NewSessionWithUserID(userID)
@@ -156,36 +132,6 @@ func TestReconstructSession_InvalidSessionID(t *testing.T) {
 
 			if err != domainErrors.ErrInvalidSessionID {
 				t.Errorf("got err = %v, want %v", err, domainErrors.ErrInvalidSessionID)
-			}
-		})
-	}
-}
-
-func TestReconstructSession_InvalidUserID(t *testing.T) {
-	validSessionID, _ := vo.NewSessionID()
-	sessionIDStr := validSessionID.String()
-	expiresAt := time.Date(2024, 6, 22, 12, 0, 0, 0, time.UTC)
-	createdAt := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
-
-	tests := []struct {
-		name   string
-		userID string
-	}{
-		{"空のユーザーIDはエラー", ""},
-		{"無効なUUID形式はエラー", "invalid-uuid"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := entity.ReconstructSession(
-				sessionIDStr,
-				tt.userID,
-				expiresAt,
-				createdAt,
-			)
-
-			if err != domainErrors.ErrInvalidUserID {
-				t.Errorf("got err = %v, want %v", err, domainErrors.ErrInvalidUserID)
 			}
 		})
 	}

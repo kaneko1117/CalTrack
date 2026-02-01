@@ -50,6 +50,9 @@ rulesを参照し、規約に沿った設計を提示する。
 ## 参照するrules
 
 ```bash
+# 全員共通
+cat .claude/rules/env-file-policy.md
+
 # 共通
 cat .claude/rules/clean-architecture.md
 

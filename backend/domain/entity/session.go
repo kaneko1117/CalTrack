@@ -16,18 +16,13 @@ type Session struct {
 
 // NewSession は新しいセッションを生成する
 // userIDStr: ユーザーID文字列
-// 戻り値: 生成されたSession, エラースライス
-func NewSession(userIDStr string) (*Session, []error) {
-	var errs []error
-
-	userID, err := parseUserID(userIDStr)
-	errs = appendIfErr(errs, err)
+// 戻り値: 生成されたSession, エラー
+func NewSession(userIDStr string) (*Session, error) {
+	userID := parseUserID(userIDStr)
 
 	sessionID, err := parseSessionID()
-	errs = appendIfErr(errs, err)
-
-	if len(errs) > 0 {
-		return nil, errs
+	if err != nil {
+		return nil, err
 	}
 
 	return &Session{
@@ -56,7 +51,7 @@ func NewSessionWithUserID(userID vo.UserID) (*Session, error) {
 
 // ReconstructSession はDBからの復元用
 // NOTE: DBデータは保存時にバリデーション済みなのでVO変換は本来不要だが、
-// データ破損検知のため一旦バリデーションありで実装。
+// SessionIDはデータ破損検知のためバリデーションあり。
 func ReconstructSession(
 	sessionIDStr string,
 	userIDStr string,
@@ -68,10 +63,7 @@ func ReconstructSession(
 		return nil, err
 	}
 
-	userID, err := vo.ParseUserID(userIDStr)
-	if err != nil {
-		return nil, err
-	}
+	userID := vo.ReconstructUserID(userIDStr)
 
 	return &Session{
 		id:        sessionID,
@@ -82,8 +74,8 @@ func ReconstructSession(
 }
 
 // parseUserID はUserID文字列をVOに変換する
-func parseUserID(s string) (vo.UserID, error) {
-	return vo.ParseUserID(s)
+func parseUserID(s string) vo.UserID {
+	return vo.ReconstructUserID(s)
 }
 
 // parseSessionID は新しいSessionIDを生成する

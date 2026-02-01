@@ -128,25 +128,3 @@ func TestReconstructUser_Success(t *testing.T) {
 	}
 }
 
-func TestReconstructUser_InvalidID(t *testing.T) {
-	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
-	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	_, err := entity.ReconstructUser(
-		"invalid-uuid",
-		"test@example.com",
-		"$2a$10$hashedpassword",
-		"testuser",
-		70.5,
-		175.0,
-		birthDate,
-		"male",
-		"moderate",
-		createdAt,
-		createdAt,
-	)
-
-	if err == nil {
-		t.Error("ReconstructUser() should return error for invalid UUID")
-	}
-}

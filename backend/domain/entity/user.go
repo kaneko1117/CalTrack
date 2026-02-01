@@ -140,10 +140,7 @@ func ReconstructUser(
 	createdAt time.Time,
 	updatedAt time.Time,
 ) (*User, error) {
-	id, err := vo.ParseUserID(idStr)
-	if err != nil {
-		return nil, err
-	}
+	id := vo.ReconstructUserID(idStr)
 
 	email, err := vo.NewEmail(emailStr)
 	if err != nil {
