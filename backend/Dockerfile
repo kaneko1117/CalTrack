@@ -5,6 +5,9 @@ WORKDIR /app
 # Install Air for hot-reload
 RUN go install github.com/air-verse/air@v1.61.0
 
+# Install gotestsum for better test output
+RUN go install gotest.tools/gotestsum@latest
+
 # Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
