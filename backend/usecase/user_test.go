@@ -53,83 +53,86 @@ func validUser(t *testing.T) *entity.User {
 	return u
 }
 
-func TestRegisterUserUsecase_Success(t *testing.T) {
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return false, nil
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
+// TestUserUsecase_Register はユーザー登録機能のテスト
+func TestUserUsecase_Register(t *testing.T) {
+	t.Run("正常系_登録成功", func(t *testing.T) {
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return false, nil
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
 
-	uc := usecase.NewUserUsecase(repo, txManager)
-	registeredUser, err := uc.Register(context.Background(), validUser(t))
+		uc := usecase.NewUserUsecase(repo, txManager)
+		registeredUser, err := uc.Register(context.Background(), validUser(t))
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if registeredUser.ID().String() == "" {
-		t.Error("UserID should not be empty")
-	}
-}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if registeredUser.ID().String() == "" {
+			t.Error("UserID should not be empty")
+		}
+	})
 
-func TestRegisterUserUsecase_EmailAlreadyExists(t *testing.T) {
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return true, nil
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
+	t.Run("異常系_メールアドレスが既に存在する", func(t *testing.T) {
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return true, nil
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
 
-	uc := usecase.NewUserUsecase(repo, txManager)
-	_, err := uc.Register(context.Background(), validUser(t))
+		uc := usecase.NewUserUsecase(repo, txManager)
+		_, err := uc.Register(context.Background(), validUser(t))
 
-	if err != domainErrors.ErrEmailAlreadyExists {
-		t.Errorf("got %v, want ErrEmailAlreadyExists", err)
-	}
-}
+		if err != domainErrors.ErrEmailAlreadyExists {
+			t.Errorf("got %v, want ErrEmailAlreadyExists", err)
+		}
+	})
 
-func TestRegisterUserUsecase_RepositoryError(t *testing.T) {
-	repoErr := errors.New("db error")
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return false, repoErr
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
+	t.Run("異常系_リポジトリエラー", func(t *testing.T) {
+		repoErr := errors.New("db error")
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return false, repoErr
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
 
-	uc := usecase.NewUserUsecase(repo, txManager)
-	_, err := uc.Register(context.Background(), validUser(t))
+		uc := usecase.NewUserUsecase(repo, txManager)
+		_, err := uc.Register(context.Background(), validUser(t))
 
-	if err != repoErr {
-		t.Errorf("got %v, want repoErr", err)
-	}
-}
+		if err != repoErr {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
 
-func TestRegisterUserUsecase_SaveError(t *testing.T) {
-	saveErr := errors.New("save error")
-	repo := &mockUserRepository{
-		existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-			return false, nil
-		},
-		save: func(ctx context.Context, u *entity.User) error {
-			return saveErr
-		},
-	}
-	txManager := &mockTransactionManager{}
+	t.Run("異常系_保存エラー", func(t *testing.T) {
+		saveErr := errors.New("save error")
+		repo := &mockUserRepository{
+			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
+				return false, nil
+			},
+			save: func(ctx context.Context, u *entity.User) error {
+				return saveErr
+			},
+		}
+		txManager := &mockTransactionManager{}
 
-	uc := usecase.NewUserUsecase(repo, txManager)
-	_, err := uc.Register(context.Background(), validUser(t))
+		uc := usecase.NewUserUsecase(repo, txManager)
+		_, err := uc.Register(context.Background(), validUser(t))
 
-	if !errors.Is(err, saveErr) {
-		t.Errorf("got %v, want saveErr", err)
-	}
+		if !errors.Is(err, saveErr) {
+			t.Errorf("got %v, want saveErr", err)
+		}
+	})
 }

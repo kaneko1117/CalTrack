@@ -127,10 +127,12 @@ func TestEatenAt_MealType(t *testing.T) {
 	}
 }
 
-func TestMealType_String_不明な値(t *testing.T) {
-	// 定義されていないMealType値の場合
-	invalidType := MealType(99)
-	if got := invalidType.String(); got != "不明" {
-		t.Errorf("MealType(99).String() = %v, want %v", got, "不明")
-	}
+func TestMealType_String(t *testing.T) {
+	t.Run("不明な値", func(t *testing.T) {
+		// 定義されていないMealType値の場合
+		invalidType := MealType(99)
+		if got := invalidType.String(); got != "不明" {
+			t.Errorf("MealType(99).String() = %v, want %v", got, "不明")
+		}
+	})
 }

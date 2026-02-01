@@ -93,327 +93,331 @@ func createTestUser(t *testing.T, email, password string) *entity.User {
 	return user
 }
 
-func TestAuthHandler_Login_Success(t *testing.T) {
-	testEmail := "test@example.com"
-	testPassword := "password123"
-	testUser := createTestUser(t, testEmail, testPassword)
+func TestAuthHandler_Login(t *testing.T) {
+	t.Run("正常系_ログイン成功", func(t *testing.T) {
+		testEmail := "test@example.com"
+		testPassword := "password123"
+		testUser := createTestUser(t, testEmail, testPassword)
 
-	userRepo := &mockUserRepository{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return testUser, nil
-		},
-	}
-	sessionRepo := &mockSessionRepository{
-		save: func(ctx context.Context, session *entity.Session) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	reqBody := `{"email": "test@example.com", "password": "password123"}`
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
-
-	handler.Login(c)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
-	}
-
-	// レスポンスボディの検証
-	var resp map[string]string
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-
-	if resp["email"] != testEmail {
-		t.Errorf("email = %s, want %s", resp["email"], testEmail)
-	}
-	if resp["nickname"] != "testuser" {
-		t.Errorf("nickname = %s, want %s", resp["nickname"], "testuser")
-	}
-	if resp["userId"] == "" {
-		t.Error("userId should not be empty")
-	}
-
-	// Cookieの検証
-	cookies := w.Result().Cookies()
-	var sessionCookie *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name == "session_id" {
-			sessionCookie = cookie
-			break
+		userRepo := &mockUserRepository{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return testUser, nil
+			},
 		}
-	}
-	if sessionCookie == nil {
-		t.Error("session_id cookie should be set")
-	} else {
-		if !sessionCookie.HttpOnly {
-			t.Error("session_id cookie should be HttpOnly")
+		sessionRepo := &mockSessionRepository{
+			save: func(ctx context.Context, session *entity.Session) error {
+				return nil
+			},
 		}
-		if !sessionCookie.Secure {
-			t.Error("session_id cookie should be Secure")
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		reqBody := `{"email": "test@example.com", "password": "password123"}`
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+
+		handler.Login(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
 		}
-	}
-}
 
-func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
-	testEmail := "test@example.com"
-	testPassword := "password123"
-	testUser := createTestUser(t, testEmail, testPassword)
+		// レスポンスボディの検証
+		var resp map[string]string
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
 
-	userRepo := &mockUserRepository{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return testUser, nil
-		},
-	}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
+		if resp["email"] != testEmail {
+			t.Errorf("email = %s, want %s", resp["email"], testEmail)
+		}
+		if resp["nickname"] != "testuser" {
+			t.Errorf("nickname = %s, want %s", resp["nickname"], "testuser")
+		}
+		if resp["userId"] == "" {
+			t.Error("userId should not be empty")
+		}
 
-	// 間違ったパスワードでログイン試行
-	reqBody := `{"email": "test@example.com", "password": "wrongpassword"}`
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
-
-	handler.Login(c)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
-	}
-
-	// エラーレスポンスの検証
-	var resp common.ErrorResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-
-	if resp.Code != common.CodeInvalidCredentials {
-		t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidCredentials)
-	}
-}
-
-func TestAuthHandler_Login_UserNotFound(t *testing.T) {
-	userRepo := &mockUserRepository{
-		findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-			return nil, nil // ユーザーが見つからない
-		},
-	}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	reqBody := `{"email": "notfound@example.com", "password": "password123"}`
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
-
-	handler.Login(c)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
-	}
-
-	var resp common.ErrorResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-
-	if resp.Code != common.CodeInvalidCredentials {
-		t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidCredentials)
-	}
-}
-
-func TestAuthHandler_Login_InvalidEmailFormat(t *testing.T) {
-	userRepo := &mockUserRepository{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	reqBody := `{"email": "invalid-email", "password": "password123"}`
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
-
-	handler.Login(c)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
-	}
-
-	var resp common.ErrorResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-
-	if resp.Code != common.CodeInvalidCredentials {
-		t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidCredentials)
-	}
-}
-
-func TestAuthHandler_Login_InvalidRequestBody(t *testing.T) {
-	userRepo := &mockUserRepository{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	reqBody := `{invalid json}`
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
-	c.Request.Header.Set("Content-Type", "application/json")
-
-	handler.Login(c)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
-
-	var resp common.ErrorResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-
-	if resp.Code != common.CodeInvalidRequest {
-		t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidRequest)
-	}
-}
-
-func TestAuthHandler_Logout_Success(t *testing.T) {
-	userRepo := &mockUserRepository{}
-	sessionRepo := &mockSessionRepository{
-		deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
-			return nil
-		},
-	}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
-
-	// 有効なセッションIDをCookieに設定（44文字のBase64エンコード）
-	validSessionID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	c.Request.AddCookie(&http.Cookie{
-		Name:  "session_id",
-		Value: validSessionID,
-	})
-
-	handler.Logout(c)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
-	}
-
-	// Cookieが削除されていることを確認
-	cookies := w.Result().Cookies()
-	for _, cookie := range cookies {
-		if cookie.Name == "session_id" {
-			if cookie.MaxAge >= 0 {
-				t.Error("session_id cookie should be deleted (MaxAge < 0)")
+		// Cookieの検証
+		cookies := w.Result().Cookies()
+		var sessionCookie *http.Cookie
+		for _, cookie := range cookies {
+			if cookie.Name == "session_id" {
+				sessionCookie = cookie
+				break
 			}
-			break
 		}
-	}
-}
-
-func TestAuthHandler_Logout_NoCookie(t *testing.T) {
-	userRepo := &mockUserRepository{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
-	// Cookieを設定しない
-
-	handler.Logout(c)
-
-	// Cookieがなくても成功として扱う
-	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
-	}
-}
-
-func TestAuthHandler_Logout_InvalidSessionID(t *testing.T) {
-	userRepo := &mockUserRepository{}
-	sessionRepo := &mockSessionRepository{}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
-
-	// 無効なセッションIDをCookieに設定
-	c.Request.AddCookie(&http.Cookie{
-		Name:  "session_id",
-		Value: "invalid-session-id",
+		if sessionCookie == nil {
+			t.Error("session_id cookie should be set")
+		} else {
+			if !sessionCookie.HttpOnly {
+				t.Error("session_id cookie should be HttpOnly")
+			}
+			if !sessionCookie.Secure {
+				t.Error("session_id cookie should be Secure")
+			}
+		}
 	})
 
-	handler.Logout(c)
+	t.Run("異常系_認証情報不正", func(t *testing.T) {
+		testEmail := "test@example.com"
+		testPassword := "password123"
+		testUser := createTestUser(t, testEmail, testPassword)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
-}
+		userRepo := &mockUserRepository{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
 
-func TestAuthHandler_Logout_SessionDeleteError(t *testing.T) {
-	userRepo := &mockUserRepository{}
-	sessionRepo := &mockSessionRepository{
-		deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
-			return domainErrors.ErrSessionNotFound
-		},
-	}
-	txManager := &mockTransactionManager{}
-	uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	handler := auth.NewAuthHandler(uc)
+		// 間違ったパスワードでログイン試行
+		reqBody := `{"email": "test@example.com", "password": "wrongpassword"}`
 
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
 
-	// 有効なセッションIDをCookieに設定
-	validSessionID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	c.Request.AddCookie(&http.Cookie{
-		Name:  "session_id",
-		Value: validSessionID,
+		handler.Login(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+
+		// エラーレスポンスの検証
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInvalidCredentials {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidCredentials)
+		}
 	})
 
-	handler.Logout(c)
+	t.Run("異常系_ユーザー未登録", func(t *testing.T) {
+		userRepo := &mockUserRepository{
+			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
+				return nil, nil // ユーザーが見つからない
+			},
+		}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
-	}
+		reqBody := `{"email": "notfound@example.com", "password": "password123"}`
 
-	var resp common.ErrorResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
 
-	if resp.Code != common.CodeUnauthorized {
-		t.Errorf("code = %s, want %s", resp.Code, common.CodeUnauthorized)
-	}
+		handler.Login(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInvalidCredentials {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidCredentials)
+		}
+	})
+
+	t.Run("異常系_メールアドレス形式不正", func(t *testing.T) {
+		userRepo := &mockUserRepository{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		reqBody := `{"email": "invalid-email", "password": "password123"}`
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+
+		handler.Login(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInvalidCredentials {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidCredentials)
+		}
+	})
+
+	t.Run("異常系_リクエストボディ不正", func(t *testing.T) {
+		userRepo := &mockUserRepository{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		reqBody := `{invalid json}`
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(reqBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+
+		handler.Login(c)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInvalidRequest {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInvalidRequest)
+		}
+	})
+}
+
+func TestAuthHandler_Logout(t *testing.T) {
+	t.Run("正常系_ログアウト成功", func(t *testing.T) {
+		userRepo := &mockUserRepository{}
+		sessionRepo := &mockSessionRepository{
+			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
+				return nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+
+		// 有効なセッションIDをCookieに設定（44文字のBase64エンコード）
+		validSessionID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+		c.Request.AddCookie(&http.Cookie{
+			Name:  "session_id",
+			Value: validSessionID,
+		})
+
+		handler.Logout(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
+		}
+
+		// Cookieが削除されていることを確認
+		cookies := w.Result().Cookies()
+		for _, cookie := range cookies {
+			if cookie.Name == "session_id" {
+				if cookie.MaxAge >= 0 {
+					t.Error("session_id cookie should be deleted (MaxAge < 0)")
+				}
+				break
+			}
+		}
+	})
+
+	t.Run("正常系_Cookie未設定", func(t *testing.T) {
+		userRepo := &mockUserRepository{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+		// Cookieを設定しない
+
+		handler.Logout(c)
+
+		// Cookieがなくても成功として扱う
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+	})
+
+	t.Run("異常系_セッションID不正", func(t *testing.T) {
+		userRepo := &mockUserRepository{}
+		sessionRepo := &mockSessionRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+
+		// 無効なセッションIDをCookieに設定
+		c.Request.AddCookie(&http.Cookie{
+			Name:  "session_id",
+			Value: "invalid-session-id",
+		})
+
+		handler.Logout(c)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("異常系_セッション削除エラー", func(t *testing.T) {
+		userRepo := &mockUserRepository{}
+		sessionRepo := &mockSessionRepository{
+			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
+				return domainErrors.ErrSessionNotFound
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
+		handler := auth.NewAuthHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+
+		// 有効なセッションIDをCookieに設定
+		validSessionID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+		c.Request.AddCookie(&http.Cookie{
+			Name:  "session_id",
+			Value: validSessionID,
+		})
+
+		handler.Logout(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeUnauthorized {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeUnauthorized)
+		}
+	})
 }
