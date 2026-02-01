@@ -32,10 +32,10 @@ func NewUser(
 ) (*User, []error) {
 	var errs []error
 
-	email, err := parseEmail(emailStr)
+	email, err := vo.NewEmail(emailStr)
 	errs = appendIfErr(errs, err)
 
-	password, err := parsePassword(passwordStr)
+	password, err := vo.NewPassword(passwordStr)
 	errs = appendIfErr(errs, err)
 
 	var hashedPassword vo.HashedPassword
@@ -46,22 +46,22 @@ func NewUser(
 		}
 	}
 
-	nickname, err := parseNickname(nicknameStr)
+	nickname, err := vo.NewNickname(nicknameStr)
 	errs = appendIfErr(errs, err)
 
-	weight, err := parseWeight(weightVal)
+	weight, err := vo.NewWeight(weightVal)
 	errs = appendIfErr(errs, err)
 
-	height, err := parseHeight(heightVal)
+	height, err := vo.NewHeight(heightVal)
 	errs = appendIfErr(errs, err)
 
-	birthDate, err := parseBirthDate(birthDateVal)
+	birthDate, err := vo.NewBirthDate(birthDateVal)
 	errs = appendIfErr(errs, err)
 
-	gender, err := parseGender(genderStr)
+	gender, err := vo.NewGender(genderStr)
 	errs = appendIfErr(errs, err)
 
-	activityLevel, err := parseActivityLevel(activityLevelStr)
+	activityLevel, err := vo.NewActivityLevel(activityLevelStr)
 	errs = appendIfErr(errs, err)
 
 	if len(errs) > 0 {
@@ -82,45 +82,6 @@ func NewUser(
 		createdAt:      now,
 		updatedAt:      now,
 	}, nil
-}
-
-func appendIfErr(errs []error, err error) []error {
-	if err != nil {
-		return append(errs, err)
-	}
-	return errs
-}
-
-func parseEmail(s string) (vo.Email, error) {
-	return vo.NewEmail(s)
-}
-
-func parsePassword(s string) (vo.Password, error) {
-	return vo.NewPassword(s)
-}
-
-func parseNickname(s string) (vo.Nickname, error) {
-	return vo.NewNickname(s)
-}
-
-func parseWeight(v float64) (vo.Weight, error) {
-	return vo.NewWeight(v)
-}
-
-func parseHeight(v float64) (vo.Height, error) {
-	return vo.NewHeight(v)
-}
-
-func parseBirthDate(v time.Time) (vo.BirthDate, error) {
-	return vo.NewBirthDate(v)
-}
-
-func parseGender(s string) (vo.Gender, error) {
-	return vo.NewGender(s)
-}
-
-func parseActivityLevel(s string) (vo.ActivityLevel, error) {
-	return vo.NewActivityLevel(s)
 }
 
 // ReconstructUser はDBからの復元用。

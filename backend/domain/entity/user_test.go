@@ -127,4 +127,3 @@ func TestReconstructUser_Success(t *testing.T) {
 		t.Errorf("UpdatedAt = %v, want %v", user.UpdatedAt(), updatedAt)
 	}
 }
-

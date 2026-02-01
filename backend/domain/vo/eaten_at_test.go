@@ -87,3 +87,50 @@ func TestEatenAt_Equals(t *testing.T) {
 		})
 	}
 }
+
+func TestEatenAt_MealType(t *testing.T) {
+	tests := []struct {
+		name     string
+		hour     int
+		wantType MealType
+		wantName string
+	}{
+		// 朝食 (5:00 - 11:00)
+		{"5時は朝食", 5, MealTypeBreakfast, "朝食"},
+		{"10時は朝食", 10, MealTypeBreakfast, "朝食"},
+		// 昼食 (11:00 - 14:00)
+		{"11時は昼食", 11, MealTypeLunch, "昼食"},
+		{"13時は昼食", 13, MealTypeLunch, "昼食"},
+		// 間食 (14:00 - 17:00)
+		{"14時は間食", 14, MealTypeSnack, "間食"},
+		{"16時は間食", 16, MealTypeSnack, "間食"},
+		// 夕食 (17:00 - 21:00)
+		{"17時は夕食", 17, MealTypeDinner, "夕食"},
+		{"20時は夕食", 20, MealTypeDinner, "夕食"},
+		// 夜食 (21:00 - 5:00)
+		{"21時は夜食", 21, MealTypeLateNight, "夜食"},
+		{"0時は夜食", 0, MealTypeLateNight, "夜食"},
+		{"4時は夜食", 4, MealTypeLateNight, "夜食"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eatenAt := ReconstructEatenAt(time.Date(2024, 6, 15, tt.hour, 0, 0, 0, time.UTC))
+
+			if got := eatenAt.MealType(); got != tt.wantType {
+				t.Errorf("MealType() = %v, want %v", got, tt.wantType)
+			}
+			if got := eatenAt.MealType().String(); got != tt.wantName {
+				t.Errorf("MealType().String() = %v, want %v", got, tt.wantName)
+			}
+		})
+	}
+}
+
+func TestMealType_String_不明な値(t *testing.T) {
+	// 定義されていないMealType値の場合
+	invalidType := MealType(99)
+	if got := invalidType.String(); got != "不明" {
+		t.Errorf("MealType(99).String() = %v, want %v", got, "不明")
+	}
+}
