@@ -2,6 +2,9 @@ import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
   stories: [
+    // components/ui配下のストーリーを対象（shadcn/ui）
+    '../src/components/ui/**/*.mdx',
+    '../src/components/ui/**/*.stories.@(js|jsx|mjs|ts|tsx)',
     // features配下のストーリーを対象
     '../src/features/**/*.mdx',
     '../src/features/**/*.stories.@(js|jsx|mjs|ts|tsx)',
