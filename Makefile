@@ -104,7 +104,7 @@ build-frontend:
 test: test-backend test-frontend
 
 test-backend:
-	docker compose exec backend go test ./... -v
+	docker compose exec -e ENV=test backend gotestsum --format testname -- ./...
 
 test-frontend:
 	docker compose exec frontend npm run test

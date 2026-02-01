@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"sync"
@@ -28,12 +29,20 @@ func Init() {
 func initLogger() {
 	var handler slog.Handler
 
-	if os.Getenv("ENV") == "production" {
+	env := os.Getenv("ENV")
+
+	switch env {
+	case "production":
 		// 本番環境: JSON出力
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})
-	} else {
+	case "test":
+		// テスト環境: ログ出力を抑制
+		handler = slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
+			Level: slog.LevelError + 1, // 全レベルを抑制
+		})
+	default:
 		// 開発環境: カラー出力
 		handler = tint.NewHandler(os.Stdout, &tint.Options{
 			Level:      slog.LevelDebug,
