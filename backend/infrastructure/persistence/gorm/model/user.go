@@ -14,4 +14,5 @@ type User struct {
 	ActivityLevel  string    `gorm:"size:20;not null"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	Records        []Record `gorm:"foreignKey:UserID"`
 }
