@@ -12,20 +12,14 @@ type RecordItem struct {
 	calories vo.Calories
 }
 
-// RecordItemInput はRecordItem作成時の入力パラメータ
-type RecordItemInput struct {
-	Name     string
-	Calories int
-}
-
-// newRecordItem は新しいRecordItemを生成する（Record内部で使用）
-func newRecordItem(recordID vo.RecordID, input RecordItemInput) (*RecordItem, []error) {
+// NewRecordItem は新しいRecordItemを生成する
+func NewRecordItem(recordID vo.RecordID, nameStr string, caloriesVal int) (*RecordItem, []error) {
 	var errs []error
 
-	name, err := vo.NewItemName(input.Name)
+	name, err := vo.NewItemName(nameStr)
 	errs = appendIfErr(errs, err)
 
-	calories, err := vo.NewCalories(input.Calories)
+	calories, err := vo.NewCalories(caloriesVal)
 	errs = appendIfErr(errs, err)
 
 	if len(errs) > 0 {

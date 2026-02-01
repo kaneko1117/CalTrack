@@ -12,15 +12,11 @@ import (
 func TestNewRecord_正常系_有効なパラメータでRecord作成(t *testing.T) {
 	userID := vo.NewUserID()
 	eatenAt := time.Now().Add(-1 * time.Hour)
-	items := []entity.RecordItemInput{
-		{Name: "おにぎり", Calories: 180},
-		{Name: "味噌汁", Calories: 50},
-	}
 
-	record, errs := entity.NewRecord(userID, eatenAt, items)
+	record, err := entity.NewRecord(userID, eatenAt)
 
-	if len(errs) > 0 {
-		t.Fatalf("NewRecord() unexpected errors = %v", errs)
+	if err != nil {
+		t.Fatalf("NewRecord() unexpected error = %v", err)
 	}
 	if record == nil {
 		t.Fatal("NewRecord() returned nil record")
@@ -28,94 +24,83 @@ func TestNewRecord_正常系_有効なパラメータでRecord作成(t *testing.
 	if !record.UserID().Equals(userID) {
 		t.Errorf("NewRecord().UserID() = %v, want %v", record.UserID(), userID)
 	}
-	if len(record.Items()) != 2 {
-		t.Errorf("NewRecord().Items() length = %d, want %d", len(record.Items()), 2)
+	if len(record.Items()) != 0 {
+		t.Errorf("NewRecord().Items() length = %d, want %d", len(record.Items()), 0)
 	}
 	if record.ID().String() == "" {
 		t.Error("NewRecord().ID() should not be empty")
 	}
 }
 
-func TestNewRecord_異常系_itemsが空の場合エラー(t *testing.T) {
-	userID := vo.NewUserID()
-	eatenAt := time.Now().Add(-1 * time.Hour)
-	items := []entity.RecordItemInput{}
-
-	record, errs := entity.NewRecord(userID, eatenAt, items)
-
-	if record != nil {
-		t.Error("NewRecord() should return nil when items is empty")
-	}
-	if len(errs) != 1 {
-		t.Fatalf("NewRecord() errors count = %d, want 1", len(errs))
-	}
-	if errs[0] != domainErrors.ErrRecordItemsRequired {
-		t.Errorf("NewRecord() error = %v, want %v", errs[0], domainErrors.ErrRecordItemsRequired)
-	}
-}
-
 func TestNewRecord_異常系_未来の日時の場合エラー(t *testing.T) {
 	userID := vo.NewUserID()
 	eatenAt := time.Now().Add(1 * time.Hour) // 未来の日時
-	items := []entity.RecordItemInput{
-		{Name: "おにぎり", Calories: 180},
-	}
 
-	record, errs := entity.NewRecord(userID, eatenAt, items)
+	record, err := entity.NewRecord(userID, eatenAt)
 
 	if record != nil {
 		t.Error("NewRecord() should return nil for future eaten_at")
 	}
-	if len(errs) != 1 {
-		t.Fatalf("NewRecord() errors count = %d, want 1", len(errs))
-	}
-	if errs[0] != domainErrors.ErrEatenAtMustNotBeFuture {
-		t.Errorf("NewRecord() error = %v, want %v", errs[0], domainErrors.ErrEatenAtMustNotBeFuture)
+	if err != domainErrors.ErrEatenAtMustNotBeFuture {
+		t.Errorf("NewRecord() error = %v, want %v", err, domainErrors.ErrEatenAtMustNotBeFuture)
 	}
 }
 
-func TestNewRecord_異常系_無効なRecordItemの場合エラー(t *testing.T) {
+func TestRecord_AddItem_正常系_アイテム追加(t *testing.T) {
+	userID := vo.NewUserID()
+	eatenAt := time.Now().Add(-1 * time.Hour)
+	record, _ := entity.NewRecord(userID, eatenAt)
+
+	err := record.AddItem("おにぎり", 180)
+
+	if err != nil {
+		t.Fatalf("AddItem() unexpected error = %v", err)
+	}
+	if len(record.Items()) != 1 {
+		t.Errorf("AddItem() items count = %d, want %d", len(record.Items()), 1)
+	}
+	if record.Items()[0].Name().String() != "おにぎり" {
+		t.Errorf("AddItem() name = %v, want %v", record.Items()[0].Name().String(), "おにぎり")
+	}
+	if record.Items()[0].Calories().Value() != 180 {
+		t.Errorf("AddItem() calories = %v, want %v", record.Items()[0].Calories().Value(), 180)
+	}
+}
+
+func TestRecord_AddItem_異常系_無効なアイテム(t *testing.T) {
 	userID := vo.NewUserID()
 	eatenAt := time.Now().Add(-1 * time.Hour)
 
 	tests := []struct {
-		name      string
-		items     []entity.RecordItemInput
-		wantErr   error
-		errCount  int
+		name     string
+		itemName string
+		calories int
+		wantErr  error
 	}{
 		{
-			name:      "食品名が空の場合",
-			items:     []entity.RecordItemInput{{Name: "", Calories: 180}},
-			wantErr:   domainErrors.ErrItemNameRequired,
-			errCount:  1,
+			name:     "食品名が空の場合",
+			itemName: "",
+			calories: 180,
+			wantErr:  domainErrors.ErrItemNameRequired,
 		},
 		{
-			name:      "カロリーが0以下の場合",
-			items:     []entity.RecordItemInput{{Name: "おにぎり", Calories: 0}},
-			wantErr:   domainErrors.ErrCaloriesMustBePositive,
-			errCount:  1,
-		},
-		{
-			name:      "食品名とカロリー両方無効の場合",
-			items:     []entity.RecordItemInput{{Name: "", Calories: -1}},
-			wantErr:   nil, // 複数エラー
-			errCount:  2,
+			name:     "カロリーが0以下の場合",
+			itemName: "おにぎり",
+			calories: 0,
+			wantErr:  domainErrors.ErrCaloriesMustBePositive,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			record, errs := entity.NewRecord(userID, eatenAt, tt.items)
+			record, _ := entity.NewRecord(userID, eatenAt)
+			err := record.AddItem(tt.itemName, tt.calories)
 
-			if record != nil {
-				t.Error("NewRecord() should return nil for invalid items")
+			if err != tt.wantErr {
+				t.Errorf("AddItem() error = %v, want %v", err, tt.wantErr)
 			}
-			if len(errs) != tt.errCount {
-				t.Errorf("NewRecord() errors count = %d, want %d", len(errs), tt.errCount)
-			}
-			if tt.wantErr != nil && errs[0] != tt.wantErr {
-				t.Errorf("NewRecord() error = %v, want %v", errs[0], tt.wantErr)
+			if len(record.Items()) != 0 {
+				t.Errorf("AddItem() should not add item on error, items count = %d", len(record.Items()))
 			}
 		})
 	}
@@ -157,8 +142,8 @@ func TestRecord_TotalCalories_合計カロリー計算(t *testing.T) {
 	createdAt := time.Date(2024, 6, 15, 12, 30, 0, 0, time.UTC)
 
 	tests := []struct {
-		name     string
-		items    []entity.RecordItem
+		name      string
+		items     []entity.RecordItem
 		wantTotal int
 	}{
 		{
@@ -176,6 +161,11 @@ func TestRecord_TotalCalories_合計カロリー計算(t *testing.T) {
 				*entity.ReconstructRecordItem("item-3", idStr, "焼き鮭", 200),
 			},
 			wantTotal: 430,
+		},
+		{
+			name:      "アイテムなし",
+			items:     []entity.RecordItem{},
+			wantTotal: 0,
 		},
 	}
 
