@@ -40,6 +40,9 @@ rulesを参照し、規約違反や改善点を特定・修正する。
 ## 参照するrules
 
 ```bash
+# 全員共通
+cat .claude/rules/env-file-policy.md
+
 cat .claude/rules/clean-architecture.md
 cat .claude/rules/coding.md
 cat .claude/rules/{対象層}-layer.md

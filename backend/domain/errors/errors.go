@@ -6,7 +6,6 @@ var (
 	ErrEmailRequired        = errors.New("email is required")
 	ErrInvalidEmailFormat   = errors.New("invalid email format")
 	ErrEmailTooLong         = errors.New("email must be 254 characters or less")
-	ErrInvalidUserID        = errors.New("invalid user id: must be a valid UUID")
 	ErrPasswordRequired     = errors.New("password is required")
 	ErrPasswordTooShort     = errors.New("password must be at least 8 characters")
 	ErrNicknameRequired     = errors.New("nickname is required")
@@ -15,8 +14,10 @@ var (
 	ErrWeightTooHeavy       = errors.New("weight must be 500kg or less")
 	ErrHeightMustBePositive = errors.New("height must be positive")
 	ErrHeightTooTall        = errors.New("height must be 300cm or less")
-	ErrBirthDateMustBePast  = errors.New("birth date must be in the past")
-	ErrBirthDateTooOld      = errors.New("birth date must be within 150 years")
+	ErrBirthDateMustBePast      = errors.New("birth date must be in the past")
+	ErrBirthDateTooOld          = errors.New("birth date must be within 150 years")
+	ErrEatenAtMustNotBeFuture   = errors.New("eaten at must not be in the future")
+	ErrCaloriesMustBePositive   = errors.New("calories must be positive")
 	ErrInvalidGender        = errors.New("gender must be male, female, or other")
 	ErrInvalidActivityLevel = errors.New("activity level must be sedentary, light, moderate, active, or veryActive")
 
@@ -32,4 +33,7 @@ var (
 	ErrSessionIDGenerationFailed = errors.New("failed to generate session id")
 	ErrInvalidSessionID          = errors.New("invalid session id")
 	ErrSessionExpired            = errors.New("session has expired")
+
+	// Record Item errors
+	ErrItemNameRequired = errors.New("item name is required")
 )

@@ -3,8 +3,8 @@ package vo_test
 import (
 	"testing"
 
-	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
+
 	"github.com/google/uuid"
 )
 
@@ -19,42 +19,20 @@ func TestNewUserID(t *testing.T) {
 	}
 }
 
-func TestParseUserID(t *testing.T) {
+func TestReconstructUserID(t *testing.T) {
 	validUUID := "550e8400-e29b-41d4-a716-446655440000"
 
-	tests := []struct {
-		name    string
-		input   string
-		wantID  string
-		wantErr error
-	}{
-		// 正常系
-		{"有効なUUID", validUUID, validUUID, nil},
-		// 異常系
-		{"空文字はエラー", "", "", domainErrors.ErrInvalidUserID},
-		{"無効な形式はエラー", "invalid", "", domainErrors.ErrInvalidUserID},
-		{"不完全なUUIDはエラー", "550e8400-e29b", "", domainErrors.ErrInvalidUserID},
-	}
+	got := vo.ReconstructUserID(validUUID)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := vo.ParseUserID(tt.input)
-
-			if err != tt.wantErr {
-				t.Errorf("ParseUserID(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-				return
-			}
-			if err == nil && got.String() != tt.wantID {
-				t.Errorf("ParseUserID(%q).String() = %v, want %v", tt.input, got.String(), tt.wantID)
-			}
-		})
+	if got.String() != validUUID {
+		t.Errorf("ReconstructUserID(%q).String() = %v, want %v", validUUID, got.String(), validUUID)
 	}
 }
 
 func TestUserID_Equals(t *testing.T) {
 	validUUID := "550e8400-e29b-41d4-a716-446655440000"
-	id1, _ := vo.ParseUserID(validUUID)
-	id2, _ := vo.ParseUserID(validUUID)
+	id1 := vo.ReconstructUserID(validUUID)
+	id2 := vo.ReconstructUserID(validUUID)
 	id3 := vo.NewUserID()
 
 	tests := []struct {

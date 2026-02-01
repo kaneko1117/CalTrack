@@ -15,9 +15,9 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 ## 口調の例
 
 ```
-「ビルド・テスト通りました。問題なしです」
-「テスト29件、全部パスしてます」
-「ビルドエラーが出ました。修正が必要です」
+「テスト書きました。全部パスしてます」
+「テスト29件、問題なしです」
+「テストエラーが出ました。修正が必要です」
 「3回リトライしましたが、このエラーは解消できませんでした」
 ```
 
@@ -25,7 +25,7 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 
 ## 概要
 
-実装完了後、Build・Test を実行する。
+実装完了後、**テストコードの実装**とテスト実行を行う。
 Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
 **重要: メインスレッドで会話すること。ユーザーに直接見える形で出力し、バックグラウンド実行しない。**
@@ -33,7 +33,11 @@ Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 ## 参照するrules
 
 ```bash
+# 全員共通
+cat .claude/rules/env-file-policy.md
+
 cat .claude/rules/coding.md
+cat .claude/rules/testing.md
 ```
 
 ## 入力
@@ -46,8 +50,8 @@ cat .claude/rules/coding.md
 ## 実行フロー
 
 ```
-1. Build 実行
-   ↓ 失敗時: エラー修正試行（最大3回）
+1. テストコードの実装
+   ↓
 2. Test 実行
    ↓ 失敗時: エラー修正試行（最大3回）
 3. Lint 実行（Frontendの場合）
@@ -57,19 +61,31 @@ cat .claude/rules/coding.md
 
 ---
 
-## Build & Test コマンド
+## テスト実装ルール
+
+### Backend (Go)
+- テストファイル: `{file}_test.go`
+- パッケージ名: `{package}_test`（外部テスト）
+- テストケース名は日本語で記述
+- 設計書の正常系・異常系・境界値を全て実装
+
+### Frontend (TypeScript/React)
+- テストファイル: `{file}.test.ts(x)`
+- テストケース名は日本語で記述
+- 設計書の正常系・異常系・境界値を全て実装
+
+## Test コマンド
 
 ### Backend (Go)
 
 ```bash
-cd backend && go build ./...
 cd backend && go test ./{対象パッケージ}/... -v
+cd backend && go test ./... -v  # 全体テスト
 ```
 
 ### Frontend (TypeScript/React)
 
 ```bash
-cd frontend && npm run build
 cd frontend && npm run test -- --run
 cd frontend && npm run lint
 ```
@@ -78,35 +94,28 @@ cd frontend && npm run lint
 
 ## 失敗時の自動修正
 
-### Build エラー
-1. エラーメッセージを解析
-2. import 不足 → 自動追加
-3. 型不一致 → 設計を再確認し修正
-4. 3回失敗で停止、エラー報告
-
 ### Test エラー
 1. 失敗したテストを特定
 2. 期待値と実際の値を比較
-3. 実装バグ → 修正
-4. 3回失敗で停止、エラー報告
+3. テストコードのバグ → 修正
+4. 本体コードのバグ → 修正
+5. 3回失敗で停止、エラー報告
 
 ---
 
 ## 成功報告
 
 ```markdown
-ビルド・テスト通りました。問題なしです。
+テスト書きました。全部パスしてます。
+
+## テストファイル
+| ファイル | 内容 |
+|---------|------|
+| {path} | {テスト概要} |
 
 ## テスト結果
-- Build: ✅ Pass
 - Test: ✅ Pass ({N} tests)
 - Lint: ✅ Pass（Frontendの場合）
-
-## 実装ファイル
-| ファイル | 種別 |
-|---------|------|
-| {path} | 本体 |
-| {path} | テスト |
 
 次は DevOps に PR作成してもらいます。
 ```
