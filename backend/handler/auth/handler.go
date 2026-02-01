@@ -33,7 +33,17 @@ func NewAuthHandler(uc *usecase.AuthUsecase) *AuthHandler {
 }
 
 // Login はログイン処理を行う
-// POST /auth/login
+// @Summary ログイン
+// @Description メールアドレスとパスワードでログインし、セッションを開始する
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.LoginRequest true "ログインリクエスト"
+// @Success 200 {object} dto.LoginResponse "ログイン成功"
+// @Failure 400 {object} common.ErrorResponse "リクエスト不正"
+// @Failure 401 {object} common.ErrorResponse "認証失敗"
+// @Failure 500 {object} common.ErrorResponse "サーバーエラー"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,7 +66,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // Logout はログアウト処理を行う
-// POST /auth/logout
+// @Summary ログアウト
+// @Description セッションを終了してログアウトする
+// @Tags auth
+// @Produce json
+// @Success 200 {object} map[string]string "ログアウト成功"
+// @Failure 400 {object} common.ErrorResponse "リクエスト不正"
+// @Failure 401 {object} common.ErrorResponse "認証失敗"
+// @Failure 500 {object} common.ErrorResponse "サーバーエラー"
+// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	// CookieからセッションIDを取得
 	sessionID, err := c.Cookie(sessionCookieName)
@@ -86,9 +104,9 @@ func (h *AuthHandler) setSessionCookie(c *gin.Context, sessionID string) {
 		sessionID,
 		cookieMaxAge,
 		cookiePath,
-		"",    // domain: 空文字でリクエストドメインを使用
-		true,  // secure: HTTPS必須
-		true,  // httpOnly: JavaScriptからアクセス不可
+		"",   // domain: 空文字でリクエストドメインを使用
+		true, // secure: HTTPS必須
+		true, // httpOnly: JavaScriptからアクセス不可
 	)
 }
 

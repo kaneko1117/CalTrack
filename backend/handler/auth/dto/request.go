@@ -4,8 +4,8 @@ import "caltrack/usecase"
 
 // LoginRequest はログインリクエストDTO
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" example:"user@example.com"`
+	Password string `json:"password" example:"password123"`
 }
 
 // ToInput はリクエストをUsecase入力に変換する

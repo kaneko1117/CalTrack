@@ -3,7 +3,8 @@
         test test-backend test-frontend \
         lint lint-backend lint-frontend fmt fmt-backend fmt-frontend \
         migrate migrate-status migrate-down migrate-new \
-        shell-backend shell-frontend shell-mysql clean
+        shell-backend shell-frontend shell-mysql clean \
+        swagger
 
 # =============================================================================
 # ヘルプ
@@ -52,6 +53,9 @@ help:
 	@echo "  make shell-backend   - バックエンドコンテナに入る"
 	@echo "  make shell-frontend  - フロントエンドコンテナに入る"
 	@echo "  make shell-mysql     - MySQLコンテナに入る"
+	@echo ""
+	@echo "Swagger:"
+	@echo "  make swagger         - Swaggerドキュメント生成"
 
 # =============================================================================
 # 起動・停止
@@ -157,3 +161,10 @@ shell-frontend:
 
 shell-mysql:
 	docker compose exec mysql mysql -u caltrack -pcaltrack caltrack
+
+# =============================================================================
+# Swagger
+# =============================================================================
+
+swagger:
+	docker compose exec backend swag init
