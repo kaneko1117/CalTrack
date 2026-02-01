@@ -32,3 +32,6 @@ npm-debug.log*
 .gemini/
 .github/skills/
 .opencode/
+
+*storybook.log
+storybook-static

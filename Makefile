@@ -4,7 +4,7 @@
         lint lint-backend lint-frontend fmt fmt-backend fmt-frontend \
         migrate migrate-status migrate-down migrate-new \
         shell-backend shell-frontend shell-mysql clean \
-        swagger
+        swagger storybook build-storybook
 
 # =============================================================================
 # ヘルプ
@@ -56,6 +56,10 @@ help:
 	@echo ""
 	@echo "Swagger:"
 	@echo "  make swagger         - Swaggerドキュメント生成"
+	@echo ""
+	@echo "Storybook:"
+	@echo "  make storybook       - Storybook起動（ポート6006）"
+	@echo "  make build-storybook - Storybookビルド"
 
 # =============================================================================
 # 起動・停止
@@ -168,3 +172,13 @@ shell-mysql:
 
 swagger:
 	docker compose exec backend swag init
+
+# =============================================================================
+# Storybook
+# =============================================================================
+
+storybook:
+	docker compose exec frontend npm run storybook
+
+build-storybook:
+	docker compose exec frontend npm run build-storybook
