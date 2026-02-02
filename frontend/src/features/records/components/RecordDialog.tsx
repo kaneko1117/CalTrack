@@ -12,12 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RecordForm } from "./RecordForm";
-import type { CreateRecordResponse } from "./RecordForm";
 
 /** RecordDialogコンポーネントのProps */
 export type RecordDialogProps = {
   /** 記録作成成功時のコールバック */
-  onSuccess?: (response: CreateRecordResponse) => void;
+  onSuccess?: () => void;
 };
 
 /**
@@ -48,9 +47,9 @@ function PlusIcon({ className }: { className?: string }) {
 export function RecordDialog({ onSuccess }: RecordDialogProps) {
   const [open, setOpen] = useState(false);
 
-  const handleSuccess = (response: CreateRecordResponse) => {
+  const handleSuccess = () => {
     setOpen(false);
-    onSuccess?.(response);
+    onSuccess?.();
   };
 
   return (
