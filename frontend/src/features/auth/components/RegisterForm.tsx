@@ -457,13 +457,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           </div>
 
           {/* 送信ボタン */}
-          <Button
-            type="submit"
-            className="w-full h-12 text-base font-medium mt-6 bg-primary hover:bg-primary/90 transition-colors"
-            disabled={!isValid || isPending}
-          >
-            {isPending ? "登録中..." : "登録する"}
-          </Button>
+          <div className="!mt-10">
+            <Button
+              type="submit"
+              className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 transition-colors"
+              disabled={!isValid || isPending}
+            >
+              {isPending ? "登録中..." : "登録する"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
