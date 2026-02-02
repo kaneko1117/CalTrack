@@ -7,8 +7,9 @@
 import { createBrowserRouter, RouteObject } from "react-router-dom";
 import { RootLayout } from "./RootLayout";
 import { HomePage } from "../pages/HomePage";
-import { RegisterPage } from "../features/auth/components/RegisterPage";
-import { LoginPage } from "../features/auth/components/LoginPage";
+import { DashboardPage } from "../pages/DashboardPage";
+import { RegisterPage } from "../pages/RegisterPage";
+import { LoginPage } from "../pages/LoginPage";
 
 /**
  * 認証関連のルート定義
@@ -28,14 +29,17 @@ const authRoutes: RouteObject[] = [
 const mainRoutes: RouteObject[] = [
   {
     path: "/",
-    element: <LoginPage redirectTo="/" />,
+    element: <LoginPage redirectTo="/dashboard" />,
   },
   {
     path: "/home",
     element: <HomePage />,
   },
+  {
+    path: "/dashboard",
+    element: <DashboardPage />,
+  },
   // 将来追加予定:
-  // { path: "/dashboard", element: <DashboardPage /> },
   // { path: "/meals", element: <MealsPage /> },
 ];
 

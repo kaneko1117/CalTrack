@@ -3,10 +3,11 @@
  * ログインフォームの各状態の表示確認
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { BrowserRouter } from 'react-router-dom';
 import { LoginForm } from './LoginForm';
 
 const meta: Meta<typeof LoginForm> = {
-  title: 'Auth/LoginForm',
+  title: 'Features/Auth/LoginForm',
   component: LoginForm,
   tags: ['autodocs'],
   parameters: {
@@ -14,9 +15,11 @@ const meta: Meta<typeof LoginForm> = {
   },
   decorators: [
     (Story) => (
-      <div className="w-[400px]">
-        <Story />
-      </div>
+      <BrowserRouter>
+        <div className="w-[400px]">
+          <Story />
+        </div>
+      </BrowserRouter>
     ),
   ],
 };

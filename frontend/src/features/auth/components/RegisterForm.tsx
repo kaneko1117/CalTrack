@@ -3,8 +3,6 @@
  * 新規ユーザー登録のためのフォームUI
  * Warm & Organicトーンのデザイン
  */
-import * as React from "react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,41 +14,65 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
-import { useRegisterUser } from "../hooks";
-import type { Gender, ActivityLevel } from "../types";
+import { useForm, getApiErrorMessage } from "@/features/common";
+import {
+  newEmail,
+  newPassword,
+  newNickname,
+  newWeight,
+  newHeight,
+  newBirthDate,
+  newGender,
+  newActivityLevel,
+  GENDER_OPTIONS,
+  ACTIVITY_LEVEL_OPTIONS,
+} from "@/domain/valueObjects";
+import type { GenderValue, ActivityLevelValue } from "@/domain/valueObjects";
+import { post } from "@/lib/api";
+import { err } from "@/domain/shared/result";
+
+/** ユーザー登録レスポンス */
+export type RegisterUserResponse = {
+  userId: string;
+  email: string;
+  nickname: string;
+};
+
+/** ユーザー登録リクエストデータ */
+type RegisterUserRequest = {
+  email: string;
+  password: string;
+  nickname: string;
+  weight: number;
+  height: number;
+  birthDate: string;
+  gender: GenderValue;
+  activityLevel: ActivityLevelValue;
+};
+
+/** ユーザー登録API */
+const registerUser = (data: RegisterUserRequest) =>
+  post<RegisterUserResponse>("/api/v1/auth/register", data);
 
 /** RegisterFormコンポーネントのProps */
 export type RegisterFormProps = {
   /** 登録成功時のコールバック */
-  onSuccess?: () => void;
+  onSuccess?: (response: RegisterUserResponse) => void;
 };
 
-/** フォームの内部状態 */
-type FormState = {
-  email: string;
-  password: string;
-  nickname: string;
-  weight: string;
-  height: string;
-  birthDate: string;
-  gender: Gender | "";
-  activityLevel: ActivityLevel | "";
-};
-
-/** バリデーションエラー */
-type FormErrors = {
-  email?: string;
-  password?: string;
-  nickname?: string;
-  weight?: string;
-  height?: string;
-  birthDate?: string;
-  gender?: string;
-  activityLevel?: string;
-};
+/** フォームフィールド型 */
+type RegisterField =
+  | "email"
+  | "password"
+  | "nickname"
+  | "weight"
+  | "height"
+  | "birthDate"
+  | "gender"
+  | "activityLevel";
 
 /** フォームの初期状態 */
-const initialFormState: FormState = {
+const initialFormState: Record<RegisterField, string> = {
   email: "",
   password: "",
   nickname: "",
@@ -61,103 +83,77 @@ const initialFormState: FormState = {
   activityLevel: "",
 };
 
-/** 性別の選択肢 */
-const GENDER_OPTIONS = [
-  { value: "male", label: "男性" },
-  { value: "female", label: "女性" },
-  { value: "other", label: "その他" },
-] as const;
-
-/** 活動レベルの選択肢 */
-const ACTIVITY_LEVEL_OPTIONS = [
-  { value: "sedentary", label: "座りがち（運動なし）" },
-  { value: "light", label: "軽い（週1-3回運動）" },
-  { value: "moderate", label: "適度（週3-5回運動）" },
-  { value: "active", label: "活動的（週6-7回運動）" },
-  { value: "veryActive", label: "非常に活動的（毎日激しい運動）" },
-] as const;
-
-/** メールアドレスバリデーション用パターン（モジュールレベルでホイスト） */
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** エラーの初期状態 */
+const initialErrors: Record<RegisterField, string | null> = {
+  email: null,
+  password: null,
+  nickname: null,
+  weight: null,
+  height: null,
+  birthDate: null,
+  gender: null,
+  activityLevel: null,
+};
 
 /**
- * フォームバリデーション関数
- * @param form - フォームの状態
- * @returns バリデーションエラー
+ * 文字列をnumberに変換してWeightを生成するラッパー
  */
-function validateForm(form: FormState): FormErrors {
-  const errors: FormErrors = {};
-
-  // nickname: 必須
-  if (!form.nickname.trim()) {
-    errors.nickname = "ニックネームを入力してください";
+const newWeightFromString = (value: string) => {
+  const num = parseFloat(value);
+  if (isNaN(num)) {
+    return err({
+      code: "WEIGHT_MUST_BE_POSITIVE" as const,
+      message: "体重を入力してください",
+    });
   }
-
-  // email: 必須、形式チェック
-  if (!form.email.trim()) {
-    errors.email = "メールアドレスを入力してください";
-  } else if (!EMAIL_PATTERN.test(form.email)) {
-    errors.email = "正しいメールアドレス形式で入力してください";
-  }
-
-  // password: 必須、8文字以上
-  if (!form.password) {
-    errors.password = "パスワードを入力してください";
-  } else if (form.password.length < 8) {
-    errors.password = "パスワードは8文字以上で入力してください";
-  }
-
-  // weight: 必須、正の数
-  const weight = parseFloat(form.weight);
-  if (!form.weight) {
-    errors.weight = "体重を入力してください";
-  } else if (isNaN(weight) || weight <= 0) {
-    errors.weight = "正しい体重を入力してください";
-  }
-
-  // height: 必須、正の数
-  const height = parseFloat(form.height);
-  if (!form.height) {
-    errors.height = "身長を入力してください";
-  } else if (isNaN(height) || height <= 0) {
-    errors.height = "正しい身長を入力してください";
-  }
-
-  // birthDate: 必須、過去の日付
-  if (!form.birthDate) {
-    errors.birthDate = "生年月日を入力してください";
-  } else if (new Date(form.birthDate) >= new Date()) {
-    errors.birthDate = "過去の日付を入力してください";
-  }
-
-  // gender: 必須
-  if (!form.gender) {
-    errors.gender = "性別を選択してください";
-  }
-
-  // activityLevel: 必須
-  if (!form.activityLevel) {
-    errors.activityLevel = "活動レベルを選択してください";
-  }
-
-  return errors;
-}
+  return newWeight(num);
+};
 
 /**
- * APIエラーコードからユーザー向けメッセージを取得
- * @param code - エラーコード
- * @returns ユーザー向けメッセージ
+ * 文字列をnumberに変換してHeightを生成するラッパー
  */
-function getErrorMessage(code: string): string {
-  switch (code) {
-    case "EMAIL_ALREADY_EXISTS":
-      return "このメールアドレスは既に登録されています";
-    case "VALIDATION_ERROR":
-      return "入力内容に誤りがあります";
-    default:
-      return "予期しないエラーが発生しました";
+const newHeightFromString = (value: string) => {
+  const num = parseFloat(value);
+  if (isNaN(num)) {
+    return err({
+      code: "HEIGHT_MUST_BE_POSITIVE" as const,
+      message: "身長を入力してください",
+    });
   }
-}
+  return newHeight(num);
+};
+
+/**
+ * 文字列をDateに変換してBirthDateを生成するラッパー
+ */
+const newBirthDateFromString = (value: string) => {
+  if (!value) {
+    return err({
+      code: "BIRTH_DATE_MUST_BE_PAST" as const,
+      message: "生年月日を入力してください",
+    });
+  }
+  const date = new Date(value);
+  if (isNaN(date.getTime())) {
+    return err({
+      code: "BIRTH_DATE_MUST_BE_PAST" as const,
+      message: "有効な日付を入力してください",
+    });
+  }
+  return newBirthDate(date);
+};
+
+/** VOファクトリ設定 */
+const formConfig = {
+  email: newEmail,
+  password: newPassword,
+  nickname: newNickname,
+  weight: newWeightFromString,
+  height: newHeightFromString,
+  birthDate: newBirthDateFromString,
+  gender: newGender,
+  activityLevel: newActivityLevel,
+};
 
 /**
  * AlertCircleアイコン - エラー表示用
@@ -184,29 +180,6 @@ function AlertCircleIcon({ className }: { className?: string }) {
 }
 
 /**
- * CheckCircleアイコン - 成功表示用
- * SVGインラインアイコン
- */
-function CheckCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-  );
-}
-
-/**
  * フィールドエラー表示コンポーネント
  * アイコン付きのエラーメッセージを表示
  */
@@ -223,56 +196,31 @@ function FieldError({ id, message }: { id: string; message: string }) {
  * RegisterForm - ユーザー登録フォーム
  */
 export function RegisterForm({ onSuccess }: RegisterFormProps) {
-  const [formState, setFormState] = useState<FormState>(initialFormState);
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const { register, isLoading, error, isSuccess, reset } = useRegisterUser();
-
-  /**
-   * フィールド値の変更ハンドラ
-   */
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormState((prev) => ({ ...prev, [name]: value }));
-    // 該当フィールドのエラーをクリア
-    if (formErrors[name as keyof FormErrors]) {
-      setFormErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-    // APIエラーをリセット
-    if (error) {
-      reset();
-    }
-  };
-
-  /**
-   * フォーム送信ハンドラ
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // バリデーション
-    const errors = validateForm(formState);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    // API呼び出し（成功時のコールバックを引数として渡す）
-    await register(
-      {
-        email: formState.email,
-        password: formState.password,
-        nickname: formState.nickname,
-        weight: parseFloat(formState.weight),
-        height: parseFloat(formState.height),
-        birthDate: formState.birthDate,
-        gender: formState.gender as Gender,
-        activityLevel: formState.activityLevel as ActivityLevel,
-      },
-      onSuccess
-    );
-  };
+  const {
+    formState,
+    errors,
+    apiError,
+    handleChange,
+    handleSubmit,
+    isValid,
+    isPending,
+  } = useForm(
+    formConfig,
+    initialFormState,
+    initialErrors,
+    (data) =>
+      registerUser({
+        email: data.email,
+        password: data.password,
+        nickname: data.nickname,
+        weight: parseFloat(data.weight),
+        height: parseFloat(data.height),
+        birthDate: data.birthDate,
+        gender: data.gender as GenderValue,
+        activityLevel: data.activityLevel as ActivityLevelValue,
+      }),
+    onSuccess
+  );
 
   return (
     <Card className="w-full shadow-warm-lg border-0">
@@ -287,7 +235,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* APIエラー表示 */}
-          {error && (
+          {apiError && (
             <div
               className="flex items-start gap-3 p-4 text-sm rounded-lg bg-destructive/10 border border-destructive/20"
               role="alert"
@@ -295,27 +243,16 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               <AlertCircleIcon className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium text-destructive">
-                  {getErrorMessage(error.code)}
+                  {getApiErrorMessage(apiError.code)}
                 </p>
-                {error.details && error.details.length > 0 && (
+                {apiError.details && apiError.details.length > 0 && (
                   <ul className="mt-1.5 list-disc list-inside text-destructive/80">
-                    {error.details.map((detail, index) => (
+                    {apiError.details.map((detail, index) => (
                       <li key={index}>{detail}</li>
                     ))}
                   </ul>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* 成功メッセージ */}
-          {isSuccess && (
-            <div
-              className="flex items-center gap-3 p-4 text-sm rounded-lg bg-success/10 border border-success/20"
-              role="status"
-            >
-              <CheckCircleIcon className="w-5 h-5 text-success flex-shrink-0" />
-              <p className="font-medium text-success">登録が完了しました</p>
             </div>
           )}
 
@@ -329,17 +266,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               name="nickname"
               type="text"
               value={formState.nickname}
-              onChange={handleChange}
+              onChange={(e) => handleChange("nickname")(e.target.value)}
               placeholder="ニックネームを入力"
-              disabled={isLoading}
-              aria-invalid={!!formErrors.nickname}
-              aria-describedby={
-                formErrors.nickname ? "nickname-error" : undefined
-              }
+              disabled={isPending}
+              aria-invalid={!!errors.nickname}
+              aria-describedby={errors.nickname ? "nickname-error" : undefined}
               className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
-            {formErrors.nickname && (
-              <FieldError id="nickname-error" message={formErrors.nickname} />
+            {errors.nickname && (
+              <FieldError id="nickname-error" message={errors.nickname} />
             )}
           </div>
 
@@ -353,15 +288,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               name="email"
               type="email"
               value={formState.email}
-              onChange={handleChange}
+              onChange={(e) => handleChange("email")(e.target.value)}
               placeholder="example@example.com"
-              disabled={isLoading}
-              aria-invalid={!!formErrors.email}
-              aria-describedby={formErrors.email ? "email-error" : undefined}
+              disabled={isPending}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
               className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
-            {formErrors.email && (
-              <FieldError id="email-error" message={formErrors.email} />
+            {errors.email && (
+              <FieldError id="email-error" message={errors.email} />
             )}
           </div>
 
@@ -375,17 +310,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               name="password"
               type="password"
               value={formState.password}
-              onChange={handleChange}
+              onChange={(e) => handleChange("password")(e.target.value)}
               placeholder="8文字以上で入力"
-              disabled={isLoading}
-              aria-invalid={!!formErrors.password}
-              aria-describedby={
-                formErrors.password ? "password-error" : undefined
-              }
+              disabled={isPending}
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "password-error" : undefined}
               className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
-            {formErrors.password && (
-              <FieldError id="password-error" message={formErrors.password} />
+            {errors.password && (
+              <FieldError id="password-error" message={errors.password} />
             )}
           </div>
 
@@ -403,17 +336,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                 step="0.1"
                 min="0"
                 value={formState.weight}
-                onChange={handleChange}
+                onChange={(e) => handleChange("weight")(e.target.value)}
                 placeholder="60"
-                disabled={isLoading}
-                aria-invalid={!!formErrors.weight}
-                aria-describedby={
-                  formErrors.weight ? "weight-error" : undefined
-                }
+                disabled={isPending}
+                aria-invalid={!!errors.weight}
+                aria-describedby={errors.weight ? "weight-error" : undefined}
                 className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
               />
-              {formErrors.weight && (
-                <FieldError id="weight-error" message={formErrors.weight} />
+              {errors.weight && (
+                <FieldError id="weight-error" message={errors.weight} />
               )}
             </div>
 
@@ -429,17 +360,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                 step="0.1"
                 min="0"
                 value={formState.height}
-                onChange={handleChange}
+                onChange={(e) => handleChange("height")(e.target.value)}
                 placeholder="170"
-                disabled={isLoading}
-                aria-invalid={!!formErrors.height}
-                aria-describedby={
-                  formErrors.height ? "height-error" : undefined
-                }
+                disabled={isPending}
+                aria-invalid={!!errors.height}
+                aria-describedby={errors.height ? "height-error" : undefined}
                 className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
               />
-              {formErrors.height && (
-                <FieldError id="height-error" message={formErrors.height} />
+              {errors.height && (
+                <FieldError id="height-error" message={errors.height} />
               )}
             </div>
           </div>
@@ -454,16 +383,14 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               name="birthDate"
               type="date"
               value={formState.birthDate}
-              onChange={handleChange}
-              disabled={isLoading}
-              aria-invalid={!!formErrors.birthDate}
-              aria-describedby={
-                formErrors.birthDate ? "birthDate-error" : undefined
-              }
+              onChange={(e) => handleChange("birthDate")(e.target.value)}
+              disabled={isPending}
+              aria-invalid={!!errors.birthDate}
+              aria-describedby={errors.birthDate ? "birthDate-error" : undefined}
               className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
             />
-            {formErrors.birthDate && (
-              <FieldError id="birthDate-error" message={formErrors.birthDate} />
+            {errors.birthDate && (
+              <FieldError id="birthDate-error" message={errors.birthDate} />
             )}
           </div>
 
@@ -476,10 +403,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               id="gender"
               name="gender"
               value={formState.gender}
-              onChange={handleChange}
-              disabled={isLoading}
-              aria-invalid={!!formErrors.gender}
-              aria-describedby={formErrors.gender ? "gender-error" : undefined}
+              onChange={(e) => handleChange("gender")(e.target.value)}
+              disabled={isPending}
+              aria-invalid={!!errors.gender}
+              aria-describedby={errors.gender ? "gender-error" : undefined}
               className="h-11"
             >
               <SelectOption value="">選択してください</SelectOption>
@@ -489,8 +416,8 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                 </SelectOption>
               ))}
             </Select>
-            {formErrors.gender && (
-              <FieldError id="gender-error" message={formErrors.gender} />
+            {errors.gender && (
+              <FieldError id="gender-error" message={errors.gender} />
             )}
           </div>
 
@@ -506,11 +433,11 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
               id="activityLevel"
               name="activityLevel"
               value={formState.activityLevel}
-              onChange={handleChange}
-              disabled={isLoading}
-              aria-invalid={!!formErrors.activityLevel}
+              onChange={(e) => handleChange("activityLevel")(e.target.value)}
+              disabled={isPending}
+              aria-invalid={!!errors.activityLevel}
               aria-describedby={
-                formErrors.activityLevel ? "activityLevel-error" : undefined
+                errors.activityLevel ? "activityLevel-error" : undefined
               }
               className="h-11"
             >
@@ -521,10 +448,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                 </SelectOption>
               ))}
             </Select>
-            {formErrors.activityLevel && (
+            {errors.activityLevel && (
               <FieldError
                 id="activityLevel-error"
-                message={formErrors.activityLevel}
+                message={errors.activityLevel}
               />
             )}
           </div>
@@ -533,9 +460,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           <Button
             type="submit"
             className="w-full h-12 text-base font-medium mt-6 bg-primary hover:bg-primary/90 transition-colors"
-            disabled={isLoading}
+            disabled={!isValid || isPending}
           >
-            {isLoading ? "登録中..." : "登録する"}
+            {isPending ? "登録中..." : "登録する"}
           </Button>
         </form>
       </CardContent>

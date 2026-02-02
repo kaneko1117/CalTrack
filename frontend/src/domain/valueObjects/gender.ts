@@ -12,7 +12,20 @@ export type Gender = Readonly<{
   equals: (other: Gender) => boolean;
 }>;
 
-const VALID_GENDERS: GenderValue[] = ["male", "female", "other"];
+/** 選択肢の型 */
+export type GenderOption = {
+  value: GenderValue;
+  label: string;
+};
+
+/** 性別の選択肢（UI用） */
+export const GENDER_OPTIONS: GenderOption[] = [
+  { value: "male", label: "男性" },
+  { value: "female", label: "女性" },
+  { value: "other", label: "その他" },
+];
+
+const VALID_GENDERS: GenderValue[] = GENDER_OPTIONS.map((o) => o.value);
 
 const ERROR_MESSAGE_GENDER_INVALID = "性別を選択してください";
 

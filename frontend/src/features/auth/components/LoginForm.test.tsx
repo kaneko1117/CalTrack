@@ -6,19 +6,19 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import { LoginForm } from "./LoginForm";
-import * as hooks from "../hooks";
-import { ApiError } from "../api";
+import type { LoginResponse } from "./LoginForm";
+import * as api from "@/lib/api";
 
-// useLoginフックをモック
-vi.mock("../hooks", async () => {
-  const actual = await vi.importActual<typeof hooks>("../hooks");
+// lib/api の post関数をモック
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof api>("@/lib/api");
   return {
     ...actual,
-    useLogin: vi.fn(),
+    post: vi.fn(),
   };
 });
 
-const mockUseLogin = vi.mocked(hooks.useLogin);
+const mockPost = vi.mocked(api.post);
 
 /**
  * BrowserRouterでラップしてレンダリング
@@ -28,20 +28,8 @@ function renderWithRouter(component: React.ReactElement) {
 }
 
 describe("LoginForm", () => {
-  const mockLogin = vi.fn();
-  const mockReset = vi.fn();
-
-  const defaultHookReturn: hooks.UseLoginReturn = {
-    login: mockLogin,
-    isLoading: false,
-    error: null,
-    isSuccess: false,
-    reset: mockReset,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseLogin.mockReturnValue(defaultHookReturn);
   });
 
   describe("レンダリング", () => {
@@ -58,7 +46,6 @@ describe("LoginForm", () => {
     it("タイトルと説明が表示される", () => {
       renderWithRouter(<LoginForm />);
 
-      // h3要素のタイトルを取得（ボタンの「ログイン」と区別するためroleを使用）
       expect(
         screen.getByRole("heading", { name: "ログイン" })
       ).toBeInTheDocument();
@@ -74,266 +61,100 @@ describe("LoginForm", () => {
       expect(registerLink).toBeInTheDocument();
       expect(registerLink).toHaveAttribute("href", "/register");
     });
+
+    it("初期状態でログインボタンが無効化される", () => {
+      renderWithRouter(<LoginForm />);
+
+      const submitButton = screen.getByRole("button", { name: "ログイン" });
+      expect(submitButton).toBeDisabled();
+    });
   });
 
   describe("バリデーション", () => {
-    it("空のフォームを送信するとバリデーションエラーが表示される", async () => {
-      renderWithRouter(<LoginForm />);
-
-      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("メールアドレスを入力してください")
-        ).toBeInTheDocument();
-        expect(
-          screen.getByText("パスワードを入力してください")
-        ).toBeInTheDocument();
-      });
-
-      // login関数は呼ばれない
-      expect(mockLogin).not.toHaveBeenCalled();
-    });
-
     it("不正なメール形式でエラーが表示される", async () => {
-      renderWithRouter(<LoginForm />);
-
-      // fireEvent.changeで直接値を設定
-      fireEvent.change(screen.getByLabelText("メールアドレス"), {
-        target: { value: "invalid-email" },
-      });
-      // フォームを直接サブミット（HTML5バリデーションをバイパス）
-      const form = screen
-        .getByRole("button", { name: "ログイン" })
-        .closest("form");
-      fireEvent.submit(form!);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("正しいメールアドレス形式で入力してください")
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("メールアドレスのみ入力でパスワードエラーが表示される", async () => {
       const user = userEvent.setup();
       renderWithRouter(<LoginForm />);
 
+      await user.type(screen.getByLabelText("メールアドレス"), "invalid-email");
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("有効なメールアドレスを入力してください")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("有効なメールを入力するとエラーが消える", async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<LoginForm />);
+
+      // 不正なメール
+      await user.type(screen.getByLabelText("メールアドレス"), "invalid");
+      expect(
+        screen.getByText("有効なメールアドレスを入力してください")
+      ).toBeInTheDocument();
+
+      // 有効なメールに修正
+      await user.clear(screen.getByLabelText("メールアドレス"));
       await user.type(
         screen.getByLabelText("メールアドレス"),
         "test@example.com"
       );
-      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
 
       await waitFor(() => {
         expect(
-          screen.getByText("パスワードを入力してください")
-        ).toBeInTheDocument();
-        expect(
-          screen.queryByText("メールアドレスを入力してください")
+          screen.queryByText("有効なメールアドレスを入力してください")
         ).not.toBeInTheDocument();
       });
     });
   });
 
   describe("フォーム送信", () => {
-    it("有効なデータでフォームを送信するとlogin関数が呼ばれる", async () => {
-      const user = userEvent.setup();
-      renderWithRouter(<LoginForm />);
-
-      // フォームに入力
-      await user.type(
-        screen.getByLabelText("メールアドレス"),
-        "test@example.com"
-      );
-      await user.type(screen.getByLabelText("パスワード"), "password123");
-
-      // 送信
-      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
-
-      await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith(
-          {
-            email: "test@example.com",
-            password: "password123",
-          },
-          undefined // onSuccessコールバック（未指定時はundefined）
-        );
-      });
-    });
-
-    it("onSuccessコールバックがlogin関数に渡される", async () => {
-      const onSuccess = vi.fn();
-      const user = userEvent.setup();
-      renderWithRouter(<LoginForm onSuccess={onSuccess} />);
-
-      // フォームに入力
-      await user.type(
-        screen.getByLabelText("メールアドレス"),
-        "test@example.com"
-      );
-      await user.type(screen.getByLabelText("パスワード"), "password123");
-
-      // 送信
-      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
-
-      await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith(
-          expect.any(Object),
-          onSuccess // onSuccessコールバックが渡される
-        );
-      });
-    });
-  });
-
-  describe("ローディング状態", () => {
-    it("isLoadingがtrueの時、ボタンが無効化される", () => {
-      mockUseLogin.mockReturnValue({
-        ...defaultHookReturn,
-        isLoading: true,
-      });
-
-      renderWithRouter(<LoginForm />);
-
-      const submitButton = screen.getByRole("button", { name: "ログイン中..." });
-      expect(submitButton).toBeDisabled();
-    });
-
-    it("isLoadingがtrueの時、フォームフィールドが無効化される", () => {
-      mockUseLogin.mockReturnValue({
-        ...defaultHookReturn,
-        isLoading: true,
-      });
-
-      renderWithRouter(<LoginForm />);
-
-      expect(screen.getByLabelText("メールアドレス")).toBeDisabled();
-      expect(screen.getByLabelText("パスワード")).toBeDisabled();
-    });
-  });
-
-  describe("エラー表示", () => {
-    it("INVALID_CREDENTIALSエラーが表示される", () => {
-      const error = new ApiError(
-        "INVALID_CREDENTIALS",
-        "Invalid credentials",
-        401
-      );
-      mockUseLogin.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      renderWithRouter(<LoginForm />);
-
-      expect(
-        screen.getByText("メールアドレスまたはパスワードが間違っています")
-      ).toBeInTheDocument();
-    });
-
-    it("VALIDATION_ERRORとdetailsが表示される", () => {
-      const error = new ApiError("VALIDATION_ERROR", "Validation failed", 400, [
-        "email: 不正な形式です",
-        "password: 必須項目です",
-      ]);
-      mockUseLogin.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      renderWithRouter(<LoginForm />);
-
-      expect(screen.getByText("入力内容に誤りがあります")).toBeInTheDocument();
-      expect(screen.getByText("email: 不正な形式です")).toBeInTheDocument();
-      expect(screen.getByText("password: 必須項目です")).toBeInTheDocument();
-    });
-
-    it("INTERNAL_ERRORが表示される", () => {
-      const error = new ApiError("INTERNAL_ERROR", "Internal error", 500);
-      mockUseLogin.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      renderWithRouter(<LoginForm />);
-
-      expect(
-        screen.getByText("予期しないエラーが発生しました")
-      ).toBeInTheDocument();
-    });
-  });
-
-  describe("エラーリセット", () => {
-    it("フィールド入力時にエラーがリセットされる", async () => {
-      const error = new ApiError(
-        "INVALID_CREDENTIALS",
-        "Invalid credentials",
-        401
-      );
-      mockUseLogin.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      const user = userEvent.setup();
-      renderWithRouter(<LoginForm />);
-
-      // エラーが表示されていることを確認
-      expect(
-        screen.getByText("メールアドレスまたはパスワードが間違っています")
-      ).toBeInTheDocument();
-
-      // フィールドに入力
-      await user.type(screen.getByLabelText("メールアドレス"), "a");
-
-      // reset関数が呼ばれることを確認
-      expect(mockReset).toHaveBeenCalled();
-    });
-
-    it("バリデーションエラーがフィールド入力時にクリアされる", async () => {
-      const user = userEvent.setup();
-      renderWithRouter(<LoginForm />);
-
-      // 空のまま送信してバリデーションエラーを発生させる
-      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("メールアドレスを入力してください")
-        ).toBeInTheDocument();
-      });
-
-      // フィールドに入力
-      await user.type(
-        screen.getByLabelText("メールアドレス"),
-        "test@example.com"
-      );
-
-      // バリデーションエラーがクリアされる
-      expect(
-        screen.queryByText("メールアドレスを入力してください")
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  describe("ログイン成功", () => {
-    it("login関数成功時にonSuccessコールバックが呼ばれる", async () => {
-      const onSuccess = vi.fn();
-      const mockResponse = {
+    it("有効なデータでフォームを送信するとAPI呼び出しが行われる", async () => {
+      const mockResponse: LoginResponse = {
         userId: "user-123",
         email: "test@example.com",
         nickname: "TestUser",
       };
+      mockPost.mockResolvedValueOnce(mockResponse);
 
-      mockUseLogin.mockImplementation(() => ({
-        ...defaultHookReturn,
-        login: vi.fn().mockImplementation(async (_request, callback) => {
-          // 成功をシミュレート
-          callback?.(mockResponse);
-        }),
-        isSuccess: true,
-      }));
+      const user = userEvent.setup();
+      renderWithRouter(<LoginForm />);
 
+      // フォームに入力
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "ログイン" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith("/api/v1/auth/login", {
+          email: "test@example.com",
+          password: "password123",
+        });
+      });
+    });
+
+    it("onSuccessコールバックがAPI成功時に呼ばれる", async () => {
+      const mockResponse: LoginResponse = {
+        userId: "user-123",
+        email: "test@example.com",
+        nickname: "TestUser",
+      };
+      mockPost.mockResolvedValueOnce(mockResponse);
+
+      const onSuccess = vi.fn();
       const user = userEvent.setup();
       renderWithRouter(<LoginForm onSuccess={onSuccess} />);
 
@@ -343,12 +164,167 @@ describe("LoginForm", () => {
         "test@example.com"
       );
       await user.type(screen.getByLabelText("パスワード"), "password123");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "ログイン" })
+        ).not.toBeDisabled();
+      });
 
       // 送信
       fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalledWith(mockResponse);
+      });
+    });
+  });
+
+  describe("エラー表示", () => {
+    it("INVALID_CREDENTIALSエラーが表示される", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "INVALID_CREDENTIALS",
+        message: "Invalid credentials",
+      };
+      mockPost.mockRejectedValueOnce(error);
+
+      const user = userEvent.setup();
+      renderWithRouter(<LoginForm />);
+
+      // フォームに入力
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "wrongpassword");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "ログイン" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("メールアドレスまたはパスワードが間違っています")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("VALIDATION_ERRORが表示される", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "VALIDATION_ERROR",
+        message: "Validation failed",
+      };
+      mockPost.mockRejectedValueOnce(error);
+
+      const user = userEvent.setup();
+      renderWithRouter(<LoginForm />);
+
+      // フォームに入力
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "ログイン" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("入力内容に誤りがあります")).toBeInTheDocument();
+      });
+    });
+
+    it("INTERNAL_ERRORが表示される", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "INTERNAL_ERROR",
+        message: "Internal error",
+      };
+      mockPost.mockRejectedValueOnce(error);
+
+      const user = userEvent.setup();
+      renderWithRouter(<LoginForm />);
+
+      // フォームに入力
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "ログイン" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("予期しないエラーが発生しました")
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("エラーリセット", () => {
+    it("APIエラーがフィールド入力時にクリアされる", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "INVALID_CREDENTIALS",
+        message: "Invalid credentials",
+      };
+      mockPost.mockRejectedValueOnce(error);
+
+      const user = userEvent.setup();
+      renderWithRouter(<LoginForm />);
+
+      // フォームに入力
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "wrongpassword");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "ログイン" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+
+      // エラーが表示されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByText("メールアドレスまたはパスワードが間違っています")
+        ).toBeInTheDocument();
+      });
+
+      // フィールドに入力するとエラーがクリアされる
+      await user.type(screen.getByLabelText("パスワード"), "a");
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText("メールアドレスまたはパスワードが間違っています")
+        ).not.toBeInTheDocument();
       });
     });
   });

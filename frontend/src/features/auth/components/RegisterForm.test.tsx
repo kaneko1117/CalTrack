@@ -5,35 +5,23 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RegisterForm } from "./RegisterForm";
-import * as hooks from "../hooks";
-import { ApiError } from "../api";
+import type { RegisterUserResponse } from "./RegisterForm";
+import * as api from "@/lib/api";
 
-// useRegisterUserフックをモック
-vi.mock("../hooks", async () => {
-  const actual = await vi.importActual<typeof hooks>("../hooks");
+// lib/api の post関数をモック
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof api>("@/lib/api");
   return {
     ...actual,
-    useRegisterUser: vi.fn(),
+    post: vi.fn(),
   };
 });
 
-const mockUseRegisterUser = vi.mocked(hooks.useRegisterUser);
+const mockPost = vi.mocked(api.post);
 
 describe("RegisterForm", () => {
-  const mockRegister = vi.fn();
-  const mockReset = vi.fn();
-
-  const defaultHookReturn: hooks.UseRegisterUserReturn = {
-    register: mockRegister,
-    isLoading: false,
-    error: null,
-    isSuccess: false,
-    reset: mockReset,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRegisterUser.mockReturnValue(defaultHookReturn);
   });
 
   describe("レンダリング", () => {
@@ -48,7 +36,9 @@ describe("RegisterForm", () => {
       expect(screen.getByLabelText("生年月日")).toBeInTheDocument();
       expect(screen.getByLabelText("性別")).toBeInTheDocument();
       expect(screen.getByLabelText("活動レベル")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "登録する" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "登録する" })
+      ).toBeInTheDocument();
     });
 
     it("タイトルと説明が表示される", () => {
@@ -59,43 +49,25 @@ describe("RegisterForm", () => {
         screen.getByText("アカウントを作成して、カロリー管理を始めましょう")
       ).toBeInTheDocument();
     });
+
+    it("初期状態で登録ボタンが無効化される", () => {
+      render(<RegisterForm />);
+
+      const submitButton = screen.getByRole("button", { name: "登録する" });
+      expect(submitButton).toBeDisabled();
+    });
   });
 
   describe("バリデーション", () => {
-    it("空のフォームを送信するとバリデーションエラーが表示される", async () => {
-      render(<RegisterForm />);
-
-      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
-
-      await waitFor(() => {
-        expect(screen.getByText("ニックネームを入力してください")).toBeInTheDocument();
-        expect(screen.getByText("メールアドレスを入力してください")).toBeInTheDocument();
-        expect(screen.getByText("パスワードを入力してください")).toBeInTheDocument();
-        expect(screen.getByText("体重を入力してください")).toBeInTheDocument();
-        expect(screen.getByText("身長を入力してください")).toBeInTheDocument();
-        expect(screen.getByText("生年月日を入力してください")).toBeInTheDocument();
-        expect(screen.getByText("性別を選択してください")).toBeInTheDocument();
-        expect(screen.getByText("活動レベルを選択してください")).toBeInTheDocument();
-      });
-
-      // register関数は呼ばれない
-      expect(mockRegister).not.toHaveBeenCalled();
-    });
-
     it("不正なメール形式でエラーが表示される", async () => {
+      const user = userEvent.setup();
       render(<RegisterForm />);
 
-      // fireEvent.changeで直接値を設定
-      fireEvent.change(screen.getByLabelText("メールアドレス"), {
-        target: { value: "invalid-email" },
-      });
-      // フォームを直接サブミット（HTML5バリデーションをバイパス）
-      const form = screen.getByRole("button", { name: "登録する" }).closest("form");
-      fireEvent.submit(form!);
+      await user.type(screen.getByLabelText("メールアドレス"), "invalid-email");
 
       await waitFor(() => {
         expect(
-          screen.getByText("正しいメールアドレス形式で入力してください")
+          screen.getByText("有効なメールアドレスを入力してください")
         ).toBeInTheDocument();
       });
     });
@@ -105,7 +77,6 @@ describe("RegisterForm", () => {
       render(<RegisterForm />);
 
       await user.type(screen.getByLabelText("パスワード"), "short");
-      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
 
       await waitFor(() => {
         expect(
@@ -115,18 +86,15 @@ describe("RegisterForm", () => {
     });
 
     it("体重が0以下でエラーが表示される", async () => {
+      const user = userEvent.setup();
       render(<RegisterForm />);
 
-      // fireEvent.changeで直接値を設定
-      fireEvent.change(screen.getByLabelText("体重 (kg)"), {
-        target: { value: "-10" },
-      });
-      // フォームを直接サブミット（HTML5バリデーションをバイパス）
-      const form = screen.getByRole("button", { name: "登録する" }).closest("form");
-      fireEvent.submit(form!);
+      await user.type(screen.getByLabelText("体重 (kg)"), "-10");
 
       await waitFor(() => {
-        expect(screen.getByText("正しい体重を入力してください")).toBeInTheDocument();
+        expect(
+          screen.getByText("体重は0より大きい値を入力してください")
+        ).toBeInTheDocument();
       });
     });
 
@@ -134,11 +102,13 @@ describe("RegisterForm", () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText("身長 (cm)"), "0");
-      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
+      // 0を入力（0以下は無効）
+      await user.type(screen.getByLabelText("身長 (cm)"), "-5");
 
       await waitFor(() => {
-        expect(screen.getByText("正しい身長を入力してください")).toBeInTheDocument();
+        expect(
+          screen.getByText("身長は0より大きい値を入力してください")
+        ).toBeInTheDocument();
       });
     });
 
@@ -152,22 +122,57 @@ describe("RegisterForm", () => {
       const futureDateStr = futureDate.toISOString().split("T")[0];
 
       await user.type(screen.getByLabelText("生年月日"), futureDateStr);
-      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
 
       await waitFor(() => {
-        expect(screen.getByText("過去の日付を入力してください")).toBeInTheDocument();
+        expect(
+          screen.getByText("生年月日は過去の日付を入力してください")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("有効なメールを入力するとエラーが消える", async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      // 不正なメール
+      await user.type(screen.getByLabelText("メールアドレス"), "invalid");
+      expect(
+        screen.getByText("有効なメールアドレスを入力してください")
+      ).toBeInTheDocument();
+
+      // 有効なメールに修正
+      await user.clear(screen.getByLabelText("メールアドレス"));
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText("有効なメールアドレスを入力してください")
+        ).not.toBeInTheDocument();
       });
     });
   });
 
   describe("フォーム送信", () => {
-    it("有効なデータでフォームを送信すると登録関数が呼ばれる", async () => {
+    it("有効なデータでフォームを送信するとAPI呼び出しが行われる", async () => {
+      const mockResponse: RegisterUserResponse = {
+        userId: "user-123",
+        email: "test@example.com",
+        nickname: "TestUser",
+      };
+      mockPost.mockResolvedValueOnce(mockResponse);
+
       const user = userEvent.setup();
       render(<RegisterForm />);
 
       // フォームに入力
       await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
-      await user.type(screen.getByLabelText("メールアドレス"), "test@example.com");
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
       await user.type(screen.getByLabelText("パスワード"), "password123");
       await user.type(screen.getByLabelText("体重 (kg)"), "70");
       await user.type(screen.getByLabelText("身長 (cm)"), "175");
@@ -175,34 +180,48 @@ describe("RegisterForm", () => {
       await user.selectOptions(screen.getByLabelText("性別"), "male");
       await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
 
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "登録する" })
+        ).not.toBeDisabled();
+      });
+
       // 送信
       fireEvent.click(screen.getByRole("button", { name: "登録する" }));
 
       await waitFor(() => {
-        expect(mockRegister).toHaveBeenCalledWith(
-          {
-            email: "test@example.com",
-            password: "password123",
-            nickname: "TestUser",
-            weight: 70,
-            height: 175,
-            birthDate: "1990-01-01",
-            gender: "male",
-            activityLevel: "moderate",
-          },
-          undefined // onSuccessコールバック（未指定時はundefined）
-        );
+        expect(mockPost).toHaveBeenCalledWith("/api/v1/auth/register", {
+          email: "test@example.com",
+          password: "password123",
+          nickname: "TestUser",
+          weight: 70,
+          height: 175,
+          birthDate: "1990-01-01",
+          gender: "male",
+          activityLevel: "moderate",
+        });
       });
     });
 
-    it("onSuccessコールバックが登録関数に渡される", async () => {
+    it("onSuccessコールバックがAPI成功時に呼ばれる", async () => {
+      const mockResponse: RegisterUserResponse = {
+        userId: "user-123",
+        email: "test@example.com",
+        nickname: "TestUser",
+      };
+      mockPost.mockResolvedValueOnce(mockResponse);
+
       const onSuccess = vi.fn();
       const user = userEvent.setup();
       render(<RegisterForm onSuccess={onSuccess} />);
 
       // フォームに入力
       await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
-      await user.type(screen.getByLabelText("メールアドレス"), "test@example.com");
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
       await user.type(screen.getByLabelText("パスワード"), "password123");
       await user.type(screen.getByLabelText("体重 (kg)"), "70");
       await user.type(screen.getByLabelText("身長 (cm)"), "175");
@@ -210,131 +229,39 @@ describe("RegisterForm", () => {
       await user.selectOptions(screen.getByLabelText("性別"), "male");
       await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
 
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "登録する" })
+        ).not.toBeDisabled();
+      });
+
       // 送信
       fireEvent.click(screen.getByRole("button", { name: "登録する" }));
 
       await waitFor(() => {
-        expect(mockRegister).toHaveBeenCalledWith(
-          expect.any(Object),
-          onSuccess // onSuccessコールバックが渡される
-        );
+        expect(onSuccess).toHaveBeenCalledWith(mockResponse);
       });
-    });
-  });
-
-  describe("ローディング状態", () => {
-    it("ローディング中はボタンが無効化される", () => {
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        isLoading: true,
-      });
-
-      render(<RegisterForm />);
-
-      const submitButton = screen.getByRole("button", { name: "登録中..." });
-      expect(submitButton).toBeDisabled();
-    });
-
-    it("ローディング中はフォームフィールドが無効化される", () => {
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        isLoading: true,
-      });
-
-      render(<RegisterForm />);
-
-      expect(screen.getByLabelText("ニックネーム")).toBeDisabled();
-      expect(screen.getByLabelText("メールアドレス")).toBeDisabled();
-      expect(screen.getByLabelText("パスワード")).toBeDisabled();
-      expect(screen.getByLabelText("体重 (kg)")).toBeDisabled();
-      expect(screen.getByLabelText("身長 (cm)")).toBeDisabled();
-      expect(screen.getByLabelText("生年月日")).toBeDisabled();
-      expect(screen.getByLabelText("性別")).toBeDisabled();
-      expect(screen.getByLabelText("活動レベル")).toBeDisabled();
     });
   });
 
   describe("エラー表示", () => {
-    it("メールアドレス重複エラーが表示される", () => {
-      const error = new ApiError(
-        "EMAIL_ALREADY_EXISTS",
-        "Email already exists",
-        409
-      );
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      render(<RegisterForm />);
-
-      expect(
-        screen.getByText("このメールアドレスは既に登録されています")
-      ).toBeInTheDocument();
-    });
-
-    it("バリデーションエラーと詳細が表示される", () => {
-      const error = new ApiError("VALIDATION_ERROR", "Validation failed", 400, [
-        "email: 不正な形式です",
-        "password: 短すぎます",
-      ]);
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      render(<RegisterForm />);
-
-      expect(screen.getByText("入力内容に誤りがあります")).toBeInTheDocument();
-      expect(screen.getByText("email: 不正な形式です")).toBeInTheDocument();
-      expect(screen.getByText("password: 短すぎます")).toBeInTheDocument();
-    });
-
-    it("内部エラーが表示される", () => {
-      const error = new ApiError("INTERNAL_ERROR", "Internal error", 500);
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
-
-      render(<RegisterForm />);
-
-      expect(
-        screen.getByText("予期しないエラーが発生しました")
-      ).toBeInTheDocument();
-    });
-  });
-
-  describe("成功状態", () => {
-    it("成功時に成功メッセージが表示される", () => {
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        isSuccess: true,
-      });
-
-      render(<RegisterForm />);
-
-      expect(screen.getByText("登録が完了しました")).toBeInTheDocument();
-    });
-
-    it("登録成功時にonSuccessコールバックが呼ばれる", async () => {
-      // register関数が成功時にonSuccessを呼び出すようにモック
-      const onSuccess = vi.fn();
-      mockUseRegisterUser.mockImplementation(() => ({
-        ...defaultHookReturn,
-        register: vi.fn().mockImplementation(async (_request, callback) => {
-          // 成功をシミュレート
-          callback?.();
-        }),
-        isSuccess: true,
-      }));
+    it("EMAIL_ALREADY_EXISTSエラーが表示される", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "EMAIL_ALREADY_EXISTS",
+        message: "Email already exists",
+      };
+      mockPost.mockRejectedValueOnce(error);
 
       const user = userEvent.setup();
-      render(<RegisterForm onSuccess={onSuccess} />);
+      render(<RegisterForm />);
 
       // フォームに入力
       await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
-      await user.type(screen.getByLabelText("メールアドレス"), "test@example.com");
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
       await user.type(screen.getByLabelText("パスワード"), "password123");
       await user.type(screen.getByLabelText("体重 (kg)"), "70");
       await user.type(screen.getByLabelText("身長 (cm)"), "175");
@@ -342,40 +269,156 @@ describe("RegisterForm", () => {
       await user.selectOptions(screen.getByLabelText("性別"), "male");
       await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
 
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "登録する" })
+        ).not.toBeDisabled();
+      });
+
       // 送信
       fireEvent.click(screen.getByRole("button", { name: "登録する" }));
 
       await waitFor(() => {
-        expect(onSuccess).toHaveBeenCalled();
+        expect(
+          screen.getByText("このメールアドレスは既に登録されています")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("VALIDATION_ERRORが表示される", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "VALIDATION_ERROR",
+        message: "Validation failed",
+        details: ["email: 不正な形式です", "password: 短すぎます"],
+      };
+      mockPost.mockRejectedValueOnce(error);
+
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      // フォームに入力
+      await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+      await user.type(screen.getByLabelText("体重 (kg)"), "70");
+      await user.type(screen.getByLabelText("身長 (cm)"), "175");
+      await user.type(screen.getByLabelText("生年月日"), "1990-01-01");
+      await user.selectOptions(screen.getByLabelText("性別"), "male");
+      await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "登録する" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("入力内容に誤りがあります")
+        ).toBeInTheDocument();
+        expect(screen.getByText("email: 不正な形式です")).toBeInTheDocument();
+        expect(screen.getByText("password: 短すぎます")).toBeInTheDocument();
+      });
+    });
+
+    it("INTERNAL_ERRORが表示される", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "INTERNAL_ERROR",
+        message: "Internal error",
+      };
+      mockPost.mockRejectedValueOnce(error);
+
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      // フォームに入力
+      await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+      await user.type(screen.getByLabelText("体重 (kg)"), "70");
+      await user.type(screen.getByLabelText("身長 (cm)"), "175");
+      await user.type(screen.getByLabelText("生年月日"), "1990-01-01");
+      await user.selectOptions(screen.getByLabelText("性別"), "male");
+      await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
+
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "登録する" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("予期しないエラーが発生しました")
+        ).toBeInTheDocument();
       });
     });
   });
 
   describe("エラーリセット", () => {
-    it("フィールド入力時にエラーがリセットされる", async () => {
-      const error = new ApiError(
-        "EMAIL_ALREADY_EXISTS",
-        "Email already exists",
-        409
-      );
-      mockUseRegisterUser.mockReturnValue({
-        ...defaultHookReturn,
-        error,
-      });
+    it("APIエラーがフィールド入力時にクリアされる", async () => {
+      const error: api.ApiErrorResponse = {
+        code: "EMAIL_ALREADY_EXISTS",
+        message: "Email already exists",
+      };
+      mockPost.mockRejectedValueOnce(error);
 
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      // エラーが表示されていることを確認
-      expect(
-        screen.getByText("このメールアドレスは既に登録されています")
-      ).toBeInTheDocument();
+      // フォームに入力
+      await user.type(screen.getByLabelText("ニックネーム"), "TestUser");
+      await user.type(
+        screen.getByLabelText("メールアドレス"),
+        "test@example.com"
+      );
+      await user.type(screen.getByLabelText("パスワード"), "password123");
+      await user.type(screen.getByLabelText("体重 (kg)"), "70");
+      await user.type(screen.getByLabelText("身長 (cm)"), "175");
+      await user.type(screen.getByLabelText("生年月日"), "1990-01-01");
+      await user.selectOptions(screen.getByLabelText("性別"), "male");
+      await user.selectOptions(screen.getByLabelText("活動レベル"), "moderate");
 
-      // フィールドに入力
+      // ボタンが有効化されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "登録する" })
+        ).not.toBeDisabled();
+      });
+
+      // 送信
+      fireEvent.click(screen.getByRole("button", { name: "登録する" }));
+
+      // エラーが表示されることを確認
+      await waitFor(() => {
+        expect(
+          screen.getByText("このメールアドレスは既に登録されています")
+        ).toBeInTheDocument();
+      });
+
+      // フィールドに入力するとエラーがクリアされる
       await user.type(screen.getByLabelText("ニックネーム"), "a");
 
-      // reset関数が呼ばれることを確認
-      expect(mockReset).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(
+          screen.queryByText("このメールアドレスは既に登録されています")
+        ).not.toBeInTheDocument();
+      });
     });
   });
 });

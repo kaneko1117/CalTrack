@@ -30,6 +30,13 @@ usecase/
 - **入力**: Handler層で変換された`*entity.{Domain}`を受け取る
 - **出力**: `*entity.{Domain}`をそのまま返す（Output DTOは不要）
 
+### 方針
+- **基本的にドメイン（Entity/VO）を使用する**
+- Usecase専用のInput/Output DTOは原則として定義しない
+- どうしても必要な場合のみ、Usecase層内にDTOを定義してよい
+  - 例: 複数Entityをまとめて返す必要がある場合
+  - 例: ドメインに存在しない集計結果を返す場合
+
 ## Repository Interface
 
 ### 定義場所

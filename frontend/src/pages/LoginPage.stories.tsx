@@ -1,13 +1,13 @@
 /**
- * RegisterPage コンポーネントのStorybook
- * 新規登録ページ全体の表示確認
+ * LoginPage コンポーネントのStorybook
+ * ログインページ全体の表示確認
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { RegisterPage } from './RegisterPage';
+import { LoginPage } from './LoginPage';
 
-const meta: Meta<typeof RegisterPage> = {
-  title: 'Auth/RegisterPage',
-  component: RegisterPage,
+const meta: Meta<typeof LoginPage> = {
+  title: 'Pages/LoginPage',
+  component: LoginPage,
   tags: ['autodocs'],
   parameters: {
     layout: 'fullscreen',
@@ -15,7 +15,7 @@ const meta: Meta<typeof RegisterPage> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof RegisterPage>;
+type Story = StoryObj<typeof LoginPage>;
 
 /** デフォルト状態 */
 export const Default: Story = {
@@ -25,6 +25,6 @@ export const Default: Story = {
 /** カスタムリダイレクト先 */
 export const WithCustomRedirect: Story = {
   args: {
-    redirectTo: '/login',
+    redirectTo: '/dashboard',
   },
 };
