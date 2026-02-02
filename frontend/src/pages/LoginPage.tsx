@@ -17,7 +17,7 @@ export type LoginPageProps = {
  * LoginPage - ログインページ
  * 背景装飾とロゴエリアを含むフルページレイアウト
  */
-export function LoginPage({ redirectTo = "/" }: LoginPageProps) {
+export function LoginPage({ redirectTo = "/dashboard" }: LoginPageProps) {
   const navigate = useNavigate();
 
   /**

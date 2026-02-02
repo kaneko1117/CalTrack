@@ -9,7 +9,6 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
@@ -107,7 +106,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     initialFormState,
     initialErrors,
     (data) => login({ email: data.email, password: data.password }),
-    onSuccess
+    onSuccess,
   );
 
   return (
@@ -116,9 +115,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         <CardTitle className="text-2xl font-semibold text-center">
           ログイン
         </CardTitle>
-        <CardDescription className="text-center text-muted-foreground">
-          アカウントにログインしてください
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -182,13 +178,15 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           </div>
 
           {/* 送信ボタン */}
-          <Button
-            type="submit"
-            className="w-full h-12 text-base font-medium mt-6 bg-primary hover:bg-primary/90 transition-colors"
-            disabled={!isValid || isPending}
-          >
-            {isPending ? "ログイン中..." : "ログイン"}
-          </Button>
+          <div className="!mt-10">
+            <Button
+              type="submit"
+              className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 transition-colors"
+              disabled={!isValid || isPending}
+            >
+              {isPending ? "ログイン中..." : "ログイン"}
+            </Button>
+          </div>
         </form>
       </CardContent>
       <CardFooter className="flex justify-center pb-6">
