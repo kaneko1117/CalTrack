@@ -1,23 +1,11 @@
 /**
  * Records Feature
- * カロリー記録に関する型、API、フック、コンポーネントのエクスポート
+ * カロリー記録に関するコンポーネントのエクスポート
  */
 
-// Types
+export { RecordForm, RecordDialog } from "./components";
 export type {
-  RecordItemRequest,
-  RecordItemResponse,
-  CreateRecordRequest,
+  RecordFormProps,
   CreateRecordResponse,
-} from "./types";
-
-// API
-export { createRecord, ApiError } from "./api";
-
-// Hooks
-export { useCreateRecord } from "./hooks";
-export type { UseCreateRecordReturn } from "./hooks";
-
-// Components
-export { RecordForm } from "./components";
-export type { RecordFormProps } from "./components";
+  RecordDialogProps,
+} from "./components";

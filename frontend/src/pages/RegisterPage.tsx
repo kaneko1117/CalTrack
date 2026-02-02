@@ -1,30 +1,29 @@
 /**
- * LoginPage - ログインページコンポーネント
+ * RegisterPage - 新規登録ページコンポーネント
  * ルーティング対応のためのページラッパー
  * Warm & Organicトーンのデザイン
  */
 import { useNavigate } from "react-router-dom";
-import { LoginForm } from "./LoginForm";
-import type { LoginResponse } from "../types";
+import { RegisterForm } from "../features/auth/components/RegisterForm";
 
-/** LoginPageコンポーネントのProps */
-export type LoginPageProps = {
-  /** ログイン成功時の遷移先URL */
+/** RegisterPageコンポーネントのProps */
+export type RegisterPageProps = {
+  /** 登録成功時の遷移先URL */
   redirectTo?: string;
 };
 
 /**
- * LoginPage - ログインページ
+ * RegisterPage - 新規登録ページ
  * 背景装飾とロゴエリアを含むフルページレイアウト
  */
-export function LoginPage({ redirectTo = "/" }: LoginPageProps) {
+export function RegisterPage({ redirectTo = "/" }: RegisterPageProps) {
   const navigate = useNavigate();
 
   /**
-   * ログイン成功時のハンドラ
+   * 登録成功時のハンドラ
    * 指定されたパスへ遷移する
    */
-  const handleSuccess = (_response: LoginResponse) => {
+  const handleSuccess = () => {
     navigate(redirectTo);
   };
 
@@ -60,9 +59,9 @@ export function LoginPage({ redirectTo = "/" }: LoginPageProps) {
           </p>
         </div>
 
-        {/* ログインフォーム */}
+        {/* 登録フォーム */}
         <div className="w-full max-w-md">
-          <LoginForm onSuccess={handleSuccess} />
+          <RegisterForm onSuccess={handleSuccess} />
         </div>
       </div>
     </div>

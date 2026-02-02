@@ -8,15 +8,28 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
-import { useCreateRecord } from "../hooks";
-import type { RecordItemRequest, CreateRecordResponse } from "../types";
+import { post } from "@/lib/api";
+import type { ApiErrorResponse } from "@/lib/api";
+import { newItemName } from "@/domain/valueObjects/itemName";
+import { newCalories } from "@/domain/valueObjects/calories";
+import { newEatenAt } from "@/domain/valueObjects/eatenAt";
+
+/** 記録作成レスポンス */
+export type CreateRecordResponse = {
+  recordId: string;
+  eatenAt: string;
+  totalCalories: number;
+};
+
+/** 記録作成リクエスト */
+type CreateRecordRequest = {
+  eatenAt: string;
+  items: Array<{ name: string; calories: number }>;
+};
+
+/** 記録作成API */
+const createRecord = (data: CreateRecordRequest) =>
+  post<CreateRecordResponse>("/api/v1/records", data);
 
 /** RecordFormコンポーネントのProps */
 export type RecordFormProps = {
@@ -25,21 +38,47 @@ export type RecordFormProps = {
 };
 
 /** 食品アイテムの内部状態（IDを含む） */
-type ItemState = RecordItemRequest & {
+type ItemState = {
   id: string;
+  name: string;
+  calories: number;
 };
 
-/** フォームの内部状態 */
+/** フォームフィールド型 */
+type FormField = "eatenAt";
+
+/** フォームの状態 */
 type FormState = {
   eatenAt: string;
-  items: ItemState[];
 };
 
-/** バリデーションエラー */
-type FormErrors = {
-  eatenAt?: string;
-  items?: string;
-  itemErrors?: { [key: string]: { name?: string; calories?: string } };
+/** 新規アイテム入力の状態 */
+type NewItemState = {
+  name: string;
+  calories: string;
+};
+
+/** 新規アイテムのエラー */
+type NewItemErrors = {
+  name: string | null;
+  calories: string | null;
+};
+
+/** エラーの初期状態 */
+const initialErrors: Record<FormField, string | null> = {
+  eatenAt: null,
+};
+
+/** 新規アイテムの初期状態 */
+const initialNewItemState: NewItemState = {
+  name: "",
+  calories: "",
+};
+
+/** 新規アイテムエラーの初期状態 */
+const initialNewItemErrors: NewItemErrors = {
+  name: null,
+  calories: null,
 };
 
 /** 一意なIDを生成する関数 */
@@ -53,55 +92,6 @@ function getCurrentDateTimeLocal(): string {
   const offset = now.getTimezoneOffset();
   const localDate = new Date(now.getTime() - offset * 60 * 1000);
   return localDate.toISOString().slice(0, 16);
-}
-
-/** フォームの初期状態 */
-const createInitialFormState = (): FormState => ({
-  eatenAt: getCurrentDateTimeLocal(),
-  items: [{ id: generateId(), name: "", calories: 0 }],
-});
-
-/**
- * フォームバリデーション関数
- * @param form - フォームの状態
- * @returns バリデーションエラー
- */
-function validateForm(form: FormState): FormErrors {
-  const errors: FormErrors = {};
-  const itemErrors: { [key: string]: { name?: string; calories?: string } } = {};
-
-  // eatenAt: 必須
-  if (!form.eatenAt) {
-    errors.eatenAt = "食事日時を入力してください";
-  }
-
-  // items: 少なくとも1つ必要
-  if (form.items.length === 0) {
-    errors.items = "少なくとも1つの食品を追加してください";
-  }
-
-  // 各アイテムのバリデーション
-  form.items.forEach((item) => {
-    const itemError: { name?: string; calories?: string } = {};
-
-    if (!item.name.trim()) {
-      itemError.name = "食品名を入力してください";
-    }
-
-    if (item.calories < 0) {
-      itemError.calories = "カロリーは0以上で入力してください";
-    }
-
-    if (Object.keys(itemError).length > 0) {
-      itemErrors[item.id] = itemError;
-    }
-  });
-
-  if (Object.keys(itemErrors).length > 0) {
-    errors.itemErrors = itemErrors;
-  }
-
-  return errors;
 }
 
 /**
@@ -122,7 +112,6 @@ function getErrorMessage(code: string): string {
 
 /**
  * AlertCircleアイコン - エラー表示用
- * SVGインラインアイコン
  */
 function AlertCircleIcon({ className }: { className?: string }) {
   return (
@@ -192,7 +181,6 @@ function TrashIcon({ className }: { className?: string }) {
 
 /**
  * フィールドエラー表示コンポーネント
- * アイコン付きのエラーメッセージを表示
  */
 function FieldError({ id, message }: { id: string; message: string }) {
   return (
@@ -207,14 +195,31 @@ function FieldError({ id, message }: { id: string; message: string }) {
  * RecordForm - カロリー記録フォーム
  */
 export function RecordForm({ onSuccess }: RecordFormProps) {
-  const [formState, setFormState] = useState<FormState>(createInitialFormState);
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const { createRecord, isLoading, error, reset } = useCreateRecord();
+  // フォーム状態（eatenAtはuseFormで管理）
+  const [formState, setFormState] = useState<FormState>({
+    eatenAt: getCurrentDateTimeLocal(),
+  });
+  const [errors, setErrors] = useState<Record<FormField, string | null>>(
+    initialErrors
+  );
+
+  // アイテムリスト（動的配列のためuseState）
+  const [items, setItems] = useState<ItemState[]>([]);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+
+  // 新規アイテム入力
+  const [newItem, setNewItem] = useState<NewItemState>(initialNewItemState);
+  const [newItemErrors, setNewItemErrors] =
+    useState<NewItemErrors>(initialNewItemErrors);
+
+  // API状態
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<ApiErrorResponse | null>(null);
 
   /** 合計カロリーの計算（メモ化） */
   const totalCalories = useMemo(() => {
-    return formState.items.reduce((sum, item) => sum + (item.calories || 0), 0);
-  }, [formState.items]);
+    return items.reduce((sum, item) => sum + item.calories, 0);
+  }, [items]);
 
   /**
    * 食事日時の変更ハンドラ
@@ -222,47 +227,69 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
   const handleEatenAtChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormState((prev) => ({ ...prev, eatenAt: value }));
-    // エラーをクリア
-    if (formErrors.eatenAt) {
-      setFormErrors((prev) => ({ ...prev, eatenAt: undefined }));
+
+    // バリデーション
+    if (!value) {
+      setErrors((prev) => ({
+        ...prev,
+        eatenAt: "食事日時を入力してください",
+      }));
+      return;
     }
-    if (error) {
-      reset();
+
+    const date = new Date(value);
+    const result = newEatenAt(date);
+    if (!result.ok) {
+      setErrors((prev) => ({ ...prev, eatenAt: result.error.message }));
+    } else {
+      setErrors((prev) => ({ ...prev, eatenAt: null }));
+    }
+
+    if (apiError) {
+      setApiError(null);
     }
   };
 
   /**
-   * アイテムのフィールド変更ハンドラ
+   * 新規アイテム名の変更ハンドラ
    */
-  const handleItemChange = (
-    itemId: string,
-    field: "name" | "calories",
-    value: string | number
-  ) => {
-    setFormState((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.id === itemId ? { ...item, [field]: value } : item
-      ),
-    }));
-    // 該当アイテムのエラーをクリア
-    if (formErrors.itemErrors?.[itemId]?.[field]) {
-      setFormErrors((prev) => {
-        const newItemErrors = { ...prev.itemErrors };
-        if (newItemErrors[itemId]) {
-          newItemErrors[itemId] = { ...newItemErrors[itemId], [field]: undefined };
-          if (!newItemErrors[itemId].name && !newItemErrors[itemId].calories) {
-            delete newItemErrors[itemId];
-          }
-        }
-        return {
-          ...prev,
-          itemErrors: Object.keys(newItemErrors).length > 0 ? newItemErrors : undefined,
-        };
-      });
+  const handleNewItemNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNewItem((prev) => ({ ...prev, name: value }));
+
+    // リアルタイムバリデーション
+    const result = newItemName(value);
+    if (!result.ok) {
+      setNewItemErrors((prev) => ({ ...prev, name: result.error.message }));
+    } else {
+      setNewItemErrors((prev) => ({ ...prev, name: null }));
     }
-    if (error) {
-      reset();
+  };
+
+  /**
+   * 新規アイテムカロリーの変更ハンドラ
+   */
+  const handleNewItemCaloriesChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setNewItem((prev) => ({ ...prev, calories: value }));
+
+    // リアルタイムバリデーション
+    const num = parseInt(value, 10);
+    if (isNaN(num) || value === "") {
+      setNewItemErrors((prev) => ({
+        ...prev,
+        calories: "カロリーを入力してください",
+      }));
+      return;
+    }
+
+    const result = newCalories(num);
+    if (!result.ok) {
+      setNewItemErrors((prev) => ({ ...prev, calories: result.error.message }));
+    } else {
+      setNewItemErrors((prev) => ({ ...prev, calories: null }));
     }
   };
 
@@ -270,13 +297,34 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
    * アイテム追加ハンドラ
    */
   const handleAddItem = () => {
-    setFormState((prev) => ({
-      ...prev,
-      items: [...prev.items, { id: generateId(), name: "", calories: 0 }],
-    }));
+    // バリデーション
+    const nameResult = newItemName(newItem.name);
+    const caloriesNum = parseInt(newItem.calories, 10);
+    const caloriesResult = newCalories(isNaN(caloriesNum) ? 0 : caloriesNum);
+
+    if (!nameResult.ok || !caloriesResult.ok) {
+      setNewItemErrors({
+        name: nameResult.ok ? null : nameResult.error.message,
+        calories: caloriesResult.ok ? null : caloriesResult.error.message,
+      });
+      return;
+    }
+
+    // アイテム追加
+    const newItemState: ItemState = {
+      id: generateId(),
+      name: nameResult.value.value,
+      calories: caloriesResult.value.value,
+    };
+    setItems((prev) => [...prev, newItemState]);
+
+    // 入力をリセット
+    setNewItem(initialNewItemState);
+    setNewItemErrors(initialNewItemErrors);
+
     // アイテムエラーをクリア
-    if (formErrors.items) {
-      setFormErrors((prev) => ({ ...prev, items: undefined }));
+    if (itemsError) {
+      setItemsError(null);
     }
   };
 
@@ -284,21 +332,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
    * アイテム削除ハンドラ
    */
   const handleRemoveItem = (itemId: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      items: prev.items.filter((item) => item.id !== itemId),
-    }));
-    // 該当アイテムのエラーを削除
-    if (formErrors.itemErrors?.[itemId]) {
-      setFormErrors((prev) => {
-        const newItemErrors = { ...prev.itemErrors };
-        delete newItemErrors[itemId];
-        return {
-          ...prev,
-          itemErrors: Object.keys(newItemErrors).length > 0 ? newItemErrors : undefined,
-        };
-      });
-    }
+    setItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
   /**
@@ -308,9 +342,31 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
     e.preventDefault();
 
     // バリデーション
-    const errors = validateForm(formState);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    let hasError = false;
+
+    // eatenAtバリデーション
+    if (!formState.eatenAt) {
+      setErrors((prev) => ({
+        ...prev,
+        eatenAt: "食事日時を入力してください",
+      }));
+      hasError = true;
+    } else {
+      const date = new Date(formState.eatenAt);
+      const eatenAtResult = newEatenAt(date);
+      if (!eatenAtResult.ok) {
+        setErrors((prev) => ({ ...prev, eatenAt: eatenAtResult.error.message }));
+        hasError = true;
+      }
+    }
+
+    // itemsバリデーション
+    if (items.length === 0) {
+      setItemsError("少なくとも1つの食品を追加してください");
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
@@ -318,213 +374,218 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
     const eatenAtISO = new Date(formState.eatenAt).toISOString();
 
     // API呼び出し
-    await createRecord(
-      {
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      const response = await createRecord({
         eatenAt: eatenAtISO,
-        items: formState.items.map(({ name, calories }) => ({ name, calories })),
-      },
-      (response) => {
-        // 成功時にフォームをリセット
-        setFormState(createInitialFormState());
-        setFormErrors({});
-        onSuccess?.(response);
-      }
-    );
+        items: items.map(({ name, calories }) => ({ name, calories })),
+      });
+
+      // 成功時にフォームをリセット
+      setFormState({ eatenAt: getCurrentDateTimeLocal() });
+      setErrors(initialErrors);
+      setItems([]);
+      setItemsError(null);
+      setNewItem(initialNewItemState);
+      setNewItemErrors(initialNewItemErrors);
+
+      onSuccess?.(response);
+    } catch (error) {
+      setApiError(error as ApiErrorResponse);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  return (
-    <Card className="w-full shadow-warm-lg border-0">
-      <CardHeader className="space-y-1 pb-6">
-        <CardTitle className="text-2xl font-semibold text-center">
-          カロリー記録
-        </CardTitle>
-        <CardDescription className="text-center text-muted-foreground">
-          食事の記録を追加してください
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* APIエラー表示 */}
-          {error && (
-            <div
-              className="flex items-start gap-3 p-4 text-sm rounded-lg bg-destructive/10 border border-destructive/20"
-              role="alert"
-            >
-              <AlertCircleIcon className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium text-destructive">
-                  {getErrorMessage(error.code)}
-                </p>
-                {error.details && error.details.length > 0 && (
-                  <ul className="mt-1.5 list-disc list-inside text-destructive/80">
-                    {error.details.map((detail, index) => (
-                      <li key={index}>{detail}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
+  /** フォームが有効かどうか */
+  const isFormValid = useMemo(() => {
+    return !errors.eatenAt && items.length > 0;
+  }, [errors.eatenAt, items.length]);
 
-          {/* 食事日時 */}
-          <div className="space-y-2">
-            <Label htmlFor="eatenAt" className="text-foreground font-medium">
-              食事日時
+  /** 追加ボタンが有効かどうか */
+  const isAddButtonValid = useMemo(() => {
+    return !newItemErrors.name && !newItemErrors.calories && newItem.name && newItem.calories;
+  }, [newItemErrors.name, newItemErrors.calories, newItem.name, newItem.calories]);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* APIエラー表示 */}
+      {apiError && (
+        <div
+          className="flex items-start gap-3 p-4 text-sm rounded-lg bg-destructive/10 border border-destructive/20"
+          role="alert"
+        >
+          <AlertCircleIcon className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium text-destructive">
+              {getErrorMessage(apiError.code)}
+            </p>
+            {apiError.details && apiError.details.length > 0 && (
+              <ul className="mt-1.5 list-disc list-inside text-destructive/80">
+                {apiError.details.map((detail, index) => (
+                  <li key={index}>{detail}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 食事日時 */}
+      <div className="space-y-2">
+        <Label htmlFor="eatenAt" className="text-foreground font-medium">
+          食事日時
+        </Label>
+        <Input
+          id="eatenAt"
+          name="eatenAt"
+          type="datetime-local"
+          value={formState.eatenAt}
+          onChange={handleEatenAtChange}
+          disabled={isLoading}
+          aria-invalid={!!errors.eatenAt}
+          aria-describedby={errors.eatenAt ? "eatenAt-error" : undefined}
+          className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
+        />
+        {errors.eatenAt && (
+          <FieldError id="eatenAt-error" message={errors.eatenAt} />
+        )}
+      </div>
+
+      {/* 食品アイテム追加セクション */}
+      <div className="space-y-4">
+        <Label className="text-foreground font-medium">食品を追加</Label>
+
+        <div className="flex gap-3 items-end">
+          {/* 食品名入力 */}
+          <div className="flex-1 space-y-1">
+            <Label
+              htmlFor="new-item-name"
+              className="text-sm text-muted-foreground"
+            >
+              食品名
             </Label>
             <Input
-              id="eatenAt"
-              name="eatenAt"
-              type="datetime-local"
-              value={formState.eatenAt}
-              onChange={handleEatenAtChange}
+              id="new-item-name"
+              type="text"
+              value={newItem.name}
+              onChange={handleNewItemNameChange}
+              placeholder="例: ご飯"
               disabled={isLoading}
-              aria-invalid={!!formErrors.eatenAt}
-              aria-describedby={formErrors.eatenAt ? "eatenAt-error" : undefined}
-              className="h-11 bg-background border-input focus:border-primary focus:ring-primary/20"
+              aria-invalid={!!newItemErrors.name}
+              aria-describedby={
+                newItemErrors.name ? "new-item-name-error" : undefined
+              }
+              className="h-10 bg-background"
             />
-            {formErrors.eatenAt && (
-              <FieldError id="eatenAt-error" message={formErrors.eatenAt} />
-            )}
           </div>
 
-          {/* 食品アイテム一覧 */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-foreground font-medium">食品アイテム</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddItem}
-                disabled={isLoading}
-                className="gap-1"
-              >
-                <PlusIcon className="w-4 h-4" />
-                追加
-              </Button>
-            </div>
-
-            {formErrors.items && (
-              <FieldError id="items-error" message={formErrors.items} />
-            )}
-
-            <div className="space-y-3">
-              {formState.items.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="flex gap-3 items-start p-4 rounded-lg bg-muted/50"
-                >
-                  <div className="flex-1 space-y-3">
-                    <div className="flex gap-3">
-                      {/* 食品名 */}
-                      <div className="flex-1 space-y-1">
-                        <Label
-                          htmlFor={`item-name-${item.id}`}
-                          className="text-sm text-muted-foreground"
-                        >
-                          食品名
-                        </Label>
-                        <Input
-                          id={`item-name-${item.id}`}
-                          type="text"
-                          value={item.name}
-                          onChange={(e) =>
-                            handleItemChange(item.id, "name", e.target.value)
-                          }
-                          placeholder={`食品${index + 1}`}
-                          disabled={isLoading}
-                          aria-invalid={!!formErrors.itemErrors?.[item.id]?.name}
-                          aria-describedby={
-                            formErrors.itemErrors?.[item.id]?.name
-                              ? `item-name-error-${item.id}`
-                              : undefined
-                          }
-                          className="h-10 bg-background"
-                        />
-                        {formErrors.itemErrors?.[item.id]?.name && (
-                          <FieldError
-                            id={`item-name-error-${item.id}`}
-                            message={formErrors.itemErrors[item.id].name!}
-                          />
-                        )}
-                      </div>
-
-                      {/* カロリー */}
-                      <div className="w-32 space-y-1">
-                        <Label
-                          htmlFor={`item-calories-${item.id}`}
-                          className="text-sm text-muted-foreground"
-                        >
-                          カロリー (kcal)
-                        </Label>
-                        <Input
-                          id={`item-calories-${item.id}`}
-                          type="number"
-                          min="0"
-                          value={item.calories}
-                          onChange={(e) =>
-                            handleItemChange(
-                              item.id,
-                              "calories",
-                              parseInt(e.target.value, 10) || 0
-                            )
-                          }
-                          disabled={isLoading}
-                          aria-invalid={!!formErrors.itemErrors?.[item.id]?.calories}
-                          aria-describedby={
-                            formErrors.itemErrors?.[item.id]?.calories
-                              ? `item-calories-error-${item.id}`
-                              : undefined
-                          }
-                          className="h-10 bg-background"
-                        />
-                        {formErrors.itemErrors?.[item.id]?.calories && (
-                          <FieldError
-                            id={`item-calories-error-${item.id}`}
-                            message={formErrors.itemErrors[item.id].calories!}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 削除ボタン（アイテムが2つ以上の場合のみ表示） */}
-                  {formState.items.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveItem(item.id)}
-                      disabled={isLoading}
-                      className="mt-6 text-muted-foreground hover:text-destructive"
-                      aria-label={`${item.name || `食品${index + 1}`}を削除`}
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+          {/* カロリー入力 */}
+          <div className="w-28 space-y-1">
+            <Label
+              htmlFor="new-item-calories"
+              className="text-sm text-muted-foreground"
+            >
+              kcal
+            </Label>
+            <Input
+              id="new-item-calories"
+              type="number"
+              min="1"
+              value={newItem.calories}
+              onChange={handleNewItemCaloriesChange}
+              placeholder="300"
+              disabled={isLoading}
+              aria-invalid={!!newItemErrors.calories}
+              aria-describedby={
+                newItemErrors.calories ? "new-item-calories-error" : undefined
+              }
+              className="h-10 bg-background"
+            />
           </div>
 
-          {/* 合計カロリー表示 */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <span className="font-medium text-foreground">合計カロリー</span>
-            <span className="text-2xl font-bold text-primary">
-              {totalCalories.toLocaleString()} kcal
-            </span>
-          </div>
-
-          {/* 送信ボタン */}
+          {/* 追加ボタン */}
           <Button
-            type="submit"
-            className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 transition-colors"
-            disabled={isLoading}
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleAddItem}
+            disabled={isLoading || !isAddButtonValid}
+            className="h-10 w-10"
+            aria-label="食品を追加"
           >
-            {isLoading ? "記録中..." : "記録する"}
+            <PlusIcon className="w-4 h-4" />
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+
+        {/* 新規アイテムのエラー表示 */}
+        {newItemErrors.name && (
+          <FieldError id="new-item-name-error" message={newItemErrors.name} />
+        )}
+        {newItemErrors.calories && (
+          <FieldError
+            id="new-item-calories-error"
+            message={newItemErrors.calories}
+          />
+        )}
+      </div>
+
+      {/* 追加済み食品一覧 */}
+      {items.length > 0 && (
+        <div className="space-y-3">
+          <Label className="text-foreground font-medium">
+            追加済み ({items.length}件)
+          </Label>
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{item.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {item.calories.toLocaleString()} kcal
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemoveItem(item.id)}
+                  disabled={isLoading}
+                  className="text-muted-foreground hover:text-destructive"
+                  aria-label={`${item.name}を削除`}
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* アイテムエラー */}
+      {itemsError && <FieldError id="items-error" message={itemsError} />}
+
+      {/* 合計カロリー表示 */}
+      <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
+        <span className="font-medium text-foreground">合計カロリー</span>
+        <span className="text-2xl font-bold text-primary">
+          {totalCalories.toLocaleString()} kcal
+        </span>
+      </div>
+
+      {/* 送信ボタン */}
+      <Button
+        type="submit"
+        className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 transition-colors"
+        disabled={!isFormValid || isLoading}
+      >
+        {isLoading ? "記録中..." : "記録する"}
+      </Button>
+    </form>
   );
 }

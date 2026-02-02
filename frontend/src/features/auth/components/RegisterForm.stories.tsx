@@ -6,7 +6,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { RegisterForm } from './RegisterForm';
 
 const meta: Meta<typeof RegisterForm> = {
-  title: 'Auth/RegisterForm',
+  title: 'Features/Auth/RegisterForm',
   component: RegisterForm,
   tags: ['autodocs'],
   parameters: {
