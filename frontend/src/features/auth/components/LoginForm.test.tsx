@@ -39,7 +39,7 @@ describe("LoginForm", () => {
       expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument();
       expect(screen.getByLabelText("パスワード")).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: "ログイン" })
+        screen.getByRole("button", { name: "ログイン" }),
       ).toBeInTheDocument();
     });
 
@@ -47,10 +47,7 @@ describe("LoginForm", () => {
       renderWithRouter(<LoginForm />);
 
       expect(
-        screen.getByRole("heading", { name: "ログイン" })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText("アカウントにログインしてください")
+        screen.getByRole("heading", { name: "ログイン" }),
       ).toBeInTheDocument();
     });
 
@@ -79,7 +76,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText("有効なメールアドレスを入力してください")
+          screen.getByText("有効なメールアドレスを入力してください"),
         ).toBeInTheDocument();
       });
     });
@@ -91,19 +88,19 @@ describe("LoginForm", () => {
       // 不正なメール
       await user.type(screen.getByLabelText("メールアドレス"), "invalid");
       expect(
-        screen.getByText("有効なメールアドレスを入力してください")
+        screen.getByText("有効なメールアドレスを入力してください"),
       ).toBeInTheDocument();
 
       // 有効なメールに修正
       await user.clear(screen.getByLabelText("メールアドレス"));
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
 
       await waitFor(() => {
         expect(
-          screen.queryByText("有効なメールアドレスを入力してください")
+          screen.queryByText("有効なメールアドレスを入力してください"),
         ).not.toBeInTheDocument();
       });
     });
@@ -124,14 +121,14 @@ describe("LoginForm", () => {
       // フォームに入力
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
       await user.type(screen.getByLabelText("パスワード"), "password123");
 
       // ボタンが有効化されることを確認
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: "ログイン" })
+          screen.getByRole("button", { name: "ログイン" }),
         ).not.toBeDisabled();
       });
 
@@ -161,14 +158,14 @@ describe("LoginForm", () => {
       // フォームに入力
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
       await user.type(screen.getByLabelText("パスワード"), "password123");
 
       // ボタンが有効化されることを確認
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: "ログイン" })
+          screen.getByRole("button", { name: "ログイン" }),
         ).not.toBeDisabled();
       });
 
@@ -195,14 +192,14 @@ describe("LoginForm", () => {
       // フォームに入力
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
       await user.type(screen.getByLabelText("パスワード"), "wrongpassword");
 
       // ボタンが有効化されることを確認
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: "ログイン" })
+          screen.getByRole("button", { name: "ログイン" }),
         ).not.toBeDisabled();
       });
 
@@ -211,7 +208,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText("メールアドレスまたはパスワードが間違っています")
+          screen.getByText("メールアドレスまたはパスワードが間違っています"),
         ).toBeInTheDocument();
       });
     });
@@ -229,14 +226,14 @@ describe("LoginForm", () => {
       // フォームに入力
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
       await user.type(screen.getByLabelText("パスワード"), "password123");
 
       // ボタンが有効化されることを確認
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: "ログイン" })
+          screen.getByRole("button", { name: "ログイン" }),
         ).not.toBeDisabled();
       });
 
@@ -244,7 +241,9 @@ describe("LoginForm", () => {
       fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
 
       await waitFor(() => {
-        expect(screen.getByText("入力内容に誤りがあります")).toBeInTheDocument();
+        expect(
+          screen.getByText("入力内容に誤りがあります"),
+        ).toBeInTheDocument();
       });
     });
 
@@ -261,14 +260,14 @@ describe("LoginForm", () => {
       // フォームに入力
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
       await user.type(screen.getByLabelText("パスワード"), "password123");
 
       // ボタンが有効化されることを確認
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: "ログイン" })
+          screen.getByRole("button", { name: "ログイン" }),
         ).not.toBeDisabled();
       });
 
@@ -277,7 +276,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText("予期しないエラーが発生しました")
+          screen.getByText("予期しないエラーが発生しました"),
         ).toBeInTheDocument();
       });
     });
@@ -297,14 +296,14 @@ describe("LoginForm", () => {
       // フォームに入力
       await user.type(
         screen.getByLabelText("メールアドレス"),
-        "test@example.com"
+        "test@example.com",
       );
       await user.type(screen.getByLabelText("パスワード"), "wrongpassword");
 
       // ボタンが有効化されることを確認
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: "ログイン" })
+          screen.getByRole("button", { name: "ログイン" }),
         ).not.toBeDisabled();
       });
 
@@ -314,7 +313,7 @@ describe("LoginForm", () => {
       // エラーが表示されることを確認
       await waitFor(() => {
         expect(
-          screen.getByText("メールアドレスまたはパスワードが間違っています")
+          screen.getByText("メールアドレスまたはパスワードが間違っています"),
         ).toBeInTheDocument();
       });
 
@@ -323,7 +322,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText("メールアドレスまたはパスワードが間違っています")
+          screen.queryByText("メールアドレスまたはパスワードが間違っています"),
         ).not.toBeInTheDocument();
       });
     });

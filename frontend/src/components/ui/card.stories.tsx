@@ -2,7 +2,7 @@
  * Card コンポーネントのStorybook
  * カード全体および各サブコンポーネントの表示確認
  */
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   Card,
   CardHeader,
@@ -10,13 +10,13 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-} from './card';
-import { Button } from './button';
+} from "./card";
+import { Button } from "./button";
 
 const meta: Meta<typeof Card> = {
-  title: 'UI/Card',
+  title: "UI/Card",
   component: Card,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;
@@ -101,7 +101,6 @@ export const FormCard: Story = {
     <Card className="w-[400px]">
       <CardHeader>
         <CardTitle>ログイン</CardTitle>
-        <CardDescription>アカウントにログインしてください</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">

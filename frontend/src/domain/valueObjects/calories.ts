@@ -23,3 +23,13 @@ export const newCalories = (value: number): Result<Calories, CaloriesError> => {
   });
   return ok(calories);
 };
+
+/**
+ * カロリー値の配列を合計する
+ * NaN値は0として扱う
+ * @param values - カロリー値の配列
+ * @returns 合計カロリー
+ */
+export const sumCalories = (values: number[]): number => {
+  return values.reduce((sum, value) => sum + (isNaN(value) ? 0 : value), 0);
+};

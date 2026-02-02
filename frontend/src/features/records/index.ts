@@ -4,8 +4,4 @@
  */
 
 export { RecordForm, RecordDialog } from "./components";
-export type {
-  RecordFormProps,
-  CreateRecordResponse,
-  RecordDialogProps,
-} from "./components";
+export type { RecordFormProps, RecordDialogProps } from "./components";

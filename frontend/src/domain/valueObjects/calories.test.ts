@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newCalories } from "./calories";
+import { newCalories, sumCalories } from "./calories";
 
 describe("newCalories", () => {
   describe("正常系", () => {
@@ -79,6 +79,43 @@ describe("newCalories", () => {
           expect(r1.value.equals(r2.value)).toBe(expected);
         }
       });
+    });
+  });
+});
+
+describe("sumCalories", () => {
+  const cases = [
+    {
+      name: "空配列で0を返す",
+      input: [],
+      expected: 0,
+    },
+    {
+      name: "単一要素の合計",
+      input: [100],
+      expected: 100,
+    },
+    {
+      name: "複数要素の合計",
+      input: [100, 200, 300],
+      expected: 600,
+    },
+    {
+      name: "NaN値は0として扱う",
+      input: [100, NaN, 200],
+      expected: 300,
+    },
+    {
+      name: "全てNaNの場合は0を返す",
+      input: [NaN, NaN, NaN],
+      expected: 0,
+    },
+  ];
+
+  cases.forEach(({ name, input, expected }) => {
+    it(name, () => {
+      const result = sumCalories(input);
+      expect(result).toBe(expected);
     });
   });
 });

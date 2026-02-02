@@ -11,6 +11,9 @@ import { Card, CardContent } from "@/components/ui/card";
  * DashboardPage - ダッシュボードページコンポーネント
  */
 export function DashboardPage() {
+  /**
+   * 記録成功時のコールバック
+   */
   const handleRecordSuccess = () => {
     // 記録成功時の処理（今後、記録一覧の再取得などを実装予定）
   };

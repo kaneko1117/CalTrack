@@ -31,8 +31,8 @@ export const Default: Story = {
 /** 成功コールバック付き */
 export const WithOnSuccess: Story = {
   args: {
-    onSuccess: (response) => {
-      console.log("記録成功:", response);
+    onSuccess: () => {
+      console.log("記録成功");
       alert("記録成功！");
     },
   },
