@@ -36,4 +36,7 @@ var (
 
 	// Record Item errors
 	ErrItemNameRequired = errors.New("item name is required")
+
+	// Statistics errors
+	ErrInvalidStatisticsPeriod = errors.New("statistics period must be week or month")
 )
