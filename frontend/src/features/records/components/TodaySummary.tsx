@@ -8,7 +8,7 @@ import type { ApiErrorResponse } from "@/lib/api";
 import type { TodayRecordsResponse } from "../hooks/useTodayRecords";
 import { newEatenAt, type MealType } from "@/domain/valueObjects/eatenAt";
 import { ProgressRing } from "./ProgressRing";
-import { useCountUp } from "../hooks/useCountUp";
+import { useCountUp } from "@/features/common/hooks";
 
 /**
  * 食事タイプごとの絵文字マップ
