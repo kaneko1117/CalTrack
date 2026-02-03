@@ -683,5 +683,335 @@ func TestRecordHandler_GetToday(t *testing.T) {
 	})
 }
 
+func TestRecordHandler_GetStatistics(t *testing.T) {
+	t.Run("正常系_週間統計データが取得できる", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		// 日別カロリーデータを作成
+		now := time.Now()
+		dailyCalories := []repository.DailyCalories{
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -6)), Calories: vo.ReconstructCalories(1800)},
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -5)), Calories: vo.ReconstructCalories(2200)},
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -4)), Calories: vo.ReconstructCalories(2000)},
+		}
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return dailyCalories, nil
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=week", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
+		}
+
+		var resp dto.StatisticsResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Period != "week" {
+			t.Errorf("period = %s, want %s", resp.Period, "week")
+		}
+		if resp.TotalDays != 3 {
+			t.Errorf("totalDays = %d, want %d", resp.TotalDays, 3)
+		}
+		if len(resp.DailyStatistics) != 3 {
+			t.Errorf("dailyStatistics count = %d, want %d", len(resp.DailyStatistics), 3)
+		}
+		// 平均カロリー: (1800+2200+2000)/3 = 2000
+		if resp.AverageCalories != 2000 {
+			t.Errorf("averageCalories = %d, want %d", resp.AverageCalories, 2000)
+		}
+	})
+
+	t.Run("正常系_月間統計データが取得できる", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return []repository.DailyCalories{}, nil
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=month", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+
+		var resp dto.StatisticsResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Period != "month" {
+			t.Errorf("period = %s, want %s", resp.Period, "month")
+		}
+	})
+
+	t.Run("正常系_期間未指定でデフォルトweek", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return []repository.DailyCalories{}, nil
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+
+		var resp dto.StatisticsResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		// 期間未指定の場合はデフォルトでweek
+		if resp.Period != "week" {
+			t.Errorf("period = %s, want %s", resp.Period, "week")
+		}
+	})
+
+	t.Run("正常系_データがない場合", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return []repository.DailyCalories{}, nil
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=week", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+
+		var resp dto.StatisticsResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.TotalDays != 0 {
+			t.Errorf("totalDays = %d, want %d", resp.TotalDays, 0)
+		}
+		if resp.AverageCalories != 0 {
+			t.Errorf("averageCalories = %d, want %d", resp.AverageCalories, 0)
+		}
+		if len(resp.DailyStatistics) != 0 {
+			t.Errorf("dailyStatistics count = %d, want %d", len(resp.DailyStatistics), 0)
+		}
+	})
+
+	t.Run("異常系_認証なし", func(t *testing.T) {
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=week", nil)
+		// userIDを設定しない
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeUnauthorized {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeUnauthorized)
+		}
+	})
+
+	t.Run("異常系_無効な期間パラメータ", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=invalid", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeValidationError {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeValidationError)
+		}
+	})
+
+	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, nil // ユーザーが見つからない
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=week", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeNotFound {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeNotFound)
+		}
+	})
+
+	t.Run("異常系_ユーザー取得でDBエラー", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, errors.New("database connection error")
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=week", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInternalError {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInternalError)
+		}
+	})
+
+	t.Run("異常系_DailyCalories取得でDBエラー", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return nil, errors.New("database connection error")
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/statistics?period=week", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetStatistics(c)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInternalError {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInternalError)
+		}
+	})
+}
+
 // domainErrorsのダミー参照（importエラー回避）
 var _ = domainErrors.ErrUserNotFound

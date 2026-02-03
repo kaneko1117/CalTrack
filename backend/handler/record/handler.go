@@ -115,6 +115,62 @@ func (h *RecordHandler) GetToday(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.NewTodayCaloriesResponse(output))
 }
 
+// GetStatistics は統計データを取得する
+// @Summary 統計データ取得
+// @Description 認証ユーザーの統計データを取得する
+// @Tags records
+// @Produce json
+// @Param period query string false "統計期間（week または month）"
+// @Success 200 {object} dto.StatisticsResponse "取得成功"
+// @Failure 400 {object} common.ErrorResponse "リクエスト不正"
+// @Failure 401 {object} common.ErrorResponse "認証失敗"
+// @Failure 404 {object} common.ErrorResponse "ユーザーが見つからない"
+// @Failure 500 {object} common.ErrorResponse "サーバーエラー"
+// @Router /statistics [get]
+func (h *RecordHandler) GetStatistics(c *gin.Context) {
+	// コンテキストからユーザーIDを取得
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		common.RespondError(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated", nil)
+		return
+	}
+
+	// クエリパラメータのバインド
+	var req dto.GetStatisticsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid query parameters", nil)
+		return
+	}
+
+	// リクエストをVOに変換
+	period, err := req.ToDomain()
+	if err != nil {
+		if errors.Is(err, domainErrors.ErrInvalidStatisticsPeriod) {
+			common.RespondValidationError(c, []string{err.Error()})
+			return
+		}
+		common.RespondError(c, http.StatusBadRequest, common.CodeValidationError, "Invalid period", nil)
+		return
+	}
+
+	// UserID VOに変換
+	userID := vo.ReconstructUserID(userIDStr.(string))
+
+	// Usecase実行
+	output, err := h.usecase.GetStatistics(c.Request.Context(), userID, period)
+	if err != nil {
+		if errors.Is(err, domainErrors.ErrUserNotFound) {
+			common.RespondError(c, http.StatusNotFound, common.CodeNotFound, "User not found", nil)
+			return
+		}
+		common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error", err)
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, dto.NewStatisticsResponse(output))
+}
+
 // extractErrorMessages はエラーリストからメッセージを抽出する
 func extractErrorMessages(errs []error) []string {
 	details := make([]string, len(errs))

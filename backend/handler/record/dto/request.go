@@ -50,3 +50,13 @@ func (r CreateRecordRequest) ToDomain(userIDStr string) (*entity.Record, error, 
 
 	return record, nil, nil
 }
+
+// GetStatisticsRequest は統計データ取得リクエストDTO
+type GetStatisticsRequest struct {
+	Period string `form:"period"` // クエリパラメータ: week または month
+}
+
+// ToDomain はリクエストを StatisticsPeriod VOに変換する
+func (r GetStatisticsRequest) ToDomain() (vo.StatisticsPeriod, error) {
+	return vo.NewStatisticsPeriod(r.Period)
+}
