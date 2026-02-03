@@ -36,13 +36,13 @@ describe("TodaySummary", () => {
 
   const defaultProps: TodaySummaryProps = {
     data: null,
-    isPending: false,
+    isLoading: false,
     error: null,
   };
 
   describe("ローディング状態", () => {
     it("ローディング中はスケルトンが表示される", () => {
-      render(<TodaySummary {...defaultProps} isPending={true} data={null} />);
+      render(<TodaySummary {...defaultProps} isLoading={true} data={null} />);
 
       // Skeletonコンポーネントが表示される（6つ - 3カード x 2スケルトン）
       const skeletons = document.querySelectorAll(".animate-pulse");
@@ -50,7 +50,7 @@ describe("TodaySummary", () => {
     });
 
     it("データがある状態でローディング中の場合、スケルトンは表示されない", () => {
-      render(<TodaySummary {...defaultProps} isPending={true} data={mockData} />);
+      render(<TodaySummary {...defaultProps} isLoading={true} data={mockData} />);
       completeAnimations();
 
       // データが表示される
