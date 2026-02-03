@@ -54,6 +54,22 @@ func (r *GormUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) 
 	return count > 0, nil
 }
 
+// FindByID は指定IDのユーザーを取得する
+// 存在しない場合はnilとnilを返す
+func (r *GormUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
+	tx := GetTx(ctx, r.db)
+	var m model.User
+	err := tx.Where("id = ?", id.String()).First(&m).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		logError("FindByID", err, "user_id", id.String())
+		return nil, err
+	}
+	return toUserEntity(&m)
+}
+
 func toUserModel(user *entity.User) model.User {
 	return model.User{
 		ID:             user.ID().String(),

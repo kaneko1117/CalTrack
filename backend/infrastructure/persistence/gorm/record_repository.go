@@ -2,10 +2,12 @@ package gorm
 
 import (
 	"context"
+	"time"
 
 	"gorm.io/gorm"
 
 	"caltrack/domain/entity"
+	"caltrack/domain/vo"
 	"caltrack/infrastructure/persistence/gorm/model"
 )
 
@@ -32,6 +34,28 @@ func (r *GormRecordRepository) Save(ctx context.Context, record *entity.Record) 
 	return nil
 }
 
+// FindByUserIDAndDateRange は指定ユーザーの指定日付範囲内のRecordを取得する
+// startTime以上、endTime未満のeatenAtを持つRecordを返す
+// Recordには関連するRecordItemsも含まれる
+func (r *GormRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+	tx := GetTx(ctx, r.db)
+	var models []model.Record
+	err := tx.Where("user_id = ? AND eaten_at >= ? AND eaten_at < ?", userID.String(), startTime, endTime).
+		Preload("Items").
+		Order("eaten_at ASC").
+		Find(&models).Error
+	if err != nil {
+		logError("FindByUserIDAndDateRange", err, "user_id", userID.String())
+		return nil, err
+	}
+
+	records := make([]*entity.Record, len(models))
+	for i, m := range models {
+		records[i] = toRecordEntity(&m)
+	}
+	return records, nil
+}
+
 // toRecordModel はエンティティをGORMモデルに変換する
 func toRecordModel(record *entity.Record) model.Record {
 	items := record.Items()
@@ -52,4 +76,24 @@ func toRecordModel(record *entity.Record) model.Record {
 		CreatedAt: record.CreatedAt(),
 		Items:     itemModels,
 	}
+}
+
+// toRecordEntity はGORMモデルをエンティティに変換する
+func toRecordEntity(m *model.Record) *entity.Record {
+	items := make([]entity.RecordItem, len(m.Items))
+	for i, itemModel := range m.Items {
+		items[i] = *entity.ReconstructRecordItem(
+			itemModel.ID,
+			itemModel.RecordID,
+			itemModel.Name,
+			itemModel.Calories,
+		)
+	}
+	return entity.ReconstructRecord(
+		m.ID,
+		m.UserID,
+		m.EatenAt,
+		m.CreatedAt,
+		items,
+	)
 }

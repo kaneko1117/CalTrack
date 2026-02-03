@@ -15,6 +15,7 @@ import (
 type mockUserRepository struct {
 	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
 	save          func(ctx context.Context, user *entity.User) error
+	findByID      func(ctx context.Context, id vo.UserID) (*entity.User, error)
 }
 
 func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
@@ -26,6 +27,13 @@ func (m *mockUserRepository) Save(ctx context.Context, u *entity.User) error {
 }
 
 func (m *mockUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
+	if m.findByID != nil {
+		return m.findByID(ctx, id)
+	}
 	return nil, nil
 }
 

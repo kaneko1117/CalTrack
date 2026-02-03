@@ -13,11 +13,19 @@ import (
 
 // mockRecordRepository はRecordRepositoryのモック実装
 type mockRecordRepository struct {
-	save func(ctx context.Context, record *entity.Record) error
+	save                     func(ctx context.Context, record *entity.Record) error
+	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
 }
 
 func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) error {
 	return m.save(ctx, record)
+}
+
+func (m *mockRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+	if m.findByUserIDAndDateRange != nil {
+		return m.findByUserIDAndDateRange(ctx, userID, startTime, endTime)
+	}
+	return nil, nil
 }
 
 // mockRecordTransactionManager はTransactionManagerのモック実装

@@ -41,6 +41,7 @@ type mockUserRepositoryForAuth struct {
 	findByEmail   func(ctx context.Context, email vo.Email) (*entity.User, error)
 	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
 	save          func(ctx context.Context, user *entity.User) error
+	findByID      func(ctx context.Context, id vo.UserID) (*entity.User, error)
 }
 
 func (m *mockUserRepositoryForAuth) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
@@ -53,6 +54,13 @@ func (m *mockUserRepositoryForAuth) ExistsByEmail(ctx context.Context, email vo.
 
 func (m *mockUserRepositoryForAuth) Save(ctx context.Context, user *entity.User) error {
 	return m.save(ctx, user)
+}
+
+func (m *mockUserRepositoryForAuth) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
+	if m.findByID != nil {
+		return m.findByID(ctx, id)
+	}
+	return nil, nil
 }
 
 // mockTxManager はTransactionManagerのモック実装
