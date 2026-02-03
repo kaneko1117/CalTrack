@@ -3,6 +3,7 @@ package record_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"caltrack/domain/entity"
+	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/repository"
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
@@ -49,7 +51,9 @@ func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx contex
 }
 
 // mockUserRepository はUserRepositoryのモック実装（Handler用）
-type mockUserRepository struct{}
+type mockUserRepository struct {
+	findByID func(ctx context.Context, id vo.UserID) (*entity.User, error)
+}
 
 func (m *mockUserRepository) Save(ctx context.Context, user *entity.User) error {
 	return nil
@@ -64,6 +68,9 @@ func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) 
 }
 
 func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
+	if m.findByID != nil {
+		return m.findByID(ctx, id)
+	}
 	return nil, nil
 }
 
@@ -73,6 +80,53 @@ func setupHandler(recordRepo repository.RecordRepository) *record.RecordHandler 
 	txManager := &mockTransactionManager{}
 	uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
 	return record.NewRecordHandler(uc)
+}
+
+// setupHandlerWithUserRepo はUserRepositoryを指定してテスト用のハンドラをセットアップする
+func setupHandlerWithUserRepo(recordRepo repository.RecordRepository, userRepo repository.UserRepository) *record.RecordHandler {
+	txManager := &mockTransactionManager{}
+	uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+	return record.NewRecordHandler(uc)
+}
+
+// createTestUser はテスト用のユーザーを作成する
+func createTestUser(userIDStr string) *entity.User {
+	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
+	user, _ := entity.ReconstructUser(
+		userIDStr,
+		"test@example.com",
+		"$2a$10$dummy_hash_value_for_testing",
+		"テストユーザー",
+		70.0,  // weight
+		170.0, // height
+		birthDate,
+		"male",
+		"moderate",
+		time.Now(),
+		time.Now(),
+	)
+	return user
+}
+
+// createTestRecord はテスト用のRecordを作成する
+func createTestRecord(userIDStr string, eatenAt time.Time, items []struct{ name string; calories int }) *entity.Record {
+	recordItems := make([]entity.RecordItem, len(items))
+	recordIDStr := "record-" + eatenAt.Format("20060102150405")
+	for i, item := range items {
+		recordItems[i] = *entity.ReconstructRecordItem(
+			"item-"+recordIDStr+"-"+item.name,
+			recordIDStr,
+			item.name,
+			item.calories,
+		)
+	}
+	return entity.ReconstructRecord(
+		recordIDStr,
+		userIDStr,
+		eatenAt,
+		time.Now(),
+		recordItems,
+	)
 }
 
 func TestRecordHandler_Create(t *testing.T) {
@@ -380,3 +434,237 @@ func TestRecordHandler_Create(t *testing.T) {
 		}
 	})
 }
+
+func TestRecordHandler_GetToday(t *testing.T) {
+	t.Run("正常系_今日のカロリー情報が取得できる", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		// 今日のRecordを作成
+		now := time.Now()
+		testRecords := []*entity.Record{
+			createTestRecord(userIDStr, now.Add(-2*time.Hour), []struct{ name string; calories int }{
+				{"朝食：パン", 300},
+				{"朝食：コーヒー", 50},
+			}),
+			createTestRecord(userIDStr, now.Add(-1*time.Hour), []struct{ name string; calories int }{
+				{"昼食：ラーメン", 800},
+			}),
+		}
+
+		recordRepo := &mockRecordRepository{
+			findByUserIDAndDateRange: func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+				return testRecords, nil
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/records/today", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetToday(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
+		}
+
+		var resp dto.TodayCaloriesResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		// 合計カロリーの検証（300+50+800=1150）
+		expectedTotal := 1150
+		if resp.TotalCalories != expectedTotal {
+			t.Errorf("totalCalories = %d, want %d", resp.TotalCalories, expectedTotal)
+		}
+
+		// 目標カロリーが設定されていることを確認
+		if resp.TargetCalories <= 0 {
+			t.Errorf("targetCalories should be positive, got %d", resp.TargetCalories)
+		}
+
+		// Recordの数が正しいことを確認
+		if len(resp.Records) != 2 {
+			t.Errorf("records count = %d, want %d", len(resp.Records), 2)
+		}
+	})
+
+	t.Run("正常系_記録がない場合", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		recordRepo := &mockRecordRepository{
+			findByUserIDAndDateRange: func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+				return []*entity.Record{}, nil
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/records/today", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetToday(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+
+		var resp dto.TodayCaloriesResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.TotalCalories != 0 {
+			t.Errorf("totalCalories = %d, want %d", resp.TotalCalories, 0)
+		}
+
+		if len(resp.Records) != 0 {
+			t.Errorf("records count = %d, want %d", len(resp.Records), 0)
+		}
+	})
+
+	t.Run("異常系_認証なし", func(t *testing.T) {
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/records/today", nil)
+		// userIDを設定しない
+
+		handler.GetToday(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeUnauthorized {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeUnauthorized)
+		}
+	})
+
+	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, nil // ユーザーが見つからない
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/records/today", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetToday(c)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeNotFound {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeNotFound)
+		}
+	})
+
+	t.Run("異常系_ユーザー取得でDBエラー", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, errors.New("database connection error")
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/records/today", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetToday(c)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInternalError {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInternalError)
+		}
+	})
+
+	t.Run("異常系_Record取得でDBエラー", func(t *testing.T) {
+		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		testUser := createTestUser(userIDStr)
+
+		recordRepo := &mockRecordRepository{
+			findByUserIDAndDateRange: func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+				return nil, errors.New("database connection error")
+			},
+		}
+		userRepo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/records/today", nil)
+		c.Set("userID", userIDStr)
+
+		handler.GetToday(c)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+
+		var resp common.ErrorResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+
+		if resp.Code != common.CodeInternalError {
+			t.Errorf("code = %s, want %s", resp.Code, common.CodeInternalError)
+		}
+	})
+}
+
+// domainErrorsのダミー参照（importエラー回避）
+var _ = domainErrors.ErrUserNotFound
