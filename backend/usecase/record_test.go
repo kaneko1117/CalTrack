@@ -8,6 +8,7 @@ import (
 
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/repository"
 	"caltrack/domain/vo"
 	"caltrack/usecase"
 )
@@ -16,6 +17,7 @@ import (
 type mockRecordRepository struct {
 	save                     func(ctx context.Context, record *entity.Record) error
 	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
+	getDailyCalories         func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error)
 }
 
 func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) error {
@@ -25,6 +27,13 @@ func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) 
 func (m *mockRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
 	if m.findByUserIDAndDateRange != nil {
 		return m.findByUserIDAndDateRange(ctx, userID, startTime, endTime)
+	}
+	return nil, nil
+}
+
+func (m *mockRecordRepository) GetDailyCalories(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+	if m.getDailyCalories != nil {
+		return m.getDailyCalories(ctx, userID, period)
 	}
 	return nil, nil
 }
@@ -289,6 +298,272 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 
 		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
+
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
+}
+
+func TestRecordUsecase_GetStatistics(t *testing.T) {
+	t.Run("正常系_週間統計データを取得", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+		targetCalories := user.CalculateTargetCalories()
+
+		// 7日分のデータを作成（達成:3日、超過:2日、未達成:2日）
+		// 達成条件: 80%以上100%以下
+		// 超過条件: 100%超
+		// 未達成: 80%未満
+		now := time.Now()
+		dailyCalories := []repository.DailyCalories{
+			// 達成（85%）
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -6)), Calories: vo.ReconstructCalories(targetCalories * 85 / 100)},
+			// 達成（90%）
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -5)), Calories: vo.ReconstructCalories(targetCalories * 90 / 100)},
+			// 達成（100%ちょうど）
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -4)), Calories: vo.ReconstructCalories(targetCalories)},
+			// 超過（120%）
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -3)), Calories: vo.ReconstructCalories(targetCalories * 120 / 100)},
+			// 超過（150%）
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -2)), Calories: vo.ReconstructCalories(targetCalories * 150 / 100)},
+			// 未達成（50%）
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -1)), Calories: vo.ReconstructCalories(targetCalories * 50 / 100)},
+			// 未達成（30%）
+			{Date: vo.ReconstructEatenAt(now), Calories: vo.ReconstructCalories(targetCalories * 30 / 100)},
+		}
+
+		period, _ := vo.NewStatisticsPeriod("week")
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return dailyCalories, nil
+			},
+		}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		output, err := uc.GetStatistics(context.Background(), userID, period)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// 期間の検証
+		if output.Period.String() != "week" {
+			t.Errorf("Period = %s, want week", output.Period.String())
+		}
+
+		// 目標カロリーの検証
+		if output.TargetCalories.Value() != targetCalories {
+			t.Errorf("TargetCalories = %d, want %d", output.TargetCalories.Value(), targetCalories)
+		}
+
+		// 日数の検証
+		if output.TotalDays != 7 {
+			t.Errorf("TotalDays = %d, want 7", output.TotalDays)
+		}
+
+		// 達成日数の検証（80%～100%: 3日）
+		if output.AchievedDays != 3 {
+			t.Errorf("AchievedDays = %d, want 3", output.AchievedDays)
+		}
+
+		// 超過日数の検証（100%超: 2日）
+		if output.OverDays != 2 {
+			t.Errorf("OverDays = %d, want 2", output.OverDays)
+		}
+
+		// DailyStatistics数の検証
+		if len(output.DailyStatistics) != 7 {
+			t.Errorf("len(DailyStatistics) = %d, want 7", len(output.DailyStatistics))
+		}
+	})
+
+	t.Run("正常系_データがない場合", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+		period, _ := vo.NewStatisticsPeriod("week")
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return []repository.DailyCalories{}, nil
+			},
+		}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		output, err := uc.GetStatistics(context.Background(), userID, period)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// 日数は0
+		if output.TotalDays != 0 {
+			t.Errorf("TotalDays = %d, want 0", output.TotalDays)
+		}
+
+		// 達成日数は0
+		if output.AchievedDays != 0 {
+			t.Errorf("AchievedDays = %d, want 0", output.AchievedDays)
+		}
+
+		// 超過日数は0
+		if output.OverDays != 0 {
+			t.Errorf("OverDays = %d, want 0", output.OverDays)
+		}
+
+		// 平均カロリーは0
+		if output.AverageCalories.Value() != 0 {
+			t.Errorf("AverageCalories = %d, want 0", output.AverageCalories.Value())
+		}
+	})
+
+	t.Run("正常系_月間統計データを取得", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+		period, _ := vo.NewStatisticsPeriod("month")
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				// 期間がmonthであることを確認
+				if p.String() != "month" {
+					t.Errorf("period = %s, want month", p.String())
+				}
+				return []repository.DailyCalories{}, nil
+			},
+		}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		output, err := uc.GetStatistics(context.Background(), userID, period)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// 期間の検証
+		if output.Period.String() != "month" {
+			t.Errorf("Period = %s, want month", output.Period.String())
+		}
+	})
+
+	t.Run("正常系_平均カロリーの計算", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+		period, _ := vo.NewStatisticsPeriod("week")
+
+		// 3日分のデータ: 1000, 2000, 3000 -> 平均 2000
+		now := time.Now()
+		dailyCalories := []repository.DailyCalories{
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -2)), Calories: vo.ReconstructCalories(1000)},
+			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -1)), Calories: vo.ReconstructCalories(2000)},
+			{Date: vo.ReconstructEatenAt(now), Calories: vo.ReconstructCalories(3000)},
+		}
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return dailyCalories, nil
+			},
+		}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		output, err := uc.GetStatistics(context.Background(), userID, period)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// 平均カロリーの検証
+		expectedAverage := 2000
+		if output.AverageCalories.Value() != expectedAverage {
+			t.Errorf("AverageCalories = %d, want %d", output.AverageCalories.Value(), expectedAverage)
+		}
+	})
+
+	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
+		userID := vo.NewUserID()
+		period, _ := vo.NewStatisticsPeriod("week")
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, nil
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		_, err := uc.GetStatistics(context.Background(), userID, period)
+
+		if !errors.Is(err, domainErrors.ErrUserNotFound) {
+			t.Errorf("got %v, want ErrUserNotFound", err)
+		}
+	})
+
+	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
+		userID := vo.NewUserID()
+		period, _ := vo.NewStatisticsPeriod("week")
+		repoErr := errors.New("db error")
+
+		recordRepo := &mockRecordRepository{}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, repoErr
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		_, err := uc.GetStatistics(context.Background(), userID, period)
+
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
+
+	t.Run("異常系_DailyCalories取得時にエラー", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+		period, _ := vo.NewStatisticsPeriod("week")
+		repoErr := errors.New("db error")
+
+		recordRepo := &mockRecordRepository{
+			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+				return nil, repoErr
+			},
+		}
+		userRepo := &mockRecordUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		txManager := &mockRecordTransactionManager{}
+
+		uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, repoErr) {
 			t.Errorf("got %v, want repoErr", err)

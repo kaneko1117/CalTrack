@@ -94,3 +94,94 @@ func (u *RecordUsecase) GetTodayCalories(ctx context.Context, userID vo.UserID) 
 		Records:        records,
 	}, nil
 }
+
+// DailyStatistics は日別統計データ（グラフ表示用）
+type DailyStatistics struct {
+	Date           vo.EatenAt  // 対象日付
+	TotalCalories  vo.Calories // その日の合計カロリー
+	TargetCalories vo.Calories // 目標カロリー
+	IsAchieved     bool        // 達成フラグ（80%〜100%）
+	IsOver         bool        // 超過フラグ（100%超）
+}
+
+// StatisticsOutput は統計データ出力
+type StatisticsOutput struct {
+	Period          vo.StatisticsPeriod // 統計期間（week/month）
+	TargetCalories  vo.Calories         // 1日の目標カロリー
+	AverageCalories vo.Calories         // 期間内の平均カロリー
+	TotalDays       int                 // 期間の日数
+	AchievedDays    int                 // 達成日数（80%〜100%）
+	OverDays        int                 // 超過日数（100%超）
+	DailyStatistics []DailyStatistics   // 日別統計データ（グラフ用）
+}
+
+// GetStatistics は認証ユーザーの統計データを取得する
+func (u *RecordUsecase) GetStatistics(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*StatisticsOutput, error) {
+	// ユーザー取得（目標カロリー計算のため）
+	user, err := u.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		logError("GetStatistics", err, "user_id", userID.String())
+		return nil, err
+	}
+	if user == nil {
+		logWarn("GetStatistics", "user not found", "user_id", userID.String())
+		return nil, domainErrors.ErrUserNotFound
+	}
+
+	// 目標カロリー取得
+	targetCalories := vo.ReconstructCalories(user.CalculateTargetCalories())
+
+	// 日別カロリーデータ取得
+	dailyCaloriesList, err := u.recordRepo.GetDailyCalories(ctx, userID, period)
+	if err != nil {
+		logError("GetStatistics", err, "user_id", userID.String())
+		return nil, err
+	}
+
+	// 集計用変数の初期化
+	totalDays := len(dailyCaloriesList)
+	achievedDays := 0
+	overDays := 0
+	totalCaloriesSum := vo.ZeroCalories()
+	dailyStatistics := make([]DailyStatistics, 0, totalDays)
+
+	// 日別データをループして集計
+	for _, daily := range dailyCaloriesList {
+		// 達成・超過判定（VOのメソッドで判定）
+		isAchieved := daily.Calories.IsAchieved(targetCalories)
+		isOver := daily.Calories.IsOver(targetCalories)
+
+		if isAchieved {
+			achievedDays++
+		}
+		if isOver {
+			overDays++
+		}
+
+		totalCaloriesSum = totalCaloriesSum.Add(daily.Calories)
+
+		dailyStatistics = append(dailyStatistics, DailyStatistics{
+			Date:           daily.Date,
+			TotalCalories:  daily.Calories,
+			TargetCalories: targetCalories,
+			IsAchieved:     isAchieved,
+			IsOver:         isOver,
+		})
+	}
+
+	// 平均カロリー計算（0除算防止）
+	averageCalories := vo.ZeroCalories()
+	if totalDays > 0 {
+		averageCalories = vo.ReconstructCalories(totalCaloriesSum.Value() / totalDays)
+	}
+
+	return &StatisticsOutput{
+		Period:          period,
+		TargetCalories:  targetCalories,
+		AverageCalories: averageCalories,
+		TotalDays:       totalDays,
+		AchievedDays:    achievedDays,
+		OverDays:        overDays,
+		DailyStatistics: dailyStatistics,
+	}, nil
+}
