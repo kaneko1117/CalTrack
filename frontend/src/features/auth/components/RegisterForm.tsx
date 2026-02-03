@@ -28,7 +28,6 @@ import {
   ACTIVITY_LEVEL_OPTIONS,
 } from "@/domain/valueObjects";
 import type { GenderValue, ActivityLevelValue } from "@/domain/valueObjects";
-import { post } from "@/lib/api";
 
 /** ユーザー登録レスポンス */
 export type RegisterUserResponse = {
@@ -48,10 +47,6 @@ type RegisterUserRequest = {
   gender: GenderValue;
   activityLevel: ActivityLevelValue;
 };
-
-/** ユーザー登録API */
-const registerUser = (data: RegisterUserRequest) =>
-  post<RegisterUserResponse>("/api/v1/auth/register", data);
 
 /** RegisterFormコンポーネントのProps */
 export type RegisterFormProps = {
@@ -155,23 +150,23 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     handleSubmit,
     isValid,
     isPending,
-  } = useForm(
-    formConfig,
+  } = useForm<RegisterField, RegisterUserResponse, RegisterUserRequest>({
+    config: formConfig,
     initialFormState,
     initialErrors,
-    (data) =>
-      registerUser({
-        email: data.email,
-        password: data.password,
-        nickname: data.nickname,
-        weight: parseFloat(data.weight),
-        height: parseFloat(data.height),
-        birthDate: data.birthDate,
-        gender: data.gender as GenderValue,
-        activityLevel: data.activityLevel as ActivityLevelValue,
-      }),
-    onSuccess
-  );
+    url: "/api/v1/auth/register",
+    transformData: (data) => ({
+      email: data.email,
+      password: data.password,
+      nickname: data.nickname,
+      weight: parseFloat(data.weight),
+      height: parseFloat(data.height),
+      birthDate: data.birthDate,
+      gender: data.gender as GenderValue,
+      activityLevel: data.activityLevel as ActivityLevelValue,
+    }),
+    onSuccess,
+  });
 
   return (
     <Card className="w-full shadow-warm-lg border-0">

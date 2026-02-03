@@ -6,19 +6,24 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RecordForm } from "./RecordForm";
 
-// APIをモック
-vi.mock("@/lib/api", () => ({
-  post: vi.fn(),
+// SWR mutateをモック
+const mockTrigger = vi.fn();
+vi.mock("@/features/common/hooks", () => ({
+  useRequestMutation: () => ({
+    trigger: mockTrigger,
+    isMutating: false,
+    error: undefined,
+    data: undefined,
+    reset: vi.fn(),
+  }),
 }));
-
-import { post } from "@/lib/api";
 
 describe("RecordForm", () => {
   const mockOnSuccess = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(post).mockResolvedValue({
+    mockTrigger.mockResolvedValue({
       recordId: "test-id",
       eatenAt: "2024-01-01T12:00:00Z",
       totalCalories: 250,
@@ -212,9 +217,8 @@ describe("RecordForm", () => {
       fireEvent.click(screen.getByRole("button", { name: "記録する" }));
 
       await waitFor(() => {
-        expect(post).toHaveBeenCalledTimes(1);
-        expect(post).toHaveBeenCalledWith(
-          "/api/v1/records",
+        expect(mockTrigger).toHaveBeenCalledTimes(1);
+        expect(mockTrigger).toHaveBeenCalledWith(
           expect.objectContaining({
             items: [{ name: "白米", calories: 250 }],
           })

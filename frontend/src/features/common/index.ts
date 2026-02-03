@@ -12,4 +12,4 @@ export {
 
 // Hooks
 export { useForm } from "./hooks";
-export type { UseFormReturn } from "./hooks";
+export type { UseFormReturn, UseFormOptions } from "./hooks";

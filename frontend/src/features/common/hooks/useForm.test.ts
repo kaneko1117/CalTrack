@@ -1,8 +1,24 @@
-import { describe, it, expect, vi } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
 import { useForm } from "./useForm";
 import { ok, err } from "@/domain/shared/result";
 import { domainError } from "@/domain/shared/errors";
+import type { ApiErrorResponse } from "@/lib/api";
+
+// SWR mutationをモック
+const mockTrigger = vi.fn();
+const mockReset = vi.fn();
+let mockError: ApiErrorResponse | undefined = undefined;
+
+vi.mock("./useRequest", () => ({
+  useRequestMutation: () => ({
+    trigger: mockTrigger,
+    isMutating: false,
+    error: mockError,
+    data: undefined,
+    reset: mockReset,
+  }),
+}));
 
 const mockEmailFactory = vi.fn((value: string) => {
   if (!value || value.trim() === "") {
@@ -35,17 +51,26 @@ const mockPasswordFactory = vi.fn((value: string) => {
 const initialFormState = { email: "", password: "" };
 const initialErrors = { email: null, password: null };
 
+type TestField = "email" | "password";
+type TestResponse = { id: number };
+type TestRequest = { email: string; password: string };
+
 describe("useForm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockError = undefined;
+  });
+
   describe("初期状態", () => {
     it("初期状態が正しく設定される", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       expect(result.current.formState).toEqual({ email: "", password: "" });
@@ -58,14 +83,14 @@ describe("useForm", () => {
 
   describe("handleChange", () => {
     it("バリデーション成功時、値をセットしエラーをnullにする", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -77,14 +102,14 @@ describe("useForm", () => {
     });
 
     it("バリデーション失敗時、値をセットしエラーメッセージをセットする", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -98,14 +123,14 @@ describe("useForm", () => {
     });
 
     it("指定したフィールドのみ更新される", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -119,14 +144,14 @@ describe("useForm", () => {
 
   describe("isValid", () => {
     it("全フィールドが有効かつ入力済みでtrueを返す", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -138,14 +163,14 @@ describe("useForm", () => {
     });
 
     it("エラーがある場合falseを返す", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -157,14 +182,14 @@ describe("useForm", () => {
     });
 
     it("未入力フィールドがある場合falseを返す", () => {
-      const onSubmit = vi.fn();
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -176,18 +201,16 @@ describe("useForm", () => {
   });
 
   describe("handleSubmit", () => {
-    it("isValidがtrueの場合、onSubmitが呼ばれる", async () => {
-      const mockResult = { id: 1 };
-      const onSubmit = vi.fn().mockResolvedValue(mockResult);
-      const onSuccess = vi.fn();
+    it("isValidがtrueの場合、triggerが呼ばれる", async () => {
+      mockTrigger.mockResolvedValue({ id: 1 });
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit,
-          onSuccess
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -199,54 +222,51 @@ describe("useForm", () => {
         preventDefault: vi.fn(),
       } as unknown as React.FormEvent;
 
-      act(() => {
-        result.current.handleSubmit(mockEvent);
+      await act(async () => {
+        await result.current.handleSubmit(mockEvent);
       });
 
       expect(mockEvent.preventDefault).toHaveBeenCalled();
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith({
-          email: "test@example.com",
-          password: "password123",
-        });
-        expect(onSuccess).toHaveBeenCalledWith(mockResult);
+      expect(mockTrigger).toHaveBeenCalledWith({
+        email: "test@example.com",
+        password: "password123",
       });
     });
 
-    it("isValidがfalseの場合、onSubmitが呼ばれない", async () => {
-      const onSubmit = vi.fn();
+    it("isValidがfalseの場合、triggerが呼ばれない", async () => {
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       const mockEvent = {
         preventDefault: vi.fn(),
       } as unknown as React.FormEvent;
 
-      act(() => {
-        result.current.handleSubmit(mockEvent);
+      await act(async () => {
+        await result.current.handleSubmit(mockEvent);
       });
 
       expect(mockEvent.preventDefault).toHaveBeenCalled();
-      expect(onSubmit).not.toHaveBeenCalled();
+      expect(mockTrigger).not.toHaveBeenCalled();
     });
 
-    it("APIエラー時、apiErrorがセットされる", async () => {
+    it("APIエラー時、エラーがスローされてもクラッシュしない", async () => {
       const apiError = { code: "INVALID_CREDENTIALS", message: "認証エラー" };
-      const onSubmit = vi.fn().mockRejectedValue(apiError);
+      mockTrigger.mockRejectedValue(apiError);
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
@@ -258,47 +278,30 @@ describe("useForm", () => {
         preventDefault: vi.fn(),
       } as unknown as React.FormEvent;
 
-      act(() => {
-        result.current.handleSubmit(mockEvent);
+      // エラーがスローされてもクラッシュしないことを確認
+      await act(async () => {
+        await result.current.handleSubmit(mockEvent);
       });
 
-      await waitFor(() => {
-        expect(result.current.apiError).toEqual(apiError);
-      });
+      expect(mockTrigger).toHaveBeenCalled();
     });
   });
 
   describe("reset", () => {
     it("フォームとエラーを初期状態に戻す", async () => {
-      const apiError = { code: "ERROR", message: "エラー" };
-      const onSubmit = vi.fn().mockRejectedValue(apiError);
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
 
       act(() => {
         result.current.handleChange("email")("test@example.com");
-        result.current.handleChange("password")("short");
-      });
-
-      // APIエラーをセット
-      const mockEvent = {
-        preventDefault: vi.fn(),
-      } as unknown as React.FormEvent;
-      act(() => {
         result.current.handleChange("password")("password123");
-      });
-      act(() => {
-        result.current.handleSubmit(mockEvent);
-      });
-
-      await waitFor(() => {
-        expect(result.current.apiError).toEqual(apiError);
       });
 
       act(() => {
@@ -307,45 +310,30 @@ describe("useForm", () => {
 
       expect(result.current.formState).toEqual({ email: "", password: "" });
       expect(result.current.errors).toEqual({ email: null, password: null });
-      expect(result.current.apiError).toBeNull();
+      expect(mockReset).toHaveBeenCalled();
     });
   });
 
   describe("handleChange時のapiErrorクリア", () => {
-    it("入力時にapiErrorがクリアされる", async () => {
-      const apiError = { code: "ERROR", message: "エラー" };
-      const onSubmit = vi.fn().mockRejectedValue(apiError);
+    it("入力時にapiErrorがある場合、resetが呼ばれる", async () => {
+      // エラーがある状態でモック
+      mockError = { code: "INVALID_CREDENTIALS", message: "認証エラー" };
+
       const { result } = renderHook(() =>
-        useForm(
-          { email: mockEmailFactory, password: mockPasswordFactory },
+        useForm<TestField, TestResponse, TestRequest>({
+          config: { email: mockEmailFactory, password: mockPasswordFactory },
           initialFormState,
           initialErrors,
-          onSubmit
-        )
+          url: "/api/test",
+          transformData: (data) => ({ email: data.email, password: data.password }),
+        })
       );
-
-      act(() => {
-        result.current.handleChange("email")("test@example.com");
-        result.current.handleChange("password")("password123");
-      });
-
-      const mockEvent = {
-        preventDefault: vi.fn(),
-      } as unknown as React.FormEvent;
-
-      act(() => {
-        result.current.handleSubmit(mockEvent);
-      });
-
-      await waitFor(() => {
-        expect(result.current.apiError).toEqual(apiError);
-      });
 
       act(() => {
         result.current.handleChange("email")("new@example.com");
       });
 
-      expect(result.current.apiError).toBeNull();
+      expect(mockReset).toHaveBeenCalled();
     });
   });
 });

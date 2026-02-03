@@ -1,11 +1,13 @@
 /**
  * useForm - 汎用フォームフック
+ * SWRベースのuseRequestMutationを使用
  */
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback } from "react";
 import type { Result } from "@/domain/shared/result";
 import type { DomainError } from "@/domain/shared/errors";
 import type { ApiErrorResponse } from "@/lib/api";
 import { createFieldHandler, createResetHandler } from "../helpers";
+import { useRequestMutation } from "./useRequest";
 
 /**
  * VOファクトリの型
@@ -29,24 +31,47 @@ export type UseFormReturn<F extends string> = {
 };
 
 /**
- * useForm - 汎用フォームフック
- * @param config - フィールドごとのVOファクトリ設定
- * @param initialFormState - フォームの初期状態
- * @param initialErrors - エラーの初期状態
- * @param onSubmit - 送信処理（フォームデータを受け取り、結果を返す）
- * @param onSuccess - 成功時コールバック
+ * useFormのオプション
  */
-export function useForm<F extends string, T>(
-  config: Record<F, VOFactory<string>>,
-  initialFormState: Record<F, string>,
-  initialErrors: Record<F, string | null>,
-  onSubmit: (formState: Record<F, string>) => Promise<T>,
-  onSuccess?: (result: T) => void,
+export type UseFormOptions<F extends string, T, D> = {
+  /** VOファクトリ設定 */
+  config: Record<F, VOFactory<string>>;
+  /** フォームの初期状態 */
+  initialFormState: Record<F, string>;
+  /** エラーの初期状態 */
+  initialErrors: Record<F, string | null>;
+  /** APIエンドポイント */
+  url: string;
+  /** フォームデータからAPIリクエストデータへの変換 */
+  transformData: (formState: Record<F, string>) => D;
+  /** 成功時コールバック */
+  onSuccess?: (result: T) => void;
+};
+
+/**
+ * useForm - 汎用フォームフック（SWRベース）
+ * @param options - フォーム設定オプション
+ */
+export function useForm<F extends string, T, D = unknown>(
+  options: UseFormOptions<F, T, D>,
 ): UseFormReturn<F> {
+  const {
+    config,
+    initialFormState,
+    initialErrors,
+    url,
+    transformData,
+    onSuccess,
+  } = options;
+
   const [formState, setFormState] = useState(initialFormState);
   const [errors, setErrors] = useState(initialErrors);
-  const [apiError, setApiError] = useState<ApiErrorResponse | null>(null);
-  const [isPending, startTransition] = useTransition();
+
+  // SWRベースのmutationフック
+  const { trigger, isMutating, error: apiError, reset: resetMutation } = useRequestMutation<T, D>(
+    url,
+    "POST",
+  );
 
   const handleChange = useCallback(
     (field: F) => {
@@ -58,10 +83,11 @@ export function useForm<F extends string, T>(
       );
       return (value: string) => {
         handler(value);
-        if (apiError) setApiError(null);
+        // APIエラーがあればリセット
+        if (apiError) resetMutation();
       };
     },
-    [config, apiError],
+    [config, apiError, resetMutation],
   );
 
   const reset = useCallback(
@@ -70,10 +96,10 @@ export function useForm<F extends string, T>(
         () => setFormState(initialFormState),
         () => {
           setErrors(initialErrors);
-          setApiError(null);
+          resetMutation();
         },
       )(),
-    [initialFormState, initialErrors],
+    [initialFormState, initialErrors, resetMutation],
   );
 
   const isValid =
@@ -81,30 +107,30 @@ export function useForm<F extends string, T>(
     Object.values(formState).every((v) => v !== "");
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       if (!isValid) return;
 
-      startTransition(async () => {
-        try {
-          const result = await onSubmit(formState);
-          onSuccess?.(result);
-        } catch (err) {
-          setApiError(err as ApiErrorResponse);
-        }
-      });
+      try {
+        const requestData = transformData(formState);
+        const result = await trigger(requestData);
+        // trigger成功後にonSuccessを呼ぶ
+        onSuccess?.(result);
+      } catch {
+        // エラーはapiErrorで管理される
+      }
     },
-    [isValid, formState, onSubmit, onSuccess],
+    [isValid, formState, transformData, trigger, onSuccess],
   );
 
   return {
     formState,
     errors,
-    apiError,
+    apiError: apiError ?? null,
     handleChange,
     handleSubmit,
     reset,
     isValid,
-    isPending,
+    isPending: isMutating,
   };
 }
