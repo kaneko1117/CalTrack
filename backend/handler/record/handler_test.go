@@ -48,10 +48,30 @@ func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx contex
 	return fn(ctx)
 }
 
+// mockUserRepository はUserRepositoryのモック実装（Handler用）
+type mockUserRepository struct{}
+
+func (m *mockUserRepository) Save(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
+func (m *mockUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
+	return false, nil
+}
+
+func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
+	return nil, nil
+}
+
 // setupHandler はテスト用のハンドラをセットアップする
 func setupHandler(recordRepo repository.RecordRepository) *record.RecordHandler {
+	userRepo := &mockUserRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, txManager)
+	uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
 	return record.NewRecordHandler(uc)
 }
 

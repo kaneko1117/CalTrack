@@ -45,7 +45,7 @@ func main() {
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	recordUsecase := usecase.NewRecordUsecase(recordRepo, txManager)
+	recordUsecase := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
