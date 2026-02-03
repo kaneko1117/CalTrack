@@ -1,21 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { request, get, post, put, del, apiClient } from "./api";
-import { AxiosError, AxiosHeaders, AxiosResponse } from "axios";
+import { AxiosError, AxiosHeaders } from "axios";
 
 /** routerのモック（vi.hoistedでホイスト対応） */
-const { mockNavigate } = vi.hoisted(() => ({
+const { mockNavigate, mockPathname } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
+  mockPathname: { value: "/dashboard" },
 }));
 
 vi.mock("@/routes", () => ({
   router: {
     state: {
       location: {
-        pathname: "/dashboard",
+        get pathname() {
+          return mockPathname.value;
+        },
       },
     },
     navigate: mockNavigate,
   },
+}));
+
+/** インターセプターのエラーハンドラを保持 */
+type ErrorHandler = (error: AxiosError) => Promise<never>;
+const { capturedHandler } = vi.hoisted(() => ({
+  capturedHandler: { current: null as ErrorHandler | null },
 }));
 
 vi.mock("axios", async () => {
@@ -30,7 +38,9 @@ vi.mock("axios", async () => {
         delete: vi.fn(),
         interceptors: {
           response: {
-            use: vi.fn(),
+            use: vi.fn((_onFulfilled: unknown, onRejected: ErrorHandler) => {
+              capturedHandler.current = onRejected;
+            }),
           },
         },
       })),
@@ -38,120 +48,80 @@ vi.mock("axios", async () => {
   };
 });
 
-/**
- * AxiosResponseのモックを生成
- */
-function createMockResponse<T>(data: T): AxiosResponse<T> {
-  return {
-    data,
-    status: 200,
-    statusText: "OK",
-    headers: {},
-    config: { headers: new AxiosHeaders() },
-  };
-}
-
-describe("request", () => {
-  describe("正常系", () => {
-    it("レスポンスのdataを返す", async () => {
-      const mockData = { id: 1, name: "test" };
-      const mockPromise = Promise.resolve(createMockResponse(mockData));
-
-      const result = await request(mockPromise);
-
-      expect(result).toEqual(mockData);
-    });
-  });
-
-  describe("異常系", () => {
-    it("AxiosErrorをApiErrorResponse形式に変換する", async () => {
-      const apiError = { code: "VALIDATION_ERROR", message: "Invalid input" };
-      const axiosError = new AxiosError("Request failed");
-      axiosError.response = {
-        data: apiError,
-        status: 400,
-        statusText: "Bad Request",
-        headers: {},
-        config: { headers: new AxiosHeaders() },
-      };
-      const mockPromise = Promise.reject(axiosError);
-
-      await expect(request(mockPromise)).rejects.toEqual(apiError);
-    });
-
-    it("不明なエラーはINTERNAL_ERRORを返す", async () => {
-      const mockPromise = Promise.reject(new Error("Unknown error"));
-
-      await expect(request(mockPromise)).rejects.toEqual({
-        code: "INTERNAL_ERROR",
-        message: "予期しないエラーが発生しました",
-      });
+describe("apiClient", () => {
+  describe("設定", () => {
+    it("apiClientが正しく作成されている", async () => {
+      const { apiClient } = await import("./api");
+      expect(apiClient).toBeDefined();
     });
   });
 });
 
-describe("get", () => {
+describe("401エラー時のリダイレクト", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPathname.value = "/dashboard";
+    capturedHandler.current = null;
   });
 
-  it("apiClient.getを呼び出してdataを返す", async () => {
-    const mockData = { id: 1 };
-    vi.mocked(apiClient.get).mockResolvedValue({ data: mockData });
+  it("401エラー時にログイン画面へリダイレクトする", async () => {
+    vi.resetModules();
+    await import("./api");
 
-    const result = await get<typeof mockData>("/test");
+    const axiosError = new AxiosError("Unauthorized");
+    axiosError.response = {
+      data: { code: "UNAUTHORIZED", message: "Unauthorized" },
+      status: 401,
+      statusText: "Unauthorized",
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    };
 
-    expect(apiClient.get).toHaveBeenCalledWith("/test");
-    expect(result).toEqual(mockData);
-  });
-});
-
-describe("post", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("apiClient.postを呼び出してdataを返す", async () => {
-    const mockData = { id: 1 };
-    const requestData = { name: "test" };
-    vi.mocked(apiClient.post).mockResolvedValue({ data: mockData });
-
-    const result = await post<typeof mockData>("/test", requestData);
-
-    expect(apiClient.post).toHaveBeenCalledWith("/test", requestData);
-    expect(result).toEqual(mockData);
-  });
-});
-
-describe("put", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+    expect(capturedHandler.current).not.toBeNull();
+    await expect(capturedHandler.current!(axiosError)).rejects.toEqual(
+      axiosError
+    );
+    expect(mockNavigate).toHaveBeenCalledWith("/");
   });
 
-  it("apiClient.putを呼び出してdataを返す", async () => {
-    const mockData = { id: 1 };
-    const requestData = { name: "updated" };
-    vi.mocked(apiClient.put).mockResolvedValue({ data: mockData });
+  it("401以外のエラー時はリダイレクトしない", async () => {
+    vi.resetModules();
+    await import("./api");
 
-    const result = await put<typeof mockData>("/test", requestData);
+    const axiosError = new AxiosError("Bad Request");
+    axiosError.response = {
+      data: { code: "VALIDATION_ERROR", message: "Invalid input" },
+      status: 400,
+      statusText: "Bad Request",
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    };
 
-    expect(apiClient.put).toHaveBeenCalledWith("/test", requestData);
-    expect(result).toEqual(mockData);
+    expect(capturedHandler.current).not.toBeNull();
+    await expect(capturedHandler.current!(axiosError)).rejects.toEqual(
+      axiosError
+    );
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
-});
 
-describe("del", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  it("既にログイン画面にいる場合はリダイレクトしない", async () => {
+    mockPathname.value = "/";
+    vi.resetModules();
+    await import("./api");
 
-  it("apiClient.deleteを呼び出してdataを返す", async () => {
-    const mockData = { success: true };
-    vi.mocked(apiClient.delete).mockResolvedValue({ data: mockData });
+    const axiosError = new AxiosError("Unauthorized");
+    axiosError.response = {
+      data: { code: "UNAUTHORIZED", message: "Unauthorized" },
+      status: 401,
+      statusText: "Unauthorized",
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    };
 
-    const result = await del<typeof mockData>("/test");
-
-    expect(apiClient.delete).toHaveBeenCalledWith("/test");
-    expect(result).toEqual(mockData);
+    expect(capturedHandler.current).not.toBeNull();
+    await expect(capturedHandler.current!(axiosError)).rejects.toEqual(
+      axiosError
+    );
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
