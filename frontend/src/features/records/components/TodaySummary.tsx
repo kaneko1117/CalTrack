@@ -37,14 +37,14 @@ function getMealTypeStyle(mealType: MealType): string {
 
 export type TodaySummaryProps = {
   data: TodayRecordsResponse | null;
-  isPending: boolean;
+  isLoading: boolean;
   error: ApiErrorResponse | null;
 };
 
 /**
  * TodaySummary - 今日のカロリーサマリーコンポーネント
  */
-export function TodaySummary({ data, isPending, error }: TodaySummaryProps) {
+export function TodaySummary({ data, isLoading, error }: TodaySummaryProps) {
   // カウントアップアニメーション用の値
   const animatedTarget = useCountUp({
     end: data?.targetCalories ?? 0,
@@ -63,7 +63,7 @@ export function TodaySummary({ data, isPending, error }: TodaySummaryProps) {
   });
 
   // ローディング状態
-  if (isPending && !data) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-4">

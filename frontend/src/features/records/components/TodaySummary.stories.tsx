@@ -107,7 +107,7 @@ const mockError: ApiErrorResponse = {
 export const Default: Story = {
   args: {
     data: mockDataWithRecords,
-    isPending: false,
+    isLoading: false,
     error: null,
   },
 };
@@ -116,7 +116,7 @@ export const Default: Story = {
 export const Loading: Story = {
   args: {
     data: null,
-    isPending: true,
+    isLoading: true,
     error: null,
   },
 };
@@ -125,7 +125,7 @@ export const Loading: Story = {
 export const Error: Story = {
   args: {
     data: null,
-    isPending: false,
+    isLoading: false,
     error: mockError,
   },
 };
@@ -134,7 +134,7 @@ export const Error: Story = {
 export const Empty: Story = {
   args: {
     data: mockDataEmpty,
-    isPending: false,
+    isLoading: false,
     error: null,
   },
 };
@@ -143,7 +143,7 @@ export const Empty: Story = {
 export const OverTarget: Story = {
   args: {
     data: mockDataOverTarget,
-    isPending: false,
+    isLoading: false,
     error: null,
   },
 };
