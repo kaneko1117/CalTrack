@@ -1,10 +1,13 @@
 package record
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/vo"
 	"caltrack/handler/common"
 	"caltrack/handler/record/dto"
 	"caltrack/usecase"
@@ -73,6 +76,43 @@ func (h *RecordHandler) Create(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusCreated, dto.NewCreateRecordResponse(record))
+}
+
+// GetToday は今日の摂取カロリーを取得する
+// @Summary 今日の摂取カロリー取得
+// @Description 認証ユーザーの今日の摂取カロリー情報を取得する
+// @Tags records
+// @Produce json
+// @Success 200 {object} dto.TodayCaloriesResponse "取得成功"
+// @Failure 401 {object} common.ErrorResponse "認証失敗"
+// @Failure 404 {object} common.ErrorResponse "ユーザーが見つからない"
+// @Failure 500 {object} common.ErrorResponse "サーバーエラー"
+// @Router /records/today [get]
+func (h *RecordHandler) GetToday(c *gin.Context) {
+	// コンテキストからユーザーIDを取得
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		common.RespondError(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated", nil)
+		return
+	}
+
+	// UserID VOに変換
+	userID := vo.ReconstructUserID(userIDStr.(string))
+
+	// Usecase実行
+	output, err := h.usecase.GetTodayCalories(c.Request.Context(), userID)
+	if err != nil {
+		// ユーザーが見つからない場合
+		if errors.Is(err, domainErrors.ErrUserNotFound) {
+			common.RespondError(c, http.StatusNotFound, common.CodeNotFound, "User not found", nil)
+			return
+		}
+		common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error", err)
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, dto.NewTodayCaloriesResponse(output))
 }
 
 // extractErrorMessages はエラーリストからメッセージを抽出する

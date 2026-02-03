@@ -5,6 +5,7 @@ const (
 	CodeValidationError    = "VALIDATION_ERROR"
 	CodeEmailAlreadyExists = "EMAIL_ALREADY_EXISTS"
 	CodeInternalError      = "INTERNAL_ERROR"
+	CodeNotFound           = "NOT_FOUND"
 
 	// 認証関連エラーコード
 	CodeInvalidCredentials = "INVALID_CREDENTIALS"

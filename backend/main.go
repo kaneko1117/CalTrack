@@ -91,6 +91,7 @@ func main() {
 	authenticated.Use(middleware.AuthMiddleware(authUsecase))
 	{
 		authenticated.POST("/records", recordHandler.Create)
+		authenticated.GET("/records/today", recordHandler.GetToday)
 	}
 
 	// Start server
