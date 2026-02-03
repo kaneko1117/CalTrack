@@ -2,6 +2,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { request, get, post, put, del, apiClient } from "./api";
 import { AxiosError, AxiosHeaders, AxiosResponse } from "axios";
 
+/** routerのモック（vi.hoistedでホイスト対応） */
+const { mockNavigate } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+}));
+
+vi.mock("@/routes", () => ({
+  router: {
+    state: {
+      location: {
+        pathname: "/dashboard",
+      },
+    },
+    navigate: mockNavigate,
+  },
+}));
+
 vi.mock("axios", async () => {
   const actual = await vi.importActual("axios");
   return {
@@ -12,6 +28,11 @@ vi.mock("axios", async () => {
         post: vi.fn(),
         put: vi.fn(),
         delete: vi.fn(),
+        interceptors: {
+          response: {
+            use: vi.fn(),
+          },
+        },
       })),
     },
   };
