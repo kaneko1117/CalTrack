@@ -1,8 +1,14 @@
 /**
  * API Client Configuration
- * Shared axios instance for all API calls
  */
 import axios, { AxiosError, AxiosResponse } from "axios";
+import { router } from "@/routes";
+
+/** ログイン画面のパス */
+const LOGIN_PATH = "/";
+
+/** 401エラーのステータスコード */
+const HTTP_STATUS_UNAUTHORIZED = 401;
 
 /** バックエンドからのエラーコード */
 export type ErrorCode =
@@ -30,6 +36,28 @@ export const apiClient = axios.create({
 });
 
 /**
+ * 401エラー時にログイン画面へリダイレクト
+ */
+function redirectToLogin(): void {
+  if (router.state.location.pathname !== LOGIN_PATH) {
+    router.navigate(LOGIN_PATH);
+  }
+}
+
+/**
+ * レスポンスインターセプター
+ */
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === HTTP_STATUS_UNAUTHORIZED) {
+      redirectToLogin();
+    }
+    return Promise.reject(error);
+  }
+);
+
+/**
  * APIエラーをApiErrorResponse形式に変換
  */
 function handleApiError(error: unknown): ApiErrorResponse {
@@ -44,8 +72,6 @@ function handleApiError(error: unknown): ApiErrorResponse {
 
 /**
  * request - 汎用APIリクエスト
- * @param request - apiClientのメソッド呼び出し
- * @returns Promise<T>
  */
 export async function request<T>(
   request: Promise<AxiosResponse<T>>
@@ -58,24 +84,9 @@ export async function request<T>(
   }
 }
 
-/**
- * GET
- */
 export const get = <T>(url: string) => request(apiClient.get<T>(url));
-
-/**
- * POST
- */
 export const post = <T, D = unknown>(url: string, data?: D) =>
   request(apiClient.post<T>(url, data));
-
-/**
- * PUT
- */
 export const put = <T, D = unknown>(url: string, data?: D) =>
   request(apiClient.put<T>(url, data));
-
-/**
- * DELETE
- */
 export const del = <T>(url: string) => request(apiClient.delete<T>(url));
