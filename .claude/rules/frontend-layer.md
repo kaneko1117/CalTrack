@@ -34,14 +34,13 @@ frontend/src/
 │   └── entities/       # Entity
 ├── features/           # 機能単位
 │   └── {feature}/
-│       ├── types/
-│       │   └── index.ts
 │       ├── api/
 │       │   └── index.ts
 │       ├── hooks/
+│       │   ├── use{Feature}.ts  # 型もこの中で定義
 │       │   └── index.ts
 │       ├── components/
-│       │   ├── {Component}.tsx
+│       │   ├── {Component}.tsx  # 型もこの中で定義
 │       │   ├── {Component}.test.tsx
 │       │   └── index.ts
 │       └── index.ts
@@ -51,9 +50,11 @@ frontend/src/
 ├── hooks/              # 共通フック
 ├── lib/                # ユーティリティ
 │   └── api.ts          # Axiosインスタンス
-├── types/              # 共通型定義
+├── types/              # 共通型定義（複数feature横断のみ）
 └── test/               # テスト設定
 ```
+
+**重要: `types/index.ts` は作成しない。型はコンポーネントやhooks内で定義する。**
 
 ---
 
@@ -93,23 +94,43 @@ domain/
 
 ---
 
-## Frontend Layer（types / api / hooks / components）
+## Frontend Layer（api / hooks / components）
 
-### Types
+### 型定義ルール
+
+**`types/index.ts` は作成しない。型はコンポーネントやhooks内で定義する。**
+
+```typescript
+// ❌ 禁止: types/index.ts を作成
+// features/statistics/types/index.ts
+
+// ✅ 正しい: hooks内で型定義
+// features/statistics/hooks/useStatistics.ts
+export type StatisticsResponse = {
+  period: string;
+  targetCalories: number;
+  // ...
+};
+
+export function useStatistics(period: Period) {
+  // ...
+}
+
+// ✅ 正しい: コンポーネント内で型定義
+// features/statistics/components/CalorieChart.tsx
+export type CalorieChartProps = {
+  data: DailyStatistic[];
+  targetCalories: number;
+};
+
+export function CalorieChart({ data, targetCalories }: CalorieChartProps) {
+  // ...
+}
+```
 
 **`interface` ではなく `type` を使用する**
 
 ```typescript
-/** リクエスト型 */
-export type {Feature}Request = {
-  // フィールド定義
-};
-
-/** レスポンス型 */
-export type {Feature}Response = {
-  // フィールド定義
-};
-
 /** エラーコード定数 */
 export const ERROR_CODE_INTERNAL_ERROR: ErrorCode = "INTERNAL_ERROR";
 
@@ -227,8 +248,56 @@ type UserProps = {
 
 ---
 
+## Storybook
+
+**コンポーネント実装時は必ずStoryを作成すること**
+
+- ファイル: `{Component}.stories.tsx`
+- 配置: コンポーネントと同じディレクトリ
+- 必須Story: Default, Loading（該当時）, Empty（該当時）
+
+---
+
 ## shadcn/ui
 
 - `components/ui/` に配置
 - 公式スタイル準拠
 - 必要に応じて追加（`npx shadcn-ui@latest add {component}`）
+
+---
+
+## Feature間依存ルール
+
+**feature間の直接依存は禁止**
+
+```
+features/
+├── common/        # 共通機能（他featureから参照可）
+├── records/       # records は common のみ参照可
+├── statistics/    # statistics は common のみ参照可
+└── ...
+```
+
+| 参照元 | 参照可能 | 参照禁止 |
+|-------|---------|---------|
+| records | common | statistics, その他feature |
+| statistics | common | records, その他feature |
+| その他 | common | 他のfeature |
+
+**例外: common は全featureから参照可能**
+
+---
+
+## データ要素アニメーションルール
+
+**データ要素を表示する際は以下のアニメーションを必須とする**
+
+| 要素 | 必須アニメーション |
+|------|------------------|
+| カード | フェードイン（`opacity-0 animate-fade-in-up`） |
+| 数値 | カウントアップ（`useCountUp` フック使用） |
+| ローディング | スケルトン（`Skeleton` コンポーネント使用） |
+
+**フェードインの遅延**
+- 複数要素がある場合は `animation-delay-{n}` で順次表示
+- 例: `animation-delay-100`, `animation-delay-200`, `animation-delay-300`

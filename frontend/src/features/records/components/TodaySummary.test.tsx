@@ -8,7 +8,7 @@ import type { TodayRecordsResponse } from "../hooks/useTodayRecords";
 import type { ApiErrorResponse } from "@/lib/api";
 
 // useCountUpをモックして即座に最終値を返すようにする
-vi.mock("../hooks/useCountUp", () => ({
+vi.mock("@/features/common/hooks", () => ({
   useCountUp: ({ end }: { end: number }) => end,
 }));
 
