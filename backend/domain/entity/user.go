@@ -198,3 +198,37 @@ func (u *User) CreatedAt() time.Time {
 func (u *User) UpdatedAt() time.Time {
 	return u.updatedAt
 }
+
+// CalculateTargetCalories はMifflin-St Jeor式を使用して1日の目標カロリーを計算する
+//
+// Mifflin-St Jeor式:
+//
+//	男性: BMR = (10 × 体重kg) + (6.25 × 身長cm) − (5 × 年齢) + 5
+//	女性: BMR = (10 × 体重kg) + (6.25 × 身長cm) − (5 × 年齢) − 161
+//	other: 男女の平均値
+//
+// 目標カロリー = BMR × 活動レベル係数
+func (u *User) CalculateTargetCalories() int {
+	weight := u.weight.Kg()
+	height := u.height.Cm()
+	age := float64(u.birthDate.Age())
+
+	// 基礎代謝量（BMR）の計算
+	var bmr float64
+	switch u.gender.String() {
+	case vo.GenderMale:
+		bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5
+	case vo.GenderFemale:
+		bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161
+	default:
+		// other: 男女の平均値
+		maleBMR := (10 * weight) + (6.25 * height) - (5 * age) + 5
+		femaleBMR := (10 * weight) + (6.25 * height) - (5 * age) - 161
+		bmr = (maleBMR + femaleBMR) / 2
+	}
+
+	// 活動レベル係数を掛ける
+	targetCalories := bmr * u.activityLevel.Multiplier()
+
+	return int(targetCalories)
+}
