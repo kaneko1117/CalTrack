@@ -16,7 +16,7 @@ import { newRecord } from "@/domain/entities/record";
 /** フォームの食品アイテム型 */
 type RecordFormItem = {
   name: string;
-  calories: number;
+  calories: string;
 };
 
 /** フォームの値型 */
@@ -44,7 +44,7 @@ export type RecordFormProps = {
 /** 空のアイテム */
 const createEmptyItem = (): RecordFormItem => ({
   name: "",
-  calories: 0,
+  calories: "",
 });
 
 /** 現在日時をdatetime-local形式で取得 */
@@ -72,8 +72,8 @@ const recordFormSchema = yup.object().shape({
         }
         return true;
       }),
-      calories: yup.number().test("vo-validation", "", function (value) {
-        const result = newCalories(value ?? 0);
+      calories: yup.string().test("vo-validation", "", function (value) {
+        const result = newCalories(value ?? "");
         if (!result.ok) {
           return this.createError({ message: result.error.message });
         }
@@ -159,9 +159,14 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
       validateOnMount={true}
       onSubmit={async (values, { setSubmitting, resetForm }) => {
         // Record Entityで最終バリデーション
+        // number型input要素の場合、Formikがcaloriesをnumberに変換する可能性があるため、
+        // 明示的にstring型に変換してからnewRecordに渡す
         const recordResult = newRecord({
           eatenAt: values.eatenAt,
-          items: values.items,
+          items: values.items.map((item) => ({
+            name: item.name,
+            calories: String(item.calories),
+          })),
         });
 
         if (!recordResult.ok) {
@@ -194,7 +199,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
     >
       {({ values, errors, isSubmitting, isValid }) => {
         const totalCalories = sumCalories(
-          values.items.map((item) => item.calories),
+          values.items.map((item) => Number(item.calories) || 0),
         );
         const itemsError =
           typeof errors.items === "string" ? errors.items : undefined;

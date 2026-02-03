@@ -1,7 +1,7 @@
 import { Result, ok, err } from "../shared/result";
 import { DomainError, domainError } from "../shared/errors";
 
-export type CaloriesErrorCode = "CALORIES_MUST_BE_POSITIVE";
+export type CaloriesErrorCode = "CALORIES_REQUIRED" | "CALORIES_INVALID" | "CALORIES_MUST_BE_POSITIVE";
 
 export type CaloriesError = DomainError<CaloriesErrorCode>;
 
@@ -10,9 +10,22 @@ export type Calories = Readonly<{
   equals: (other: Calories) => boolean;
 }>;
 
+const ERROR_MESSAGE_CALORIES_REQUIRED = "カロリーを入力してください";
+const ERROR_MESSAGE_CALORIES_INVALID = "カロリーは有効な数値を入力してください";
 const ERROR_MESSAGE_CALORIES_MUST_BE_POSITIVE = "カロリーは1以上の整数で入力してください";
 
-export const newCalories = (value: number): Result<Calories, CaloriesError> => {
+export const newCalories = (input: string): Result<Calories, CaloriesError> => {
+  // 空文字チェック
+  if (input.trim() === "") {
+    return err(domainError("CALORIES_REQUIRED", ERROR_MESSAGE_CALORIES_REQUIRED));
+  }
+
+  // 数値変換とNaNチェック
+  const value = Number(input);
+  if (isNaN(value)) {
+    return err(domainError("CALORIES_INVALID", ERROR_MESSAGE_CALORIES_INVALID));
+  }
+
   if (value < 1) {
     return err(domainError("CALORIES_MUST_BE_POSITIVE", ERROR_MESSAGE_CALORIES_MUST_BE_POSITIVE));
   }

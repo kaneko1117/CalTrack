@@ -20,7 +20,7 @@ export type RecordItemValidationErrors = {
 
 export type NewRecordItemInput = {
   name: string;
-  calories: number;
+  calories: string;
 };
 
 export const newRecordItem = (

@@ -29,7 +29,6 @@ import {
 } from "@/domain/valueObjects";
 import type { GenderValue, ActivityLevelValue } from "@/domain/valueObjects";
 import { post } from "@/lib/api";
-import { err } from "@/domain/shared/result";
 
 /** ユーザー登録レスポンス */
 export type RegisterUserResponse = {
@@ -95,62 +94,14 @@ const initialErrors: Record<RegisterField, string | null> = {
   activityLevel: null,
 };
 
-/**
- * 文字列をnumberに変換してWeightを生成するラッパー
- */
-const newWeightFromString = (value: string) => {
-  const num = parseFloat(value);
-  if (isNaN(num)) {
-    return err({
-      code: "WEIGHT_MUST_BE_POSITIVE" as const,
-      message: "体重を入力してください",
-    });
-  }
-  return newWeight(num);
-};
-
-/**
- * 文字列をnumberに変換してHeightを生成するラッパー
- */
-const newHeightFromString = (value: string) => {
-  const num = parseFloat(value);
-  if (isNaN(num)) {
-    return err({
-      code: "HEIGHT_MUST_BE_POSITIVE" as const,
-      message: "身長を入力してください",
-    });
-  }
-  return newHeight(num);
-};
-
-/**
- * 文字列をDateに変換してBirthDateを生成するラッパー
- */
-const newBirthDateFromString = (value: string) => {
-  if (!value) {
-    return err({
-      code: "BIRTH_DATE_MUST_BE_PAST" as const,
-      message: "生年月日を入力してください",
-    });
-  }
-  const date = new Date(value);
-  if (isNaN(date.getTime())) {
-    return err({
-      code: "BIRTH_DATE_MUST_BE_PAST" as const,
-      message: "有効な日付を入力してください",
-    });
-  }
-  return newBirthDate(date);
-};
-
 /** VOファクトリ設定 */
 const formConfig = {
   email: newEmail,
   password: newPassword,
   nickname: newNickname,
-  weight: newWeightFromString,
-  height: newHeightFromString,
-  birthDate: newBirthDateFromString,
+  weight: newWeight,
+  height: newHeight,
+  birthDate: newBirthDate,
   gender: newGender,
   activityLevel: newActivityLevel,
 };

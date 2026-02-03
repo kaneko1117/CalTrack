@@ -1,7 +1,7 @@
 import { Result, ok, err } from "../shared/result";
 import { DomainError, domainError } from "../shared/errors";
 
-export type HeightErrorCode = "HEIGHT_MUST_BE_POSITIVE" | "HEIGHT_TOO_TALL";
+export type HeightErrorCode = "HEIGHT_REQUIRED" | "HEIGHT_INVALID" | "HEIGHT_MUST_BE_POSITIVE" | "HEIGHT_TOO_TALL";
 
 export type HeightError = DomainError<HeightErrorCode>;
 
@@ -12,10 +12,23 @@ export type Height = Readonly<{
 
 const MAX_HEIGHT = 300;
 
+const ERROR_MESSAGE_HEIGHT_REQUIRED = "身長を入力してください";
+const ERROR_MESSAGE_HEIGHT_INVALID = "身長は有効な数値を入力してください";
 const ERROR_MESSAGE_HEIGHT_MUST_BE_POSITIVE = "身長は0より大きい値を入力してください";
 const ERROR_MESSAGE_HEIGHT_TOO_TALL = "身長は300cm以内で入力してください";
 
-export const newHeight = (value: number): Result<Height, HeightError> => {
+export const newHeight = (input: string): Result<Height, HeightError> => {
+  // 空文字チェック
+  if (input.trim() === "") {
+    return err(domainError("HEIGHT_REQUIRED", ERROR_MESSAGE_HEIGHT_REQUIRED));
+  }
+
+  // 数値変換とNaNチェック
+  const value = Number(input);
+  if (isNaN(value)) {
+    return err(domainError("HEIGHT_INVALID", ERROR_MESSAGE_HEIGHT_INVALID));
+  }
+
   if (value <= 0) {
     return err(domainError("HEIGHT_MUST_BE_POSITIVE", ERROR_MESSAGE_HEIGHT_MUST_BE_POSITIVE));
   }

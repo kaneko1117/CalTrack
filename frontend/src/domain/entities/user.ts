@@ -52,9 +52,9 @@ export type NewUserInput = {
   email: string;
   password: string;
   nickname: string;
-  weight: number;
-  height: number;
-  birthDate: Date;
+  weight: string;
+  height: string;
+  birthDate: string;
   gender: string;
   activityLevel: string;
 };
