@@ -15,7 +15,6 @@ import {
 import { useForm, getApiErrorMessage } from "@/features/common";
 import { newEmail } from "@/domain/valueObjects/email";
 import { newPassword } from "@/domain/valueObjects/password";
-import { post } from "@/lib/api";
 
 /** ログインレスポンス */
 export type LoginResponse = {
@@ -24,9 +23,11 @@ export type LoginResponse = {
   nickname: string;
 };
 
-/** ログインAPI */
-const login = (data: { email: string; password: string }) =>
-  post<LoginResponse>("/api/v1/auth/login", data);
+/** ログインリクエスト */
+type LoginRequest = {
+  email: string;
+  password: string;
+};
 
 /** LoginFormコンポーネントのProps */
 export type LoginFormProps = {
@@ -101,13 +102,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     handleSubmit,
     isValid,
     isPending,
-  } = useForm(
-    formConfig,
+  } = useForm<LoginField, LoginResponse, LoginRequest>({
+    config: formConfig,
     initialFormState,
     initialErrors,
-    (data) => login({ email: data.email, password: data.password }),
+    url: "/api/v1/auth/login",
+    transformData: (data) => ({ email: data.email, password: data.password }),
     onSuccess,
-  );
+  });
 
   return (
     <Card className="w-full shadow-warm-lg border-0">

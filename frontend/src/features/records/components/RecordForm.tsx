@@ -7,7 +7,7 @@ import * as yup from "yup";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { FormField } from "@/components/form";
-import { post } from "@/lib/api";
+import { useRequestMutation } from "@/features/common/hooks";
 import { newEatenAt } from "@/domain/valueObjects/eatenAt";
 import { newItemName } from "@/domain/valueObjects/itemName";
 import { newCalories, sumCalories } from "@/domain/valueObjects/calories";
@@ -25,16 +25,18 @@ type RecordFormValues = {
   items: RecordFormItem[];
 };
 
+/** 記録作成リクエスト */
+type CreateRecordRequest = {
+  eatenAt: string;
+  items: Array<{ name: string; calories: number }>;
+};
+
 /** 記録作成レスポンス */
 type CreateRecordResponse = {
   recordId: string;
   eatenAt: string;
   totalCalories: number;
 };
-
-/** 記録作成API */
-const createRecord = (data: { eatenAt: string; items: Array<{ name: string; calories: number }> }) =>
-  post<CreateRecordResponse>("/api/v1/records", data);
 
 /** RecordFormのProps */
 export type RecordFormProps = {
@@ -150,6 +152,12 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
     items: [createEmptyItem()],
   };
 
+  // SWRベースのmutationフック
+  const { trigger, isMutating } = useRequestMutation<
+    CreateRecordResponse,
+    CreateRecordRequest
+  >("/api/v1/records", "POST");
+
   return (
     <Formik
       initialValues={initialValues}
@@ -177,7 +185,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
         const record = recordResult.value;
 
         try {
-          const response = await createRecord({
+          const response = await trigger({
             eatenAt: record.eatenAt.toISOString(),
             items: record.items.map((item) => ({
               name: item.name.value,
@@ -191,13 +199,15 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
               items: [createEmptyItem()],
             },
           });
+
+          // trigger成功後にonSuccessを呼ぶ
           onSuccess?.(response);
         } catch {
           setSubmitting(false);
         }
       }}
     >
-      {({ values, errors, isSubmitting, isValid }) => {
+      {({ values, errors, isValid }) => {
         const totalCalories = sumCalories(
           values.items.map((item) => Number(item.calories) || 0),
         );
@@ -250,7 +260,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
                               variant="ghost"
                               size="sm"
                               onClick={() => remove(index)}
-                              disabled={isSubmitting}
+                              disabled={isMutating}
                               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                               aria-label={`食品 ${index + 1} を削除`}
                             >
@@ -281,7 +291,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
                       type="button"
                       variant="outline"
                       onClick={() => push(createEmptyItem())}
-                      disabled={isSubmitting}
+                      disabled={isMutating}
                       className="w-full h-10 border-dashed"
                     >
                       <PlusIcon className="w-4 h-4 mr-2" />
@@ -297,9 +307,9 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-medium"
-                disabled={isSubmitting || !isValid}
+                disabled={isMutating || !isValid}
               >
-                {isSubmitting ? "記録中..." : "記録する"}
+                {isMutating ? "記録中..." : "記録する"}
               </Button>
             </div>
           </Form>

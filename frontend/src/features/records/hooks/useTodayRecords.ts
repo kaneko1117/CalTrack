@@ -1,7 +1,7 @@
 /**
  * useTodayRecords - 今日のカロリー記録取得フック
  */
-import { useRequest } from "@/features/common/hooks";
+import { useRequestGet } from "@/features/common/hooks";
 
 type RecordItem = {
   itemId: string;
@@ -24,7 +24,7 @@ export type TodayRecordsResponse = {
 };
 
 export function useTodayRecords() {
-  const { data, error, isLoading, mutate } = useRequest<TodayRecordsResponse>(
+  const { data, error, isLoading, mutate } = useRequestGet<TodayRecordsResponse>(
     "/api/v1/records/today"
   );
 
