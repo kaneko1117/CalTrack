@@ -11,9 +11,10 @@ export type StatisticsCardProps = {
 };
 
 export function StatisticsCard({ data }: StatisticsCardProps) {
-  const achievementRate = data.totalDays > 0
-    ? Math.round((data.achievedDays / data.totalDays) * 100)
-    : 0;
+  const achievementRate =
+    data.totalDays > 0
+      ? Math.round((data.achievedDays / data.totalDays) * 100)
+      : 0;
 
   // カウントアップアニメーション用の値
   const animatedTarget = useCountUp({
@@ -28,11 +29,6 @@ export function StatisticsCard({ data }: StatisticsCardProps) {
   });
   const animatedAchieved = useCountUp({
     end: data.achievedDays,
-    duration: 1000,
-    startOnMount: true,
-  });
-  const animatedTotal = useCountUp({
-    end: data.totalDays,
     duration: 1000,
     startOnMount: true,
   });
@@ -81,9 +77,6 @@ export function StatisticsCard({ data }: StatisticsCardProps) {
           <p className="text-sm text-muted-foreground mb-2">達成日数</p>
           <p className="text-4xl font-extrabold tabular-nums tracking-tight bg-gradient-to-br from-emerald-500 to-teal-400 bg-clip-text text-transparent drop-shadow-sm">
             {animatedAchieved}
-            <span className="text-lg font-normal text-muted-foreground">
-              /{animatedTotal}
-            </span>
           </p>
           <span className="text-xs font-medium text-muted-foreground mt-1">
             日 ({animatedRate}%)
