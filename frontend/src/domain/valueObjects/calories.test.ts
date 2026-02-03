@@ -4,18 +4,18 @@ import { newCalories, sumCalories } from "./calories";
 describe("newCalories", () => {
   describe("正常系", () => {
     const cases = [
-      { name: "最小値(1)", input: 1 },
-      { name: "通常の値(100)", input: 100 },
-      { name: "大きな値(2000)", input: 2000 },
-      { name: "整数の上限に近い値", input: 10000 },
+      { name: "最小値(1)", input: "1", expected: 1 },
+      { name: "通常の値(100)", input: "100", expected: 100 },
+      { name: "大きな値(2000)", input: "2000", expected: 2000 },
+      { name: "整数の上限に近い値", input: "10000", expected: 10000 },
     ];
 
-    cases.forEach(({ name, input }) => {
+    cases.forEach(({ name, input, expected }) => {
       it(name, () => {
         const result = newCalories(input);
         expect(result.ok).toBe(true);
         if (result.ok) {
-          expect(result.value.value).toBe(input);
+          expect(result.value.value).toBe(expected);
         }
       });
     });
@@ -24,20 +24,38 @@ describe("newCalories", () => {
   describe("異常系", () => {
     const cases = [
       {
+        name: "空文字",
+        input: "",
+        expectedCode: "CALORIES_REQUIRED",
+        expectedMessage: "カロリーを入力してください",
+      },
+      {
+        name: "空白のみ",
+        input: "   ",
+        expectedCode: "CALORIES_REQUIRED",
+        expectedMessage: "カロリーを入力してください",
+      },
+      {
+        name: "数値以外の文字列",
+        input: "abc",
+        expectedCode: "CALORIES_INVALID",
+        expectedMessage: "カロリーは有効な数値を入力してください",
+      },
+      {
         name: "0",
-        input: 0,
+        input: "0",
         expectedCode: "CALORIES_MUST_BE_POSITIVE",
         expectedMessage: "カロリーは1以上の整数で入力してください",
       },
       {
         name: "負の値",
-        input: -1,
+        input: "-1",
         expectedCode: "CALORIES_MUST_BE_POSITIVE",
         expectedMessage: "カロリーは1以上の整数で入力してください",
       },
       {
         name: "大きな負の値",
-        input: -100,
+        input: "-100",
         expectedCode: "CALORIES_MUST_BE_POSITIVE",
         expectedMessage: "カロリーは1以上の整数で入力してください",
       },
@@ -59,14 +77,14 @@ describe("newCalories", () => {
     const cases = [
       {
         name: "同じ値でtrueを返す",
-        calories1: 100,
-        calories2: 100,
+        calories1: "100",
+        calories2: "100",
         expected: true,
       },
       {
         name: "異なる値でfalseを返す",
-        calories1: 100,
-        calories2: 200,
+        calories1: "100",
+        calories2: "200",
         expected: false,
       },
     ];

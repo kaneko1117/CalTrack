@@ -10,7 +10,7 @@ describe("newRecord", () => {
         name: "単一アイテムのレコード",
         input: {
           eatenAt: "2024-01-15T08:00:00",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         expectedTotalCalories: 100,
       },
@@ -19,9 +19,9 @@ describe("newRecord", () => {
         input: {
           eatenAt: "2024-01-15T08:00:00",
           items: [
-            { name: "りんご", calories: 100 },
-            { name: "バナナ", calories: 80 },
-            { name: "ヨーグルト", calories: 60 },
+            { name: "りんご", calories: "100" },
+            { name: "バナナ", calories: "80" },
+            { name: "ヨーグルト", calories: "60" },
           ],
         },
         expectedTotalCalories: 240,
@@ -49,7 +49,7 @@ describe("newRecord", () => {
         name: "食事日時が空",
         input: {
           eatenAt: "",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         expectedMessage: "食事日時を入力してください",
       },
@@ -57,7 +57,7 @@ describe("newRecord", () => {
         name: "食事日時が無効",
         input: {
           eatenAt: "invalid-date",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         expectedMessage: "有効な日時を入力してください",
       },
@@ -65,7 +65,7 @@ describe("newRecord", () => {
         name: "食事日時が未来",
         input: {
           eatenAt: "2024-01-15T13:00:00",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         expectedMessage: "食事日時は現在より過去を指定してください",
       },
@@ -104,7 +104,7 @@ describe("newRecord", () => {
       const result = newRecord(
         {
           eatenAt: "2024-01-15T08:00:00",
-          items: [{ name: "", calories: 100 }],
+          items: [{ name: "", calories: "100" }],
         },
         now
       );
@@ -119,7 +119,7 @@ describe("newRecord", () => {
       const result = newRecord(
         {
           eatenAt: "2024-01-15T08:00:00",
-          items: [{ name: "りんご", calories: 0 }],
+          items: [{ name: "りんご", calories: "0" }],
         },
         now
       );
@@ -135,9 +135,9 @@ describe("newRecord", () => {
         {
           eatenAt: "2024-01-15T08:00:00",
           items: [
-            { name: "", calories: 100 },
-            { name: "バナナ", calories: 0 },
-            { name: "りんご", calories: 50 },
+            { name: "", calories: "100" },
+            { name: "バナナ", calories: "0" },
+            { name: "りんご", calories: "50" },
           ],
         },
         now
@@ -162,7 +162,7 @@ describe("newRecord", () => {
       const result = newRecord(
         {
           eatenAt: "",
-          items: [{ name: "", calories: 0 }],
+          items: [{ name: "", calories: "0" }],
         },
         now
       );
@@ -181,10 +181,10 @@ describe("newRecord", () => {
 
     it("複数アイテムの合計カロリーを正しく計算する", () => {
       const items = [
-        { name: "ご飯", calories: 250 },
-        { name: "味噌汁", calories: 30 },
-        { name: "焼き魚", calories: 150 },
-        { name: "サラダ", calories: 20 },
+        { name: "ご飯", calories: "250" },
+        { name: "味噌汁", calories: "30" },
+        { name: "焼き魚", calories: "150" },
+        { name: "サラダ", calories: "20" },
       ];
       const result = newRecord(
         {
@@ -201,8 +201,8 @@ describe("newRecord", () => {
 
     it("totalCaloriesを複数回呼び出しても同じ結果を返す", () => {
       const items = [
-        { name: "りんご", calories: 100 },
-        { name: "バナナ", calories: 80 },
+        { name: "りんご", calories: "100" },
+        { name: "バナナ", calories: "80" },
       ];
       const result = newRecord(
         {
@@ -227,7 +227,7 @@ describe("newRecord", () => {
       const result = newRecord(
         {
           eatenAt: "2024-01-15T08:00:00",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         now
       );
@@ -241,7 +241,7 @@ describe("newRecord", () => {
       const result = newRecord(
         {
           eatenAt: "2024-01-15T12:00:00",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         now
       );
@@ -255,7 +255,7 @@ describe("newRecord", () => {
       const result = newRecord(
         {
           eatenAt: "2024-01-15T19:00:00",
-          items: [{ name: "りんご", calories: 100 }],
+          items: [{ name: "りんご", calories: "100" }],
         },
         now
       );
