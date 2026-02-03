@@ -7,7 +7,7 @@
 export type { GenderValue, ActivityLevelValue } from "@/domain/valueObjects";
 
 // Components
-export { RegisterForm, LoginForm } from "./components";
+export { RegisterForm, LoginForm, LogoutButton } from "./components";
 export type {
   RegisterFormProps,
   LoginFormProps,

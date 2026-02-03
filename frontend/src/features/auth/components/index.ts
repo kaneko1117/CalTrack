@@ -7,3 +7,5 @@ export type { RegisterFormProps, RegisterUserResponse } from "./RegisterForm";
 
 export { LoginForm } from "./LoginForm";
 export type { LoginFormProps, LoginResponse } from "./LoginForm";
+
+export { LogoutButton } from "./LogoutButton";
