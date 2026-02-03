@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"caltrack/domain/entity"
+	"caltrack/domain/repository"
 	"caltrack/domain/vo"
 	"caltrack/infrastructure/persistence/gorm/model"
 )
@@ -54,6 +55,49 @@ func (r *GormRecordRepository) FindByUserIDAndDateRange(ctx context.Context, use
 		records[i] = toRecordEntity(&m)
 	}
 	return records, nil
+}
+
+// GetDailyCalories は日別カロリーを取得（グラフ用）
+func (r *GormRecordRepository) GetDailyCalories(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+	tx := GetTx(ctx, r.db)
+
+	// 期間の計算（今日を含めて過去N日間）
+	now := time.Now()
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, 1)
+	startOfPeriod := endOfDay.AddDate(0, 0, -period.Days())
+
+	// 日別カロリー集計クエリ
+	type dailySum struct {
+		Date          time.Time
+		TotalCalories int
+	}
+	var results []dailySum
+
+	// records と record_items を JOIN して日別集計
+	err := tx.Table("records").
+		Select("DATE(eaten_at) as date, COALESCE(SUM(record_items.calories), 0) as total_calories").
+		Joins("LEFT JOIN record_items ON records.id = record_items.record_id").
+		Where("records.user_id = ? AND records.eaten_at >= ? AND records.eaten_at < ?", userID.String(), startOfPeriod, endOfDay).
+		Group("DATE(eaten_at)").
+		Order("date ASC").
+		Find(&results).Error
+	if err != nil {
+		logError("GetDailyCalories", err, "user_id", userID.String())
+		return nil, err
+	}
+
+	// 結果をVO形式に変換
+	dailyCalories := make([]repository.DailyCalories, len(results))
+	for i, r := range results {
+		eatenAt := vo.ReconstructEatenAt(r.Date)
+		calories := vo.ReconstructCalories(r.TotalCalories)
+		dailyCalories[i] = repository.DailyCalories{
+			Date:     eatenAt,
+			Calories: calories,
+		}
+	}
+
+	return dailyCalories, nil
 }
 
 // toRecordModel はエンティティをGORMモデルに変換する

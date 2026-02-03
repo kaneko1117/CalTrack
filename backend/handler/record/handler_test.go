@@ -30,6 +30,7 @@ func init() {
 type mockRecordRepository struct {
 	save                     func(ctx context.Context, record *entity.Record) error
 	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
+	getDailyCalories         func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error)
 }
 
 func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) error {
@@ -39,6 +40,13 @@ func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) 
 func (m *mockRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
 	if m.findByUserIDAndDateRange != nil {
 		return m.findByUserIDAndDateRange(ctx, userID, startTime, endTime)
+	}
+	return nil, nil
+}
+
+func (m *mockRecordRepository) GetDailyCalories(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+	if m.getDailyCalories != nil {
+		return m.getDailyCalories(ctx, userID, period)
 	}
 	return nil, nil
 }
@@ -109,7 +117,10 @@ func createTestUser(userIDStr string) *entity.User {
 }
 
 // createTestRecord はテスト用のRecordを作成する
-func createTestRecord(userIDStr string, eatenAt time.Time, items []struct{ name string; calories int }) *entity.Record {
+func createTestRecord(userIDStr string, eatenAt time.Time, items []struct {
+	name     string
+	calories int
+}) *entity.Record {
 	recordItems := make([]entity.RecordItem, len(items))
 	recordIDStr := "record-" + eatenAt.Format("20060102150405")
 	for i, item := range items {
@@ -443,11 +454,17 @@ func TestRecordHandler_GetToday(t *testing.T) {
 		// 今日のRecordを作成
 		now := time.Now()
 		testRecords := []*entity.Record{
-			createTestRecord(userIDStr, now.Add(-2*time.Hour), []struct{ name string; calories int }{
+			createTestRecord(userIDStr, now.Add(-2*time.Hour), []struct {
+				name     string
+				calories int
+			}{
 				{"朝食：パン", 300},
 				{"朝食：コーヒー", 50},
 			}),
-			createTestRecord(userIDStr, now.Add(-1*time.Hour), []struct{ name string; calories int }{
+			createTestRecord(userIDStr, now.Add(-1*time.Hour), []struct {
+				name     string
+				calories int
+			}{
 				{"昼食：ラーメン", 800},
 			}),
 		}
