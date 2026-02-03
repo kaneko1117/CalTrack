@@ -92,6 +92,7 @@ func main() {
 	{
 		authenticated.POST("/records", recordHandler.Create)
 		authenticated.GET("/records/today", recordHandler.GetToday)
+		authenticated.GET("/statistics", recordHandler.GetStatistics)
 	}
 
 	// Start server

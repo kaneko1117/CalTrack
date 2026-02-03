@@ -7,6 +7,44 @@ import (
 	"caltrack/usecase"
 )
 
+// DailyStatisticsResponse は日別統計データレスポンスDTO
+type DailyStatisticsResponse struct {
+	Date          string `json:"date"`          // YYYY-MM-DD
+	TotalCalories int    `json:"totalCalories"` // その日の合計カロリー
+}
+
+// StatisticsResponse は統計データレスポンスDTO
+type StatisticsResponse struct {
+	Period          string                    `json:"period"`          // week/month
+	TargetCalories  int                       `json:"targetCalories"`  // 目標カロリー
+	AverageCalories int                       `json:"averageCalories"` // 平均カロリー
+	TotalDays       int                       `json:"totalDays"`       // 期間の日数
+	AchievedDays    int                       `json:"achievedDays"`    // 達成日数
+	OverDays        int                       `json:"overDays"`        // 超過日数
+	DailyStatistics []DailyStatisticsResponse `json:"dailyStatistics"` // 日別データ
+}
+
+// NewStatisticsResponse はUsecaseの出力からレスポンスDTOを生成する
+func NewStatisticsResponse(output *usecase.StatisticsOutput) StatisticsResponse {
+	dailyStats := make([]DailyStatisticsResponse, len(output.DailyStatistics))
+	for i, daily := range output.DailyStatistics {
+		dailyStats[i] = DailyStatisticsResponse{
+			Date:          daily.Date.Time().Format("2006-01-02"),
+			TotalCalories: daily.TotalCalories.Value(),
+		}
+	}
+
+	return StatisticsResponse{
+		Period:          output.Period.String(),
+		TargetCalories:  output.TargetCalories.Value(),
+		AverageCalories: output.AverageCalories.Value(),
+		TotalDays:       output.TotalDays,
+		AchievedDays:    output.AchievedDays,
+		OverDays:        output.OverDays,
+		DailyStatistics: dailyStats,
+	}
+}
+
 // CreateRecordResponse はカロリー記録作成レスポンスDTO
 type CreateRecordResponse struct {
 	RecordID      string               `json:"recordId"`
