@@ -6,6 +6,7 @@ import (
 
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/vo"
 )
 
 func TestNewUser_Success(t *testing.T) {
@@ -125,5 +126,94 @@ func TestReconstructUser_Success(t *testing.T) {
 	}
 	if !user.UpdatedAt().Equal(updatedAt) {
 		t.Errorf("UpdatedAt = %v, want %v", user.UpdatedAt(), updatedAt)
+	}
+}
+
+func TestUser_CalculateTargetCalories(t *testing.T) {
+	// 現在時刻を固定（2024年6月15日）
+	fixedNow := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
+	vo.SetNowFunc(func() time.Time { return fixedNow })
+	defer vo.ResetNowFunc()
+
+	tests := []struct {
+		name          string
+		weight        float64
+		height        float64
+		birthDate     time.Time
+		gender        string
+		activityLevel string
+		wantCalories  int
+	}{
+		{
+			name:          "男性_30歳_70kg_175cm_moderate活動",
+			weight:        70.0,
+			height:        175.0,
+			birthDate:     time.Date(1994, 6, 15, 0, 0, 0, 0, time.UTC),
+			gender:        "male",
+			activityLevel: "moderate",
+			wantCalories:  2555,
+		},
+		{
+			name:          "女性_25歳_55kg_160cm_light活動",
+			weight:        55.0,
+			height:        160.0,
+			birthDate:     time.Date(1999, 6, 15, 0, 0, 0, 0, time.UTC),
+			gender:        "female",
+			activityLevel: "light",
+			wantCalories:  1738,
+		},
+		{
+			name:          "other_35歳_65kg_170cm_active活動",
+			weight:        65.0,
+			height:        170.0,
+			birthDate:     time.Date(1989, 6, 15, 0, 0, 0, 0, time.UTC),
+			gender:        "other",
+			activityLevel: "active",
+			wantCalories:  2517,
+		},
+		{
+			name:          "男性_sedentary活動レベル",
+			weight:        80.0,
+			height:        180.0,
+			birthDate:     time.Date(1984, 6, 15, 0, 0, 0, 0, time.UTC),
+			gender:        "male",
+			activityLevel: "sedentary",
+			wantCalories:  2076,
+		},
+		{
+			name:          "女性_veryActive活動レベル",
+			weight:        60.0,
+			height:        165.0,
+			birthDate:     time.Date(2004, 6, 15, 0, 0, 0, 0, time.UTC),
+			gender:        "female",
+			activityLevel: "veryActive",
+			wantCalories:  2603,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user, err := entity.ReconstructUser(
+				"550e8400-e29b-41d4-a716-446655440000",
+				"test@example.com",
+				"$2a$10$hashedpassword",
+				"testuser",
+				tt.weight,
+				tt.height,
+				tt.birthDate,
+				tt.gender,
+				tt.activityLevel,
+				time.Now(),
+				time.Now(),
+			)
+			if err != nil {
+				t.Fatalf("ReconstructUser() unexpected error: %v", err)
+			}
+
+			got := user.CalculateTargetCalories()
+			if got != tt.wantCalories {
+				t.Errorf("CalculateTargetCalories() = %v, want %v", got, tt.wantCalories)
+			}
+		})
 	}
 }
