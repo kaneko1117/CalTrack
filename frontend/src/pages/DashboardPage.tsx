@@ -2,20 +2,28 @@
  * DashboardPage - ダッシュボードページ
  * ユーザーの今日のカロリー記録を表示し、新規記録の追加が可能
  */
+import { useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { RecordDialog } from "@/features/records";
-import { Card, CardContent } from "@/components/ui/card";
+import { RecordDialog, TodaySummary, useTodayRecords } from "@/features/records";
 
 /**
  * DashboardPage - ダッシュボードページコンポーネント
  */
 export function DashboardPage() {
+  const { data, error, isPending, fetch } = useTodayRecords();
+
+  // 初回マウント時にデータを取得
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
+
   /**
    * 記録成功時のコールバック
+   * データを再取得する
    */
   const handleRecordSuccess = () => {
-    // 記録成功時の処理（今後、記録一覧の再取得などを実装予定）
+    fetch();
   };
 
   return (
@@ -27,12 +35,7 @@ export function DashboardPage() {
             <h1 className="text-2xl font-bold">今日のカロリー記録</h1>
             <RecordDialog onSuccess={handleRecordSuccess} />
           </div>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">今日の合計</p>
-              <p className="text-4xl font-bold text-primary">0 kcal</p>
-            </CardContent>
-          </Card>
+          <TodaySummary data={data} isPending={isPending} error={error} />
         </div>
       </main>
       <Footer />
