@@ -1,7 +1,9 @@
 /**
  * Records Feature
- * カロリー記録に関するコンポーネントのエクスポート
+ * カロリー記録に関するコンポーネントとフックのエクスポート
  */
 
-export { RecordForm, RecordDialog } from "./components";
-export type { RecordFormProps, RecordDialogProps } from "./components";
+export { RecordForm, RecordDialog, TodaySummary } from "./components";
+export type { RecordFormProps, RecordDialogProps, TodaySummaryProps } from "./components";
+export { useTodayRecords } from "./hooks";
+export type { TodayRecordsResponse } from "./hooks";
