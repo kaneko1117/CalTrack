@@ -21,6 +21,8 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
 export type EatenAt = Readonly<{
   value: Date;
   mealType: () => MealType;
+  mealTypeLabel: () => string;
+  formattedTime: () => string;
   equals: (other: EatenAt) => boolean;
   toDateTimeLocal: () => string;
   toISOString: () => string;
@@ -73,23 +75,24 @@ export const newEatenAt = (
     return err(domainError("EATEN_AT_MUST_NOT_BE_FUTURE", ERROR_MESSAGES.EATEN_AT_MUST_NOT_BE_FUTURE));
   }
 
+  const mealType = determineMealType(date);
+
   const eatenAt: EatenAt = Object.freeze({
     value: date,
-    mealType: () => determineMealType(date),
+    mealType: () => mealType,
+    mealTypeLabel: () => MEAL_TYPE_LABELS[mealType],
+    formattedTime: () =>
+      date.toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
     equals: (other: EatenAt) => date.getTime() === other.value.getTime(),
-    /**
-     * datetime-local形式の文字列を返す
-     * @returns YYYY-MM-DDTHH:mm 形式
-     */
     toDateTimeLocal: () => {
       const offset = date.getTimezoneOffset();
       const localDate = new Date(date.getTime() - offset * 60 * 1000);
       return localDate.toISOString().slice(0, 16);
     },
-    /**
-     * ISO 8601形式の文字列を返す
-     * @returns ISO 8601形式
-     */
     toISOString: () => date.toISOString(),
   });
 

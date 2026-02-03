@@ -43,7 +43,7 @@ describe("TodaySummary", () => {
   describe("エラー状態", () => {
     it("エラー時にエラーメッセージが表示される", () => {
       const mockError: ApiErrorResponse = {
-        code: "SERVER_ERROR",
+        code: "INTERNAL_ERROR",
         message: "Internal Server Error",
       };
 
