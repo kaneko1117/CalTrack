@@ -15,7 +15,7 @@ type TodayCaloriesOutput struct {
 	Date           time.Time        // 対象日付
 	TotalCalories  int              // 今日の合計カロリー
 	TargetCalories int              // 目標カロリー
-	Difference     int              // 差分（実績 - 目標）
+	Difference     int              // 差分（目標 - 実績）：プラスは残り、マイナスは超過
 	Records        []*entity.Record // 今日のRecord一覧
 }
 
@@ -90,7 +90,7 @@ func (u *RecordUsecase) GetTodayCalories(ctx context.Context, userID vo.UserID) 
 		Date:           startOfDay,
 		TotalCalories:  totalCalories,
 		TargetCalories: targetCalories,
-		Difference:     totalCalories - targetCalories,
+		Difference:     targetCalories - totalCalories,
 		Records:        records,
 	}, nil
 }

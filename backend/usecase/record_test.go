@@ -185,8 +185,8 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			t.Errorf("TargetCalories = %d, want %d", output.TargetCalories, expectedTargetCalories)
 		}
 
-		// 差分の検証
-		expectedDifference := 900 - expectedTargetCalories
+		// 差分の検証（目標 - 実績）
+		expectedDifference := expectedTargetCalories - 900
 		if output.Difference != expectedDifference {
 			t.Errorf("Difference = %d, want %d", output.Difference, expectedDifference)
 		}
