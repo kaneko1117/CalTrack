@@ -29,6 +29,9 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
 
+          # 先に権限修正
+          ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "sudo chown -R ubuntu:ubuntu ~/my-app/ || true"
+
           rsync -avz --delete \
             --exclude '.git' \
             --exclude 'node_modules' \
@@ -36,4 +39,4 @@ jobs:
             --exclude '.env' \
             ./ ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:~/my-app/
 
-          ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "cd ~/my-app && sudo chown -R ubuntu:ubuntu . && docker compose up -d --build"
+          ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "cd ~/my-app && docker compose up -d --build"
