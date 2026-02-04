@@ -154,7 +154,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     config: formConfig,
     initialFormState,
     initialErrors,
-    url: "/api/v1/auth/register",
+    url: "/api/v1/users",
     transformData: (data) => ({
       email: data.email,
       password: data.password,
