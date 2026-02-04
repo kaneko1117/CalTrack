@@ -15,6 +15,14 @@ const API_ERROR_MESSAGES: Record<ErrorCode, string> = {
   EMAIL_ALREADY_EXISTS: "このメールアドレスは既に登録されています",
   INVALID_CREDENTIALS: "メールアドレスまたはパスワードが間違っています",
   INTERNAL_ERROR: "予期しないエラーが発生しました",
+  IMAGE_ANALYSIS_FAILED:
+    "画像の解析に失敗しました。別の画像をお試しください",
+  INVALID_IMAGE_FORMAT:
+    "対応していない画像形式です。JPEG、PNG、WebPのいずれかを選択してください",
+  IMAGE_TOO_LARGE:
+    "画像サイズが大きすぎます。10MB以下の画像を選択してください",
+  NO_FOOD_DETECTED:
+    "食べ物を検出できませんでした。食べ物が写った画像を選択してください",
 };
 
 /**
