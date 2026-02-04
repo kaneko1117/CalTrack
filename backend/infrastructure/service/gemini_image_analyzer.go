@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,10 +43,16 @@ func (g *GeminiImageAnalyzer) Analyze(ctx context.Context, config usecaseService
 	// configで指定されたモデルを使用
 	model := g.client.GenerativeModel(config.ModelName)
 
+	// base64エンコードされた画像データをデコード
+	decodedData, err := base64.StdEncoding.DecodeString(imageData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 image data: %w", err)
+	}
+
 	// 画像データをBlobとして作成
 	imageBlob := genai.Blob{
 		MIMEType: mimeType,
-		Data:     []byte(imageData),
+		Data:     decodedData,
 	}
 
 	// リクエストログ

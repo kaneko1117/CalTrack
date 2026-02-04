@@ -7,3 +7,5 @@ export { RecordDialog } from "./RecordDialog";
 export type { RecordDialogProps } from "./RecordDialog";
 export { TodaySummary } from "./TodaySummary";
 export type { TodaySummaryProps } from "./TodaySummary";
+export { ImageInput } from "./ImageInput";
+export type { ImageInputProps } from "./ImageInput";

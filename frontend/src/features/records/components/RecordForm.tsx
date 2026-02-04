@@ -1,8 +1,10 @@
 /**
  * RecordForm - カロリー記録フォームコンポーネント
  * Formik の Field, Form, FieldArray を使用
+ * 画像解析機能付き
  */
-import { Formik, Form, Field, FieldArray } from "formik";
+import { useCallback, useState, useRef } from "react";
+import { Formik, Form, Field, FieldArray, type FormikProps } from "formik";
 import * as yup from "yup";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -12,6 +14,9 @@ import { newEatenAt } from "@/domain/valueObjects/eatenAt";
 import { newItemName } from "@/domain/valueObjects/itemName";
 import { newCalories, sumCalories } from "@/domain/valueObjects/calories";
 import { newRecord } from "@/domain/entities/record";
+import { ImageInput } from "./ImageInput";
+import { useImageAnalysis, type ImageAnalysisResponse } from "../hooks";
+import type { ImageFile } from "@/domain/valueObjects/imageFile";
 
 /** フォームの食品アイテム型 */
 type RecordFormItem = {
@@ -146,11 +151,71 @@ function AlertCircleIcon({ className }: { className?: string }) {
   );
 }
 
+/** 解析結果を食品リストに適用するヘルパー */
+const applyAnalysisToItems = (
+  analysisData: ImageAnalysisResponse,
+  currentItems: RecordFormItem[]
+): RecordFormItem[] => {
+  // 解析結果を RecordFormItem 形式に変換
+  const analyzedItems: RecordFormItem[] = analysisData.items.map((item) => ({
+    name: item.name,
+    calories: String(item.calories),
+  }));
+
+  // 既存の空でないアイテムを取得
+  const nonEmptyItems = currentItems.filter(
+    (item) => item.name.trim() !== "" || item.calories.trim() !== ""
+  );
+
+  // 既存の非空アイテム + 解析結果を結合
+  const mergedItems = [...nonEmptyItems, ...analyzedItems];
+
+  // 結果が空の場合は空のアイテムを1つ追加
+  return mergedItems.length > 0 ? mergedItems : [createEmptyItem()];
+};
+
 export function RecordForm({ onSuccess }: RecordFormProps) {
   const initialValues: RecordFormValues = {
     eatenAt: getInitialEatenAt(),
     items: [createEmptyItem()],
   };
+
+  // 画像プレビュー用のstate
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Formikのインスタンス参照を保持（useRefで無限ループを防ぐ）
+  const formikRef = useRef<FormikProps<RecordFormValues> | null>(null);
+
+  // 画像解析成功時のコールバック
+  const handleAnalysisSuccess = useCallback(
+    (data: ImageAnalysisResponse) => {
+      if (formikRef.current && data.items.length > 0) {
+        const newItems = applyAnalysisToItems(data, formikRef.current.values.items);
+        formikRef.current.setFieldValue("items", newItems);
+      }
+    },
+    []
+  );
+
+  // 画像解析フック
+  const { analyze, isAnalyzing, error: analysisError, reset: resetAnalysis } = useImageAnalysis({
+    onSuccess: handleAnalysisSuccess,
+  });
+
+  // 画像選択時のハンドラ
+  const handleImageSelect = useCallback(
+    async (imageFile: ImageFile) => {
+      setPreviewUrl(imageFile.dataUrl);
+      await analyze(imageFile);
+    },
+    [analyze]
+  );
+
+  // 画像クリア時のハンドラ
+  const handleImageClear = useCallback(() => {
+    setPreviewUrl(null);
+    resetAnalysis();
+  }, [resetAnalysis]);
 
   // SWRベースのmutationフック
   const { trigger, isMutating } = useRequestMutation<
@@ -160,6 +225,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
 
   return (
     <Formik
+      innerRef={formikRef}
       initialValues={initialValues}
       validationSchema={recordFormSchema}
       validateOnBlur={true}
@@ -193,6 +259,10 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
             })),
           });
 
+          // 画像プレビューもクリア
+          setPreviewUrl(null);
+          resetAnalysis();
+
           resetForm({
             values: {
               eatenAt: getInitialEatenAt(),
@@ -223,6 +293,24 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
               label="食事日時"
               type="datetime-local"
             />
+
+            {/* 画像解析セクション */}
+            <div className="space-y-2">
+              <Label className="text-foreground font-medium">
+                画像から入力 (オプション)
+              </Label>
+              <ImageInput
+                onImageSelect={handleImageSelect}
+                isAnalyzing={isAnalyzing}
+                error={analysisError}
+                previewUrl={previewUrl}
+                disabled={isMutating}
+                onClear={handleImageClear}
+              />
+              <p className="text-xs text-muted-foreground">
+                食事の写真をアップロードすると、AIが食品とカロリーを自動入力します
+              </p>
+            </div>
 
             {/* 食品リスト */}
             <div className="space-y-4">
@@ -307,7 +395,7 @@ export function RecordForm({ onSuccess }: RecordFormProps) {
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-medium"
-                disabled={isMutating || !isValid}
+                disabled={isMutating || !isValid || isAnalyzing}
               >
                 {isMutating ? "記録中..." : "記録する"}
               </Button>
