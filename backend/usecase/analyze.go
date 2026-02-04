@@ -9,7 +9,7 @@ import (
 )
 
 // 画像解析に使用するAIモデル名
-const geminiModelName = "gemini-2.0-flash"
+const geminiModelName = "gemini-3-flash-preview"
 
 // 画像解析に使用するプロンプト
 const analyzePrompt = `この画像に写っている食品を分析し、以下のJSON形式で回答してください。
@@ -66,6 +66,11 @@ func (u *AnalyzeUsecase) AnalyzeImage(ctx context.Context, imageData string, mim
 	config := service.ImageAnalyzerConfig{
 		ModelName: geminiModelName,
 		Prompt:    analyzePrompt,
+		Log: service.ImageAnalyzerLogConfig{
+			EnableRequestLog:  true,
+			EnableResponseLog: true,
+			EnableTokenLog:    true,
+		},
 	}
 
 	// 画像解析サービスを呼び出し
