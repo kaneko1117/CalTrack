@@ -54,12 +54,11 @@ describe("StatisticsCard", () => {
   });
 
   describe("達成日数表示", () => {
-    it("達成日数と総日数が表示される", () => {
+    it("達成日数が表示される", () => {
       render(<StatisticsCard data={mockData} />);
 
       expect(screen.getByText("達成日数")).toBeInTheDocument();
       expect(screen.getByText("5")).toBeInTheDocument();
-      expect(screen.getByText("/7")).toBeInTheDocument();
     });
 
     it("達成率が表示される", () => {

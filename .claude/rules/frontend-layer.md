@@ -6,6 +6,8 @@ paths:
 
 # Frontend層規則
 
+共通のコーディング規約・テスト規則は `.claude/rules/common.md` を参照。
+
 ## 必須参照スキル
 
 Frontend作業時は必ず以下のスキルを参照すること:
@@ -101,10 +103,7 @@ domain/
 **`types/index.ts` は作成しない。型はコンポーネントやhooks内で定義する。**
 
 ```typescript
-// ❌ 禁止: types/index.ts を作成
-// features/statistics/types/index.ts
-
-// ✅ 正しい: hooks内で型定義
+// 正しい: hooks内で型定義
 // features/statistics/hooks/useStatistics.ts
 export type StatisticsResponse = {
   period: string;
@@ -116,7 +115,7 @@ export function useStatistics(period: Period) {
   // ...
 }
 
-// ✅ 正しい: コンポーネント内で型定義
+// 正しい: コンポーネント内で型定義
 // features/statistics/components/CalorieChart.tsx
 export type CalorieChartProps = {
   data: DailyStatistic[];
@@ -173,12 +172,6 @@ export function use{Feature}(): Use{Feature}Return {
 | Container | Hooks使用、ロジック担当 |
 | Presentational | propsのみ、再利用可能 |
 
-### 命名規則
-
-- コンポーネント: PascalCase（例: `RegisterForm`）
-- ファイル: PascalCase（例: `RegisterForm.tsx`）
-- テスト: `{Component}.test.tsx`
-
 ### フォームコンポーネント
 
 ```typescript
@@ -198,53 +191,6 @@ function validate(form: FormState): FormErrors {
   // バリデーション実装
 }
 ```
-
----
-
-## 共通ルール
-
-### 型定義
-
-- **`interface` ではなく `type` を使用**
-- `any` 禁止
-- 明示的な型定義
-
-```typescript
-// NG
-interface UserProps {
-  name: string;
-}
-
-// OK
-type UserProps = {
-  name: string;
-};
-```
-
-### コメント
-
-- **日本語で記述**
-- JSDocスタイル使用
-
-```typescript
-/**
- * ユーザー登録フック
- * ローディング状態、エラー状態、成功状態を管理
- */
-```
-
-### 定数化
-
-- エラーコード、エラーメッセージは定数化
-- マジックナンバー禁止
-
----
-
-## テスト
-
-- Vitest + React Testing Library
-- ファイル: `{Component}.test.tsx` または `{hook}.test.ts`
-- カバレッジ: 正常系・異常系・境界値
 
 ---
 
