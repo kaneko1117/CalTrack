@@ -32,6 +32,8 @@ export type ApiErrorResponse = {
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
+  // デフォルトタイムアウト: 10秒
+  // 画像解析など長時間処理が必要なリクエストは、呼び出し側でtimeoutを上書きする
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
