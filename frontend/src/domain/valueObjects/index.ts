@@ -9,3 +9,4 @@ export * from "./activityLevel";
 export * from "./itemName";
 export * from "./calories";
 export * from "./eatenAt";
+export * from "./imageFile";
