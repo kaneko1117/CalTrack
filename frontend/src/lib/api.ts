@@ -17,7 +17,11 @@ export type ErrorCode =
   | "UNAUTHORIZED"
   | "EMAIL_ALREADY_EXISTS"
   | "INVALID_CREDENTIALS"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "IMAGE_ANALYSIS_FAILED"
+  | "INVALID_IMAGE_FORMAT"
+  | "IMAGE_TOO_LARGE"
+  | "NO_FOOD_DETECTED";
 
 /** APIエラーレスポンス */
 export type ApiErrorResponse = {
