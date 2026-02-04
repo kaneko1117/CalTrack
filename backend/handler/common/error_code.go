@@ -11,4 +11,8 @@ const (
 	CodeInvalidCredentials = "INVALID_CREDENTIALS"
 	CodeUnauthorized       = "UNAUTHORIZED"
 	CodeSessionExpired     = "SESSION_EXPIRED"
+
+	// 画像解析関連エラーコード
+	CodeNoFoodDetected      = "NO_FOOD_DETECTED"
+	CodeImageAnalysisFailed = "IMAGE_ANALYSIS_FAILED"
 )

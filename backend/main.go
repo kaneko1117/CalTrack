@@ -8,11 +8,13 @@ import (
 
 	"caltrack/config"
 	_ "caltrack/docs"
+	"caltrack/handler/analyze"
 	"caltrack/handler/auth"
 	"caltrack/handler/middleware"
 	"caltrack/handler/record"
 	"caltrack/handler/user"
 	gormPersistence "caltrack/infrastructure/persistence/gorm"
+	infraService "caltrack/infrastructure/service"
 	"caltrack/pkg/logger"
 	"caltrack/usecase"
 )
@@ -46,15 +48,20 @@ func main() {
 	recordRepo := gormPersistence.NewGormRecordRepository(config.DB)
 	txManager := gormPersistence.NewGormTransactionManager(config.DB)
 
+	// DI - Service
+	imageAnalyzer := infraService.NewGeminiImageAnalyzer(config.GeminiClient)
+
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 	recordUsecase := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
 	authHandler := auth.NewAuthHandler(authUsecase)
 	recordHandler := record.NewRecordHandler(recordUsecase)
+	analyzeHandler := analyze.NewAnalyzeHandler(analyzeUsecase)
 
 	// Setup router
 	r := gin.Default()
@@ -97,6 +104,7 @@ func main() {
 		authenticated.POST("/records", recordHandler.Create)
 		authenticated.GET("/records/today", recordHandler.GetToday)
 		authenticated.GET("/statistics", recordHandler.GetStatistics)
+		authenticated.POST("/analyze-image", analyzeHandler.AnalyzeImage)
 	}
 
 	// Start server
