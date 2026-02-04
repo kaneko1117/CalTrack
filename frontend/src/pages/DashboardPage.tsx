@@ -26,6 +26,7 @@ export function DashboardPage() {
     data: statisticsData,
     error: statisticsError,
     isLoading: statisticsLoading,
+    refetch: statisticsRefetch,
   } = useStatistics(period);
 
   /**
@@ -34,6 +35,7 @@ export function DashboardPage() {
    */
   const handleRecordSuccess = () => {
     refetch();
+    statisticsRefetch();
   };
 
   return (
