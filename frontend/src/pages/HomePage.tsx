@@ -3,7 +3,7 @@
  *
  * 既存のApp.tsxの内容をページコンポーネントとして切り出し
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,14 +29,17 @@ export function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** API URL（環境変数から取得、デフォルトはlocalhost） */
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
   /**
    * バックエンドのヘルスチェックを実行
    */
-  const checkHealth = async () => {
+  const checkHealth = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8080/health");
+      const response = await fetch(`${apiUrl}/health`);
       const data = await response.json();
       setHealth(data);
     } catch {
@@ -45,11 +48,11 @@ export function HomePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiUrl]);
 
   useEffect(() => {
     checkHealth();
-  }, []);
+  }, [checkHealth]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
