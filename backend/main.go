@@ -36,6 +36,10 @@ func main() {
 	// Connect to database
 	config.ConnectDatabase()
 
+	// Geminiクライアント初期化
+	config.InitGemini()
+	defer config.CloseGemini()
+
 	// DI - Repository
 	userRepo := gormPersistence.NewGormUserRepository(config.DB)
 	sessionRepo := gormPersistence.NewGormSessionRepository(config.DB)

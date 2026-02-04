@@ -12,11 +12,15 @@ type AnalyzedItem struct {
 	Calories vo.Calories // カロリー
 }
 
+// ImageAnalyzerConfig は画像解析の設定を保持する
+type ImageAnalyzerConfig struct {
+	ModelName string // 使用するAIモデル名
+	Prompt    string // 解析に使用するプロンプト
+}
+
 // ImageAnalyzer は画像から食品を解析するサービスのインターフェース
 // Infrastructure層で具体的な実装（Gemini API等）を提供する
 type ImageAnalyzer interface {
 	// Analyze は画像データを解析し、認識した食品のリストを返す
-	// imageData: Base64エンコードされた画像データ
-	// mimeType: 画像のMIMEタイプ（例: "image/jpeg", "image/png"）
-	Analyze(ctx context.Context, imageData string, mimeType string) ([]AnalyzedItem, error)
+	Analyze(ctx context.Context, config ImageAnalyzerConfig, imageData string, mimeType string) ([]AnalyzedItem, error)
 }
