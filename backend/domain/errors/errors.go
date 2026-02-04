@@ -39,4 +39,10 @@ var (
 
 	// Statistics errors
 	ErrInvalidStatisticsPeriod = errors.New("statistics period must be week or month")
+
+	// 画像解析関連エラー
+	ErrImageDataRequired   = errors.New("画像データは必須です")
+	ErrMimeTypeRequired    = errors.New("MIMEタイプは必須です")
+	ErrNoFoodDetected      = errors.New("食品を検出できませんでした")
+	ErrImageAnalysisFailed = errors.New("画像解析に失敗しました")
 )
