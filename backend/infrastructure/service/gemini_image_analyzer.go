@@ -48,10 +48,23 @@ func (g *GeminiImageAnalyzer) Analyze(ctx context.Context, config usecaseService
 		Data:     []byte(imageData),
 	}
 
+	// リクエストログ
+	if config.Log.EnableRequestLog {
+		log.Printf("[INFO] Gemini API Request - Model: %s, MimeType: %s, ImageDataLength: %d", config.ModelName, mimeType, len(imageData))
+	}
+
 	// configで指定されたプロンプトを使用してリクエストを送信
 	resp, err := model.GenerateContent(ctx, genai.Text(config.Prompt), imageBlob)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate content: %w", err)
+	}
+
+	// トークン使用量ログ
+	if config.Log.EnableTokenLog && resp.UsageMetadata != nil {
+		log.Printf("[INFO] Gemini API Token Usage - PromptTokens: %d, CandidatesTokens: %d, TotalTokens: %d",
+			resp.UsageMetadata.PromptTokenCount,
+			resp.UsageMetadata.CandidatesTokenCount,
+			resp.UsageMetadata.TotalTokenCount)
 	}
 
 	// レスポンスからテキストを抽出
@@ -59,6 +72,11 @@ func (g *GeminiImageAnalyzer) Analyze(ctx context.Context, config usecaseService
 	if err != nil {
 		log.Printf("[ERROR] Failed to extract response text: %v", err)
 		return nil, err
+	}
+
+	// レスポンスログ
+	if config.Log.EnableResponseLog {
+		log.Printf("[INFO] Gemini API Response - Text: %s", responseText)
 	}
 
 	// JSONをパース
