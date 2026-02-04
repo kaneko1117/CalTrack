@@ -24,6 +24,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8080
+      - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-localhost}
     depends_on:
       - backend
     networks:
