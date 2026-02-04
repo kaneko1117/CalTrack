@@ -13,11 +13,11 @@ import (
 
 // mockImageAnalyzer は画像解析サービスのモック実装
 type mockImageAnalyzer struct {
-	analyze func(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error)
+	analyze func(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error)
 }
 
-func (m *mockImageAnalyzer) Analyze(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
-	return m.analyze(ctx, imageData, mimeType)
+func (m *mockImageAnalyzer) Analyze(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
+	return m.analyze(ctx, config, imageData, mimeType)
 }
 
 // TestAnalyzeUsecase_AnalyzeImage は画像解析機能のテスト
@@ -42,7 +42,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 		}
 
 		mockAnalyzer := &mockImageAnalyzer{
-			analyze: func(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
+			analyze: func(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
 				return []service.AnalyzedItem{
 					{Name: itemName1, Calories: calories1},
 					{Name: itemName2, Calories: calories2},
@@ -78,7 +78,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 
 	t.Run("異常系_画像データが空の場合、ErrImageDataRequiredを返す", func(t *testing.T) {
 		mockAnalyzer := &mockImageAnalyzer{
-			analyze: func(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
+			analyze: func(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
 				return nil, nil
 			},
 		}
@@ -93,7 +93,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 
 	t.Run("異常系_MIMEタイプが空の場合、ErrMimeTypeRequiredを返す", func(t *testing.T) {
 		mockAnalyzer := &mockImageAnalyzer{
-			analyze: func(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
+			analyze: func(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
 				return nil, nil
 			},
 		}
@@ -108,7 +108,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 
 	t.Run("異常系_解析結果が空の場合、ErrNoFoodDetectedを返す", func(t *testing.T) {
 		mockAnalyzer := &mockImageAnalyzer{
-			analyze: func(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
+			analyze: func(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
 				return []service.AnalyzedItem{}, nil
 			},
 		}
@@ -124,7 +124,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 	t.Run("異常系_画像解析サービスがエラーを返す場合", func(t *testing.T) {
 		analyzeErr := errors.New("analysis service error")
 		mockAnalyzer := &mockImageAnalyzer{
-			analyze: func(ctx context.Context, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
+			analyze: func(ctx context.Context, config service.ImageAnalyzerConfig, imageData string, mimeType string) ([]service.AnalyzedItem, error) {
 				return nil, analyzeErr
 			},
 		}
