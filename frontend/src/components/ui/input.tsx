@@ -17,6 +17,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         className={cn(
           "flex h-10 w-full max-w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           "[&::-webkit-datetime-edit]:max-w-full [&::-webkit-datetime-edit-fields-wrapper]:max-w-full",
+          // Safari datetime-local問題の修正
+          "[&[type='date']]:appearance-none [&[type='time']]:appearance-none [&[type='datetime-local']]:appearance-none",
+          "[&[type='date']::-webkit-date-and-time-value]:text-left [&[type='time']::-webkit-date-and-time-value]:text-left",
           className
         )}
         ref={ref}
