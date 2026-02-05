@@ -15,7 +15,7 @@ describe("NutritionAdviceCard", () => {
       />
     );
 
-    expect(screen.getByText("今日のアドバイス")).toBeInTheDocument();
+    expect(screen.getByText("AIによるアドバイス")).toBeInTheDocument();
     expect(
       screen.getByText("タンパク質が不足しています。鶏肉や卵を食べましょう。")
     ).toBeInTheDocument();
@@ -29,6 +29,23 @@ describe("NutritionAdviceCard", () => {
     // Skeletonコンポーネントが存在することを確認
     const skeletons = container.querySelectorAll('[class*="animate-pulse"]');
     expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  it("ローディング中は前の情報が表示されない", () => {
+    const { container } = render(
+      <NutritionAdviceCard
+        advice="前回のアドバイス"
+        isLoading={true}
+        error={null}
+      />
+    );
+
+    // スケルトンが表示される
+    const skeletons = container.querySelectorAll('[class*="animate-pulse"]');
+    expect(skeletons.length).toBeGreaterThan(0);
+
+    // 前の情報は表示されない
+    expect(screen.queryByText("前回のアドバイス")).not.toBeInTheDocument();
   });
 
   it("エラー時はエラーメッセージが表示される", () => {

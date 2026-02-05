@@ -39,10 +39,11 @@ var (
 	ErrInvalidUUIDFormat = errors.New("invalid uuid format")
 
 	// ID errors
-	ErrInvalidUserID       = errors.New("invalid user id")
-	ErrInvalidRecordID     = errors.New("invalid record id")
-	ErrInvalidRecordItemID = errors.New("invalid record item id")
-	ErrInvalidRecordPfcID  = errors.New("invalid record pfc id")
+	ErrInvalidUserID        = errors.New("invalid user id")
+	ErrInvalidRecordID      = errors.New("invalid record id")
+	ErrInvalidRecordItemID  = errors.New("invalid record item id")
+	ErrInvalidRecordPfcID   = errors.New("invalid record pfc id")
+	ErrInvalidAdviceCacheID = errors.New("invalid advice cache id")
 
 	// Record Item errors
 	ErrItemNameRequired = errors.New("item name is required")

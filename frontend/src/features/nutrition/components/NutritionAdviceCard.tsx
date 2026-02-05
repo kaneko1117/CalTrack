@@ -21,7 +21,7 @@ export function NutritionAdviceCard({
   error,
 }: NutritionAdviceCardProps) {
   // ローディング状態
-  if (isLoading && !advice) {
+  if (isLoading) {
     return (
       <Card className="opacity-0 animate-fade-in-up">
         <CardHeader className="pb-3">
@@ -46,7 +46,7 @@ export function NutritionAdviceCard({
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <span>💡</span>
-            今日のアドバイス
+            AIによるアドバイス
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -65,7 +65,7 @@ export function NutritionAdviceCard({
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <span>💡</span>
-            今日のアドバイス
+            AIによるアドバイス
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -82,7 +82,7 @@ export function NutritionAdviceCard({
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2 text-amber-800">
           <span>💡</span>
-          今日のアドバイス
+          AIによるアドバイス
         </CardTitle>
       </CardHeader>
       <CardContent>

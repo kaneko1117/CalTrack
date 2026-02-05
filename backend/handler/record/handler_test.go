@@ -110,20 +110,37 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 	return nil, nil
 }
 
+// mockAdviceCacheRepository はAdviceCacheRepositoryのモック実装
+type mockAdviceCacheRepository struct{}
+
+func (m *mockAdviceCacheRepository) Save(ctx context.Context, cache *entity.AdviceCache) error {
+	return nil
+}
+
+func (m *mockAdviceCacheRepository) FindByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+	return nil, nil
+}
+
+func (m *mockAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) error {
+	return nil
+}
+
 // setupHandler はテスト用のハンドラをセットアップする
 func setupHandler(recordRepo repository.RecordRepository) *record.RecordHandler {
 	recordPfcRepo := &mockRecordPfcRepository{}
 	userRepo := &mockUserRepository{}
+	adviceCacheRepo := &mockAdviceCacheRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 	return record.NewRecordHandler(uc)
 }
 
 // setupHandlerWithUserRepo はUserRepositoryを指定してテスト用のハンドラをセットアップする
 func setupHandlerWithUserRepo(recordRepo repository.RecordRepository, userRepo repository.UserRepository) *record.RecordHandler {
 	recordPfcRepo := &mockRecordPfcRepository{}
+	adviceCacheRepo := &mockAdviceCacheRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 	return record.NewRecordHandler(uc)
 }
 

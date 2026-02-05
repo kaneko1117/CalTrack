@@ -18,6 +18,7 @@ type UseRequestGetReturn<T> = {
   data: T | undefined;
   error: ApiErrorResponse | undefined;
   isLoading: boolean;
+  isValidating: boolean;
   mutate: () => Promise<T | undefined>;
 };
 
@@ -33,7 +34,7 @@ type UseRequestMutationReturn<T, D> = {
  * GETリクエスト用フック
  */
 export function useRequestGet<T>(url: string | null): UseRequestGetReturn<T> {
-  const { data, error, isLoading, mutate: swrMutate } = useSWR<T, ApiErrorResponse>(
+  const { data, error, isLoading, isValidating, mutate: swrMutate } = useSWR<T, ApiErrorResponse>(
     url,
     fetcher,
     { revalidateOnFocus: false }
@@ -42,6 +43,7 @@ export function useRequestGet<T>(url: string | null): UseRequestGetReturn<T> {
     data,
     error,
     isLoading,
+    isValidating,
     mutate: async () => swrMutate(),
   };
 }

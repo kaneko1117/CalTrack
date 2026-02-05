@@ -16,8 +16,9 @@ export const ERROR_MESSAGE_FETCH_FAILED = "アドバイスの取得に失敗し�
  * @returns { data, error, isLoading, refetch }
  */
 export function useNutritionAdvice() {
-  const { data, error, isLoading, mutate } =
+  const { data, error, isLoading, isValidating, mutate } =
     useRequestGet<NutritionAdviceResponse>("/api/v1/nutrition/advice");
 
-  return { data, error, isLoading, refetch: mutate };
+  // APIリクエスト中は常にローディング状態として扱う（再検証中も含む）
+  return { data, error, isLoading: isLoading || isValidating, refetch: mutate };
 }

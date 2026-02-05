@@ -21,10 +21,11 @@ type TodayCaloriesOutput struct {
 
 // RecordUsecase はカロリー記録に関するユースケースを提供する
 type RecordUsecase struct {
-	recordRepo    repository.RecordRepository
-	recordPfcRepo repository.RecordPfcRepository
-	userRepo      repository.UserRepository
-	txManager     repository.TransactionManager
+	recordRepo      repository.RecordRepository
+	recordPfcRepo   repository.RecordPfcRepository
+	userRepo        repository.UserRepository
+	adviceCacheRepo repository.AdviceCacheRepository
+	txManager       repository.TransactionManager
 }
 
 // NewRecordUsecase は RecordUsecase のインスタンスを生成する
@@ -32,13 +33,15 @@ func NewRecordUsecase(
 	recordRepo repository.RecordRepository,
 	recordPfcRepo repository.RecordPfcRepository,
 	userRepo repository.UserRepository,
+	adviceCacheRepo repository.AdviceCacheRepository,
 	txManager repository.TransactionManager,
 ) *RecordUsecase {
 	return &RecordUsecase{
-		recordRepo:    recordRepo,
-		recordPfcRepo: recordPfcRepo,
-		userRepo:      userRepo,
-		txManager:     txManager,
+		recordRepo:      recordRepo,
+		recordPfcRepo:   recordPfcRepo,
+		userRepo:        userRepo,
+		adviceCacheRepo: adviceCacheRepo,
+		txManager:       txManager,
 	}
 }
 
@@ -55,6 +58,13 @@ func (u *RecordUsecase) Create(ctx context.Context, record *entity.Record, recor
 				logError("Create", err, "record_pfc_id", recordPfc.ID().String())
 				return err
 			}
+		}
+
+		// キャッシュ無効化（記録日のキャッシュを削除）
+		recordDate := record.EatenAt().Time()
+		if err := u.adviceCacheRepo.DeleteByUserIDAndDate(txCtx, record.UserID(), recordDate); err != nil {
+			// キャッシュ削除失敗はログのみ（記録作成は成功として扱う）
+			logError("Create", err, "user_id", record.UserID().String(), "cache_delete_failed", true)
 		}
 
 		return nil

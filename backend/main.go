@@ -48,6 +48,7 @@ func main() {
 	sessionRepo := gormPersistence.NewGormSessionRepository(config.DB)
 	recordRepo := gormPersistence.NewGormRecordRepository(config.DB)
 	recordPfcRepo := gormPersistence.NewGormRecordPfcRepository(config.DB)
+	adviceCacheRepo := gormPersistence.NewGormAdviceCacheRepository(config.DB)
 	txManager := gormPersistence.NewGormTransactionManager(config.DB)
 
 	// DI - Service
@@ -57,9 +58,9 @@ func main() {
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer)
-	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, pfcAnalyzer)
+	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, pfcAnalyzer)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
