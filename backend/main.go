@@ -54,11 +54,12 @@ func main() {
 	// DI - Service
 	imageAnalyzer := infraService.NewGeminiImageAnalyzer(config.GeminiClient)
 	pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(config.GeminiClient)
+	pfcEstimator := infraService.NewGeminiPfcEstimator(config.GeminiClient)
 
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
+	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer)
 	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, pfcAnalyzer)
 

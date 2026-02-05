@@ -2,12 +2,16 @@ package usecase
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
+	"caltrack/config"
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/repository"
 	"caltrack/domain/vo"
+	"caltrack/usecase/service"
 )
 
 // TodayCaloriesOutput は今日の摂取カロリー情報を表す出力構造体
@@ -26,6 +30,7 @@ type RecordUsecase struct {
 	userRepo        repository.UserRepository
 	adviceCacheRepo repository.AdviceCacheRepository
 	txManager       repository.TransactionManager
+	pfcEstimator    service.PfcEstimator
 }
 
 // NewRecordUsecase は RecordUsecase のインスタンスを生成する
@@ -35,6 +40,7 @@ func NewRecordUsecase(
 	userRepo repository.UserRepository,
 	adviceCacheRepo repository.AdviceCacheRepository,
 	txManager repository.TransactionManager,
+	pfcEstimator service.PfcEstimator,
 ) *RecordUsecase {
 	return &RecordUsecase{
 		recordRepo:      recordRepo,
@@ -42,17 +48,27 @@ func NewRecordUsecase(
 		userRepo:        userRepo,
 		adviceCacheRepo: adviceCacheRepo,
 		txManager:       txManager,
+		pfcEstimator:    pfcEstimator,
 	}
 }
 
 // Create は新しいカロリー記録を作成する
-func (u *RecordUsecase) Create(ctx context.Context, record *entity.Record, recordPfc *entity.RecordPfc) error {
+func (u *RecordUsecase) Create(ctx context.Context, record *entity.Record) error {
 	err := u.txManager.Execute(ctx, func(txCtx context.Context) error {
+		// Record保存
 		if err := u.recordRepo.Save(txCtx, record); err != nil {
 			logError("Create", err, "record_id", record.ID().String())
 			return err
 		}
 
+		// AI-PFC推定実行
+		recordPfc, err := u.estimatePfc(txCtx, record)
+		if err != nil {
+			// PFC推定失敗してもRecordは保存済みなのでログのみ
+			logError("Create", err, "record_id", record.ID().String(), "pfc_estimation_failed", true)
+		}
+
+		// RecordPfc保存（推定成功時のみ）
 		if recordPfc != nil {
 			if err := u.recordPfcRepo.Save(txCtx, recordPfc); err != nil {
 				logError("Create", err, "record_pfc_id", recordPfc.ID().String())
@@ -71,6 +87,68 @@ func (u *RecordUsecase) Create(ctx context.Context, record *entity.Record, recor
 	})
 
 	return err
+}
+
+// estimatePfc は食品名からPFC値を推定してRecordPfcを作成する
+func (u *RecordUsecase) estimatePfc(ctx context.Context, record *entity.Record) (*entity.RecordPfc, error) {
+	// 食品名リストを抽出
+	foodNames := record.ItemNames()
+
+	// PFC推定プロンプト構築
+	prompt := buildPfcEstimatePrompt(foodNames)
+
+	// PFC推定実行
+	estimatorConfig := service.PfcEstimatorConfig{
+		ModelName: config.GeminiModelName,
+		Prompt:    prompt,
+		Log: service.PfcEstimatorLogConfig{
+			EnableRequestLog:  true,
+			EnableResponseLog: true,
+			EnableTokenLog:    true,
+		},
+	}
+
+	input := service.PfcEstimateInput{
+		FoodItems: foodNames,
+	}
+
+	output, err := u.pfcEstimator.Estimate(ctx, estimatorConfig, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// RecordPfcを生成（エラーなし）
+	recordPfc := entity.NewRecordPfc(
+		record.ID(),
+		output.Protein,
+		output.Fat,
+		output.Carbs,
+	)
+
+	return recordPfc, nil
+}
+
+// buildPfcEstimatePrompt はPFC推定用のプロンプトを構築する
+func buildPfcEstimatePrompt(foodNames []string) string {
+	foodList := strings.Join(foodNames, "\n- ")
+	return fmt.Sprintf(`以下の食品リストから、合計のPFC（タンパク質・脂質・炭水化物）をグラム単位で推定してください。
+
+食品リスト:
+- %s
+
+回答は以下のJSON形式で返してください（他の説明は不要です）:
+{
+  "protein": 数値,
+  "fat": 数値,
+  "carbs": 数値
+}
+
+例:
+{
+  "protein": 25.5,
+  "fat": 12.3,
+  "carbs": 45.0
+}`, foodList)
 }
 
 // GetTodayCalories は認証ユーザーの今日の摂取カロリー情報を取得する

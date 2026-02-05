@@ -20,6 +20,7 @@ import (
 	"caltrack/handler/record"
 	"caltrack/handler/record/dto"
 	"caltrack/usecase"
+	"caltrack/usecase/service"
 )
 
 func init() {
@@ -125,13 +126,31 @@ func (m *mockAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, u
 	return nil
 }
 
+// mockPfcEstimator はPfcEstimatorのモック実装
+type mockPfcEstimator struct {
+	estimate func(ctx context.Context, config service.PfcEstimatorConfig, input service.PfcEstimateInput) (*service.PfcEstimateOutput, error)
+}
+
+func (m *mockPfcEstimator) Estimate(ctx context.Context, config service.PfcEstimatorConfig, input service.PfcEstimateInput) (*service.PfcEstimateOutput, error) {
+	if m.estimate != nil {
+		return m.estimate(ctx, config, input)
+	}
+	// デフォルトは固定値を返す
+	return &service.PfcEstimateOutput{
+		Protein: 20.0,
+		Fat:     10.0,
+		Carbs:   30.0,
+	}, nil
+}
+
 // setupHandler はテスト用のハンドラをセットアップする
 func setupHandler(recordRepo repository.RecordRepository) *record.RecordHandler {
 	recordPfcRepo := &mockRecordPfcRepository{}
 	userRepo := &mockUserRepository{}
 	adviceCacheRepo := &mockAdviceCacheRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
+	pfcEstimator := &mockPfcEstimator{}
+	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 	return record.NewRecordHandler(uc)
 }
 
@@ -140,7 +159,8 @@ func setupHandlerWithUserRepo(recordRepo repository.RecordRepository, userRepo r
 	recordPfcRepo := &mockRecordPfcRepository{}
 	adviceCacheRepo := &mockAdviceCacheRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
+	pfcEstimator := &mockPfcEstimator{}
+	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 	return record.NewRecordHandler(uc)
 }
 
