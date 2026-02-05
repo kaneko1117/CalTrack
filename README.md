@@ -2,7 +2,7 @@
 
 カロリー管理アプリケーション
 
-## アーキテクチャ
+## インフラ構成
 
 ```mermaid
 flowchart TB
@@ -11,25 +11,25 @@ flowchart TB
     end
 
     subgraph Cloudflare["☁️ Cloudflare"]
-        DNS["DNS\ncaltracks.win"]
-        Access["Zero Trust Access\n(メール認証 / One-time PIN)"]
+        DNS["DNS"]
+        Access["Zero Trust Access"]
         Proxy["CDN / Proxy\nSSL終端"]
     end
 
-    subgraph AWS["🟠 AWS Lightsail ($10/月)"]
-        subgraph Instance["Ubuntu 24.04 LTS"]
+    subgraph AWS["🟠 AWS Lightsail"]
+        subgraph Instance["Ubuntu"]
             subgraph Docker["🐳 Docker Compose"]
-                Nginx["Nginx\n:80"]
-                Frontend["Frontend\nReact + Vite\n:5173"]
-                Backend["Backend\nGo + Gin\n:8080"]
-                MySQL["MySQL 8.0\n:3306"]
+                Nginx["Nginx\n静的ファイル配信"]
+                Static["React\nビルド済み静的ファイル"]
+                Backend["Backend\nGo + Gin"]
+                MySQL["MySQL 8.0"]
             end
         end
     end
 
     subgraph GitHub["🐙 GitHub"]
         Repo["Repository"]
-        Actions["GitHub Actions\nCI/CD"]
+        Actions["GitHub Actions\nビルド & デプロイ"]
     end
 
     subgraph External["🔗 外部サービス"]
@@ -40,27 +40,30 @@ flowchart TB
     Browser -->|"HTTPS"| DNS
     DNS --> Access
     Access -->|"認証OK"| Proxy
-    Proxy -->|"HTTP :80"| Nginx
+    Proxy -->|"HTTP"| Nginx
 
     %% 内部フロー
-    Nginx -->|"/"| Frontend
+    Nginx -->|"/"| Static
     Nginx -->|"/api/*"| Backend
     Backend --> MySQL
     Backend -->|"画像解析"| Gemini
 
     %% デプロイフロー
     Repo -->|"push to main"| Actions
-    Actions -->|"rsync + SSH"| Instance
+    Actions -->|"ビルド"| Static
+    Actions -->|"デプロイ"| Instance
 
     %% スタイリング
     classDef cloudflare fill:#f6821f,stroke:#333,color:#fff
     classDef aws fill:#ff9900,stroke:#333,color:#fff
     classDef docker fill:#2496ed,stroke:#333,color:#fff
     classDef github fill:#24292e,stroke:#333,color:#fff
+    classDef static fill:#61dafb,stroke:#333,color:#333
 
     class DNS,Access,Proxy cloudflare
     class Instance aws
-    class Nginx,Frontend,Backend,MySQL docker
+    class Nginx,Backend,MySQL docker
+    class Static static
     class Repo,Actions github
 ```
 
