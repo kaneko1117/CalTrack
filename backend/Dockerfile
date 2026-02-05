@@ -11,6 +11,9 @@ RUN go install gotest.tools/gotestsum@latest
 # Install swag for Swagger doc generation
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 
+# Install sql-migrate for database migrations
+RUN go install github.com/rubenv/sql-migrate/...@latest
+
 # Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download

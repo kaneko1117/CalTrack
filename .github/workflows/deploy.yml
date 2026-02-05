@@ -42,3 +42,7 @@ jobs:
             ./ ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:~/my-app/
 
           ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "cd ~/my-app && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build"
+
+      - name: Run database migrations
+        run: |
+          ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "cd ~/my-app && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T backend sql-migrate up -env=production"
