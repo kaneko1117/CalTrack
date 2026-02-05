@@ -3,8 +3,8 @@ package vo_test
 import (
 	"testing"
 
-	"caltrack/domain/vo"
 	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/vo"
 
 	"github.com/google/uuid"
 )
