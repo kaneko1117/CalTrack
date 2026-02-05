@@ -60,7 +60,10 @@ export function RecordDialog({ onSuccess }: RecordDialogProps) {
           記録する
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>カロリー記録</DialogTitle>
         </DialogHeader>
