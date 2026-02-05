@@ -1,43 +1,14 @@
+# 共通ベース構成（backend, mysql, networks, volumes）
+# 開発: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# 本番: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
 services:
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - frontend
-      - backend
-    restart: unless-stopped
-    networks:
-      - caltrack-network
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-      - "6006:6006"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
-      - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-localhost}
-    depends_on:
-      - backend
-    networks:
-      - caltrack-network
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    volumes:
-      - ./backend:/app
     env_file:
       - ./.env
     environment:
