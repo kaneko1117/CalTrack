@@ -1,0 +1,38 @@
+# 開発環境用構成
+# 使用方法: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - caltrack-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+      - "6006:6006"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
+      - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-localhost}
+    depends_on:
+      - backend
+    networks:
+      - caltrack-network
+
+  backend:
+    volumes:
+      - ./backend:/app

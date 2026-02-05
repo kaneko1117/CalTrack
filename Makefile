@@ -1,10 +1,19 @@
+# =============================================================================
+# 変数定義
+# =============================================================================
+
+# Docker Compose ファイル
+COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
+COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml
+
 .PHONY: help up down restart logs logs-backend logs-frontend logs-mysql \
         build build-backend build-frontend \
         test test-backend test-frontend \
         lint lint-backend lint-frontend fmt fmt-backend fmt-frontend \
         migrate migrate-status migrate-down migrate-new \
         shell-backend shell-frontend shell-mysql clean \
-        swagger storybook build-storybook
+        swagger storybook build-storybook \
+        up-prod down-prod
 
 # =============================================================================
 # ヘルプ
@@ -13,11 +22,15 @@
 help:
 	@echo "CalTrack - 利用可能なコマンド"
 	@echo ""
-	@echo "起動・停止:"
-	@echo "  make up              - コンテナ起動"
-	@echo "  make down            - コンテナ停止"
-	@echo "  make restart         - コンテナ再起動"
+	@echo "起動・停止（開発環境）:"
+	@echo "  make up              - 開発用コンテナ起動"
+	@echo "  make down            - 開発用コンテナ停止"
+	@echo "  make restart         - 開発用コンテナ再起動"
 	@echo "  make clean           - コンテナとボリューム削除"
+	@echo ""
+	@echo "起動・停止（本番環境）:"
+	@echo "  make up-prod         - 本番用コンテナ起動"
+	@echo "  make down-prod       - 本番用コンテナ停止"
 	@echo ""
 	@echo "ログ:"
 	@echo "  make logs            - 全サービスのログ"
@@ -62,48 +75,58 @@ help:
 	@echo "  make build-storybook - Storybookビルド"
 
 # =============================================================================
-# 起動・停止
+# 起動・停止（開発環境）
 # =============================================================================
 
 up:
-	docker compose up --build -d
+	$(COMPOSE_DEV) up --build -d
 
 down:
-	docker compose down
+	$(COMPOSE_DEV) down
 
 restart: down up
 
 clean:
-	docker compose down -v
+	$(COMPOSE_DEV) down -v
+
+# =============================================================================
+# 起動・停止（本番環境）
+# =============================================================================
+
+up-prod:
+	$(COMPOSE_PROD) up -d --build
+
+down-prod:
+	$(COMPOSE_PROD) down
 
 # =============================================================================
 # ログ
 # =============================================================================
 
 logs:
-	docker compose logs -f
+	$(COMPOSE_DEV) logs -f
 
 logs-backend:
-	docker compose logs -f backend
+	$(COMPOSE_DEV) logs -f backend
 
 logs-frontend:
-	docker compose logs -f frontend
+	$(COMPOSE_DEV) logs -f frontend
 
 logs-mysql:
-	docker compose logs -f mysql
+	$(COMPOSE_DEV) logs -f mysql
 
 # =============================================================================
 # ビルド
 # =============================================================================
 
 build:
-	docker compose build
+	$(COMPOSE_DEV) build
 
 build-backend:
-	docker compose build backend
+	$(COMPOSE_DEV) build backend
 
 build-frontend:
-	docker compose build frontend
+	$(COMPOSE_DEV) build frontend
 
 # =============================================================================
 # テスト
@@ -112,10 +135,10 @@ build-frontend:
 test: test-backend test-frontend
 
 test-backend:
-	docker compose exec -e ENV=test backend gotestsum --format testname -- ./...
+	$(COMPOSE_DEV) exec -e ENV=test backend gotestsum --format testname -- ./...
 
 test-frontend:
-	docker compose exec frontend npm run test
+	$(COMPOSE_DEV) exec frontend npm run test
 
 # =============================================================================
 # Lint・フォーマット
@@ -124,31 +147,31 @@ test-frontend:
 lint: lint-backend lint-frontend
 
 lint-backend:
-	docker compose exec backend go vet ./...
+	$(COMPOSE_DEV) exec backend go vet ./...
 
 lint-frontend:
-	docker compose exec frontend npm run lint
+	$(COMPOSE_DEV) exec frontend npm run lint
 
 fmt: fmt-backend fmt-frontend
 
 fmt-backend:
-	docker compose exec backend go fmt ./...
+	$(COMPOSE_DEV) exec backend go fmt ./...
 
 fmt-frontend:
-	docker compose exec frontend npm run format
+	$(COMPOSE_DEV) exec frontend npm run format
 
 # =============================================================================
 # マイグレーション
 # =============================================================================
 
 migrate:
-	docker compose exec backend sql-migrate up -env=development
+	$(COMPOSE_DEV) exec backend sql-migrate up -env=development
 
 migrate-status:
-	docker compose exec backend sql-migrate status -env=development
+	$(COMPOSE_DEV) exec backend sql-migrate status -env=development
 
 migrate-down:
-	docker compose exec backend sql-migrate down -env=development -limit=1
+	$(COMPOSE_DEV) exec backend sql-migrate down -env=development -limit=1
 
 migrate-new:
 	cd backend && sql-migrate new $(NAME)
@@ -158,27 +181,27 @@ migrate-new:
 # =============================================================================
 
 shell-backend:
-	docker compose exec backend sh
+	$(COMPOSE_DEV) exec backend sh
 
 shell-frontend:
-	docker compose exec frontend sh
+	$(COMPOSE_DEV) exec frontend sh
 
 shell-mysql:
-	docker compose exec mysql mysql -u caltrack -pcaltrack caltrack
+	$(COMPOSE_DEV) exec mysql mysql -u caltrack -pcaltrack caltrack
 
 # =============================================================================
 # Swagger
 # =============================================================================
 
 swagger:
-	docker compose exec backend swag init
+	$(COMPOSE_DEV) exec backend swag init
 
 # =============================================================================
 # Storybook
 # =============================================================================
 
 storybook:
-	docker compose exec frontend npm run storybook
+	$(COMPOSE_DEV) exec frontend npm run storybook
 
 build-storybook:
-	docker compose exec frontend npm run build-storybook
+	$(COMPOSE_DEV) exec frontend npm run build-storybook

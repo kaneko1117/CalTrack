@@ -39,4 +39,4 @@ jobs:
             --exclude '.env' \
             ./ ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:~/my-app/
 
-          ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "cd ~/my-app && docker compose up -d --build"
+          ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "cd ~/my-app && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build"
