@@ -17,6 +17,8 @@ jobs:
           node-version: '20'
 
       - name: Build frontend
+        env:
+          VITE_API_URL: https://caltracks.win
         run: |
           cd frontend
           npm ci
