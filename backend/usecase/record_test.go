@@ -90,6 +90,26 @@ func (m *mockRecordUserRepository) FindByID(ctx context.Context, id vo.UserID) (
 	return nil, nil
 }
 
+// mockRecordAdviceCacheRepository はAdviceCacheRepositoryのモック実装
+type mockRecordAdviceCacheRepository struct {
+	deleteByUserIDAndDate func(ctx context.Context, userID vo.UserID, date time.Time) error
+}
+
+func (m *mockRecordAdviceCacheRepository) Save(ctx context.Context, cache *entity.AdviceCache) error {
+	return nil
+}
+
+func (m *mockRecordAdviceCacheRepository) FindByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+	return nil, nil
+}
+
+func (m *mockRecordAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) error {
+	if m.deleteByUserIDAndDate != nil {
+		return m.deleteByUserIDAndDate(ctx, userID, date)
+	}
+	return nil
+}
+
 // mockRecordTransactionManager はTransactionManagerのモック実装
 type mockRecordTransactionManager struct{}
 
@@ -109,9 +129,10 @@ func validRecord(t *testing.T) *entity.Record {
 }
 
 func TestRecordUsecase_Create(t *testing.T) {
-	t.Run("正常系_記録が保存される", func(t *testing.T) {
+	t.Run("正常系_記録が保存されキャッシュが無効化される", func(t *testing.T) {
 		var savedRecord *entity.Record
 		var savedRecordPfc *entity.RecordPfc
+		cacheDeleted := false
 		recordRepo := &mockRecordRepository{
 			save: func(ctx context.Context, record *entity.Record) error {
 				savedRecord = record
@@ -124,10 +145,16 @@ func TestRecordUsecase_Create(t *testing.T) {
 				return nil
 			},
 		}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{
+			deleteByUserIDAndDate: func(ctx context.Context, userID vo.UserID, date time.Time) error {
+				cacheDeleted = true
+				return nil
+			},
+		}
 		userRepo := &mockRecordUserRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		record := validRecord(t)
 		recordPfc := entity.NewRecordPfc(record.ID(), 20.0, 10.0, 30.0)
 		err := uc.Create(context.Background(), record, recordPfc)
@@ -144,6 +171,9 @@ func TestRecordUsecase_Create(t *testing.T) {
 		if savedRecordPfc == nil {
 			t.Error("recordPfc should be saved")
 		}
+		if !cacheDeleted {
+			t.Error("cache should be deleted")
+		}
 	})
 
 	t.Run("異常系_保存時にエラーが発生", func(t *testing.T) {
@@ -154,10 +184,11 @@ func TestRecordUsecase_Create(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		userRepo := &mockRecordUserRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		record := validRecord(t)
 		recordPfc := entity.NewRecordPfc(record.ID(), 20.0, 10.0, 30.0)
 		err := uc.Create(context.Background(), record, recordPfc)
@@ -217,9 +248,10 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		output, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if err != nil {
@@ -264,9 +296,10 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		output, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if err != nil {
@@ -294,9 +327,10 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -315,9 +349,10 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -341,9 +376,10 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -393,9 +429,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -449,9 +486,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -499,9 +537,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -538,9 +577,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -565,9 +605,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -587,9 +628,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, repoErr) {
@@ -614,9 +656,10 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			},
 		}
 		recordPfcRepo := &mockRecordPfcRepository{}
+		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
 		txManager := &mockRecordTransactionManager{}
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, repoErr) {

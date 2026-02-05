@@ -51,13 +51,18 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 }
 
 // mockRecordRepository はRecordRepositoryのモック実装
-type mockRecordRepository struct{}
+type mockRecordRepository struct {
+	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
+}
 
 func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) error {
 	return nil
 }
 
 func (m *mockRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+	if m.findByUserIDAndDateRange != nil {
+		return m.findByUserIDAndDateRange(ctx, userID, startTime, endTime)
+	}
 	return nil, nil
 }
 
@@ -80,6 +85,21 @@ func (m *mockRecordPfcRepository) FindByRecordIDs(ctx context.Context, recordIDs
 	return nil, nil
 }
 
+// mockAdviceCacheRepository はAdviceCacheRepositoryのモック実装
+type mockAdviceCacheRepository struct{}
+
+func (m *mockAdviceCacheRepository) Save(ctx context.Context, cache *entity.AdviceCache) error {
+	return nil
+}
+
+func (m *mockAdviceCacheRepository) FindByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+	return nil, nil
+}
+
+func (m *mockAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) error {
+	return nil
+}
+
 // mockPfcAnalyzer はPfcAnalyzerのモック実装
 type mockPfcAnalyzer struct {
 	analyze func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error)
@@ -93,18 +113,23 @@ func (m *mockPfcAnalyzer) Analyze(ctx context.Context, config service.PfcAnalyze
 }
 
 // setupHandler はテスト用のハンドラをセットアップする
-func setupHandler(userRepo repository.UserRepository, analyzer service.PfcAnalyzer) *nutrition.NutritionHandler {
-	recordRepo := &mockRecordRepository{}
+func setupHandler(userRepo repository.UserRepository, recordRepo repository.RecordRepository, analyzer service.PfcAnalyzer) *nutrition.NutritionHandler {
 	recordPfcRepo := &mockRecordPfcRepository{}
-	uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+	adviceCacheRepo := &mockAdviceCacheRepository{}
+	uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 	return nutrition.NewNutritionHandler(uc)
 }
 
 func TestNutritionHandler_GetAdvice(t *testing.T) {
 	t.Run("正常系_アドバイス取得成功", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		userID := vo.ReconstructUserID(userIDStr)
 		birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
 		now := time.Now()
+
+		// ダミーのRecordを作成
+		record, _ := entity.NewRecord(userID, now)
+		_ = record.AddItem("テスト食事", 500)
 
 		userRepo := &mockUserRepository{
 			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
@@ -124,6 +149,12 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 			},
 		}
 
+		recordRepo := &mockRecordRepository{
+			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+				return []*entity.Record{record}, nil
+			},
+		}
+
 		analyzer := &mockPfcAnalyzer{
 			analyze: func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error) {
 				return &service.NutritionAdviceOutput{
@@ -132,7 +163,7 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 			},
 		}
 
-		handler := setupHandler(userRepo, analyzer)
+		handler := setupHandler(userRepo, recordRepo, analyzer)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -163,7 +194,8 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 	t.Run("異常系_未認証（userIDがない）", func(t *testing.T) {
 		userRepo := &mockUserRepository{}
 		analyzer := &mockPfcAnalyzer{}
-		handler := setupHandler(userRepo, analyzer)
+		recordRepo := &mockRecordRepository{}
+		handler := setupHandler(userRepo, recordRepo, analyzer)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -195,7 +227,8 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 			},
 		}
 		analyzer := &mockPfcAnalyzer{}
-		handler := setupHandler(userRepo, analyzer)
+		recordRepo := &mockRecordRepository{}
+		handler := setupHandler(userRepo, recordRepo, analyzer)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -227,7 +260,8 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 			},
 		}
 		analyzer := &mockPfcAnalyzer{}
-		handler := setupHandler(userRepo, analyzer)
+		recordRepo := &mockRecordRepository{}
+		handler := setupHandler(userRepo, recordRepo, analyzer)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)

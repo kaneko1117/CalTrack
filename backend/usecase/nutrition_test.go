@@ -14,6 +14,34 @@ import (
 	"caltrack/usecase/service"
 )
 
+// mockAdviceCacheRepository はAdviceCacheRepositoryのモック実装
+type mockAdviceCacheRepository struct {
+	save                 func(ctx context.Context, cache *entity.AdviceCache) error
+	findByUserIDAndDate  func(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error)
+	deleteByUserIDAndDate func(ctx context.Context, userID vo.UserID, date time.Time) error
+}
+
+func (m *mockAdviceCacheRepository) Save(ctx context.Context, cache *entity.AdviceCache) error {
+	if m.save != nil {
+		return m.save(ctx, cache)
+	}
+	return nil
+}
+
+func (m *mockAdviceCacheRepository) FindByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+	if m.findByUserIDAndDate != nil {
+		return m.findByUserIDAndDate(ctx, userID, date)
+	}
+	return nil, nil
+}
+
+func (m *mockAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) error {
+	if m.deleteByUserIDAndDate != nil {
+		return m.deleteByUserIDAndDate(ctx, userID, date)
+	}
+	return nil
+}
+
 // mockPfcAnalyzer はPfcAnalyzerのモック実装
 type mockPfcAnalyzer struct {
 	analyze func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error)
@@ -113,7 +141,96 @@ func validUserForNutrition(t *testing.T, userID vo.UserID) *entity.User {
 }
 
 func TestNutritionUsecase_GetAdvice(t *testing.T) {
-	t.Run("正常系_アドバイスが取得できる", func(t *testing.T) {
+	t.Run("正常系_今日の記録がない場合は固定文言が返される", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForNutrition(t, userID)
+
+		userRepo := &mockNutritionUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+
+		recordRepo := &mockNutritionRecordRepository{
+			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+				return []*entity.Record{}, nil
+			},
+		}
+
+		recordPfcRepo := &mockNutritionRecordPfcRepository{}
+		adviceCacheRepo := &mockAdviceCacheRepository{}
+		analyzer := &mockPfcAnalyzer{}
+
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		output, err := uc.GetAdvice(context.Background(), userID)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if output.Advice != usecase.NoRecordAdviceMessage {
+			t.Errorf("Advice = %s, want %s", output.Advice, usecase.NoRecordAdviceMessage)
+		}
+	})
+
+	t.Run("正常系_キャッシュがある場合はキャッシュが返される", func(t *testing.T) {
+		userID := vo.NewUserID()
+		user := validUserForNutrition(t, userID)
+
+		// 今日のRecordを作成
+		record1, _ := entity.NewRecord(userID, time.Now())
+		_ = record1.AddItem("朝食", 300)
+		records := []*entity.Record{record1}
+
+		cachedAdvice := "キャッシュされたアドバイス"
+		cache := entity.NewAdviceCache(userID, time.Now(), cachedAdvice)
+
+		userRepo := &mockNutritionUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+
+		recordRepo := &mockNutritionRecordRepository{
+			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+				return records, nil
+			},
+		}
+
+		recordPfcRepo := &mockNutritionRecordPfcRepository{}
+
+		adviceCacheRepo := &mockAdviceCacheRepository{
+			findByUserIDAndDate: func(ctx context.Context, uid vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+				return cache, nil
+			},
+		}
+
+		// AI呼び出しは行われないはず
+		analyzerCalled := false
+		analyzer := &mockPfcAnalyzer{
+			analyze: func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error) {
+				analyzerCalled = true
+				return &service.NutritionAdviceOutput{Advice: "新しいアドバイス"}, nil
+			},
+		}
+
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		output, err := uc.GetAdvice(context.Background(), userID)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if output.Advice != cachedAdvice {
+			t.Errorf("Advice = %s, want %s", output.Advice, cachedAdvice)
+		}
+
+		if analyzerCalled {
+			t.Error("Analyzer should not be called when cache exists")
+		}
+	})
+
+	t.Run("正常系_キャッシュがない場合はAI呼び出し後にキャッシュ保存される", func(t *testing.T) {
 		userID := vo.NewUserID()
 		user := validUserForNutrition(t, userID)
 
@@ -148,21 +265,30 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			},
 		}
 
+		var savedCache *entity.AdviceCache
+		adviceCacheRepo := &mockAdviceCacheRepository{
+			findByUserIDAndDate: func(ctx context.Context, uid vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+				return nil, nil // キャッシュなし
+			},
+			save: func(ctx context.Context, cache *entity.AdviceCache) error {
+				savedCache = cache
+				return nil
+			},
+		}
+
+		analyzerCalled := false
 		analyzer := &mockPfcAnalyzer{
 			analyze: func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error) {
+				analyzerCalled = true
 				// プロンプトが構築されていることを確認
 				if config.Prompt == "" {
 					t.Error("Prompt should not be empty")
-				}
-				// プロンプトにカロリー情報が含まれていることを確認
-				if config.Prompt == "" {
-					t.Error("Prompt should contain calorie information")
 				}
 				return &service.NutritionAdviceOutput{Advice: "バランスの良い食事ができています"}, nil
 			},
 		}
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 		output, err := uc.GetAdvice(context.Background(), userID)
 
 		if err != nil {
@@ -176,47 +302,20 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 		if output.Advice != "バランスの良い食事ができています" {
 			t.Errorf("Advice = %s, want %s", output.Advice, "バランスの良い食事ができています")
 		}
-	})
 
-	t.Run("正常系_食事記録がない場合", func(t *testing.T) {
-		userID := vo.NewUserID()
-		user := validUserForNutrition(t, userID)
-
-		userRepo := &mockNutritionUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
+		if !analyzerCalled {
+			t.Error("Analyzer should be called when cache does not exist")
 		}
 
-		recordRepo := &mockNutritionRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-				return []*entity.Record{}, nil
-			},
+		if savedCache == nil {
+			t.Error("Cache should be saved")
 		}
 
-		recordPfcRepo := &mockNutritionRecordPfcRepository{}
-
-		analyzer := &mockPfcAnalyzer{
-			analyze: func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error) {
-				// 食事記録がない場合でもアドバイスを返す
-				if input.CurrentCalories != 0 {
-					t.Errorf("CurrentCalories = %d, want 0", input.CurrentCalories)
-				}
-				return &service.NutritionAdviceOutput{Advice: "まだ食事記録がありません。最初の食事を記録してみましょう。"}, nil
-			},
-		}
-
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
-		output, err := uc.GetAdvice(context.Background(), userID)
-
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if output.Advice == "" {
-			t.Error("Advice should not be empty")
+		if savedCache != nil && savedCache.Advice() != "バランスの良い食事ができています" {
+			t.Errorf("Saved cache advice = %s, want %s", savedCache.Advice(), "バランスの良い食事ができています")
 		}
 	})
+
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
 		userID := vo.NewUserID()
@@ -229,9 +328,10 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 
 		recordRepo := &mockNutritionRecordRepository{}
 		recordPfcRepo := &mockNutritionRecordPfcRepository{}
+		adviceCacheRepo := &mockAdviceCacheRepository{}
 		analyzer := &mockPfcAnalyzer{}
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -251,9 +351,10 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 
 		recordRepo := &mockNutritionRecordRepository{}
 		recordPfcRepo := &mockNutritionRecordPfcRepository{}
+		adviceCacheRepo := &mockAdviceCacheRepository{}
 		analyzer := &mockPfcAnalyzer{}
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -279,9 +380,10 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 		}
 
 		recordPfcRepo := &mockNutritionRecordPfcRepository{}
+		adviceCacheRepo := &mockAdviceCacheRepository{}
 		analyzer := &mockPfcAnalyzer{}
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -315,9 +417,15 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			},
 		}
 
+		adviceCacheRepo := &mockAdviceCacheRepository{
+			findByUserIDAndDate: func(ctx context.Context, uid vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+				return nil, nil
+			},
+		}
+
 		analyzer := &mockPfcAnalyzer{}
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -351,13 +459,19 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			},
 		}
 
+		adviceCacheRepo := &mockAdviceCacheRepository{
+			findByUserIDAndDate: func(ctx context.Context, uid vo.UserID, date time.Time) (*entity.AdviceCache, error) {
+				return nil, nil
+			},
+		}
+
 		analyzer := &mockPfcAnalyzer{
 			analyze: func(ctx context.Context, config service.PfcAnalyzerConfig, input service.NutritionAdviceInput) (*service.NutritionAdviceOutput, error) {
 				return nil, analyzeErr
 			},
 		}
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, analyzeErr) {

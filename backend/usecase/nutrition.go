@@ -6,18 +6,25 @@ import (
 	"time"
 
 	"caltrack/config"
+	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/repository"
 	"caltrack/domain/vo"
 	"caltrack/usecase/service"
 )
 
+const (
+	// NoRecordAdviceMessage は今日の記録がない場合のアドバイスメッセージ
+	NoRecordAdviceMessage = "今日の記録がまだありません。食事を記録してアドバイスを受け取りましょう！"
+)
+
 // NutritionUsecase は栄養分析に関するユースケースを提供する
 type NutritionUsecase struct {
-	userRepo      repository.UserRepository
-	recordRepo    repository.RecordRepository
-	recordPfcRepo repository.RecordPfcRepository
-	pfcAnalyzer   service.PfcAnalyzer
+	userRepo         repository.UserRepository
+	recordRepo       repository.RecordRepository
+	recordPfcRepo    repository.RecordPfcRepository
+	adviceCacheRepo  repository.AdviceCacheRepository
+	pfcAnalyzer      service.PfcAnalyzer
 }
 
 // NewNutritionUsecase は NutritionUsecase のインスタンスを生成する
@@ -25,13 +32,15 @@ func NewNutritionUsecase(
 	userRepo repository.UserRepository,
 	recordRepo repository.RecordRepository,
 	recordPfcRepo repository.RecordPfcRepository,
+	adviceCacheRepo repository.AdviceCacheRepository,
 	pfcAnalyzer service.PfcAnalyzer,
 ) *NutritionUsecase {
 	return &NutritionUsecase{
-		userRepo:      userRepo,
-		recordRepo:    recordRepo,
-		recordPfcRepo: recordPfcRepo,
-		pfcAnalyzer:   pfcAnalyzer,
+		userRepo:        userRepo,
+		recordRepo:      recordRepo,
+		recordPfcRepo:   recordPfcRepo,
+		adviceCacheRepo: adviceCacheRepo,
+		pfcAnalyzer:     pfcAnalyzer,
 	}
 }
 
@@ -58,6 +67,26 @@ func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*se
 	if err != nil {
 		logError("GetAdvice", err, "user_id", userID.String())
 		return nil, err
+	}
+
+	// 今日の記録がない場合は固定文言を返却
+	if len(records) == 0 {
+		return &service.NutritionAdviceOutput{
+			Advice: NoRecordAdviceMessage,
+		}, nil
+	}
+
+	// キャッシュ確認
+	cachedAdvice, err := u.adviceCacheRepo.FindByUserIDAndDate(ctx, userID, now)
+	if err != nil {
+		logError("GetAdvice", err, "user_id", userID.String())
+		return nil, err
+	}
+	// キャッシュがあればそれを返却
+	if cachedAdvice != nil {
+		return &service.NutritionAdviceOutput{
+			Advice: cachedAdvice.Advice(),
+		}, nil
 	}
 
 	// RecordIDリスト抽出
@@ -132,6 +161,13 @@ func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*se
 	if err != nil {
 		logError("GetAdvice", err, "user_id", userID.String())
 		return nil, err
+	}
+
+	// キャッシュを保存
+	cache := entity.NewAdviceCache(userID, now, output.Advice)
+	if err := u.adviceCacheRepo.Save(ctx, cache); err != nil {
+		// キャッシュ保存失敗はログのみ（アドバイス取得は成功として扱う）
+		logError("GetAdvice", err, "user_id", userID.String(), "cache_save_failed", true)
 	}
 
 	return output, nil
