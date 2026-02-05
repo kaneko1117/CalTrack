@@ -1,5 +1,19 @@
 package vo
 
+// PFCバランス比率（カロリー比）
+const (
+	ProteinRatio = 0.15 // タンパク質: 15%
+	FatRatio     = 0.25 // 脂質: 25%
+	CarbsRatio   = 0.60 // 炭水化物: 60%
+)
+
+// 1gあたりのカロリー
+const (
+	ProteinCalPerGram = 4.0 // タンパク質: 4kcal/g
+	FatCalPerGram     = 9.0 // 脂質: 9kcal/g
+	CarbsCalPerGram   = 4.0 // 炭水化物: 4kcal/g
+)
+
 // Pfc はPFC(タンパク質・脂質・炭水化物)を表すValue Object
 type Pfc struct {
 	protein float64

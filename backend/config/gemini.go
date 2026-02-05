@@ -12,6 +12,9 @@ import (
 // GeminiClient はGemini APIクライアントのグローバルインスタンス
 var GeminiClient *genai.Client
 
+// GeminiModelName は使用するGeminiモデル名
+var GeminiModelName string
+
 // InitGemini はGeminiクライアントを初期化する
 // アプリケーション起動時に1回だけ呼び出す
 func InitGemini() {
@@ -20,6 +23,13 @@ func InitGemini() {
 		log.Println("GEMINI_API_KEY is not set. Image analysis feature will be disabled.")
 		return
 	}
+
+	// モデル名を環境変数から取得（デフォルト: gemini-3-flash-preview）
+	GeminiModelName = os.Getenv("GEMINI_MODEL_NAME")
+	if GeminiModelName == "" {
+		GeminiModelName = "gemini-3-flash-preview"
+	}
+	log.Printf("Gemini model: %s", GeminiModelName)
 
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))

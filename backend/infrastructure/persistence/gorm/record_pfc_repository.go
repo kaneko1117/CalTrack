@@ -1,0 +1,104 @@
+package gorm
+
+import (
+	"context"
+	"errors"
+
+	"gorm.io/gorm"
+
+	"caltrack/domain/entity"
+	"caltrack/domain/vo"
+	"caltrack/infrastructure/persistence/gorm/model"
+)
+
+// GormRecordPfcRepository はRecordPfcRepositoryのGORM実装
+type GormRecordPfcRepository struct {
+	db *gorm.DB
+}
+
+// NewGormRecordPfcRepository は新しいGormRecordPfcRepositoryを生成する
+func NewGormRecordPfcRepository(db *gorm.DB) *GormRecordPfcRepository {
+	return &GormRecordPfcRepository{db: db}
+}
+
+// Save はRecordPfcを保存する
+func (r *GormRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
+	tx := GetTx(ctx, r.db)
+
+	recordPfcModel := toRecordPfcModel(recordPfc)
+	if err := tx.Create(&recordPfcModel).Error; err != nil {
+		logError("Save", err, "record_pfc_id", recordPfc.ID().String())
+		return err
+	}
+
+	return nil
+}
+
+// FindByRecordID は指定RecordIDのRecordPfcを取得する（見つからなければnil, nil）
+func (r *GormRecordPfcRepository) FindByRecordID(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error) {
+	tx := GetTx(ctx, r.db)
+
+	var m model.RecordPfc
+	err := tx.Where("record_id = ?", recordID.String()).First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 見つからない場合はnilを返す（エラーではない）
+			return nil, nil
+		}
+		logError("FindByRecordID", err, "record_id", recordID.String())
+		return nil, err
+	}
+
+	return toRecordPfcEntity(&m), nil
+}
+
+// FindByRecordIDs は複数のRecordIDに対応するRecordPfcを一括取得する
+func (r *GormRecordPfcRepository) FindByRecordIDs(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error) {
+	if len(recordIDs) == 0 {
+		return []*entity.RecordPfc{}, nil
+	}
+
+	tx := GetTx(ctx, r.db)
+
+	// RecordIDを文字列のスライスに変換
+	recordIDStrs := make([]string, len(recordIDs))
+	for i, id := range recordIDs {
+		recordIDStrs[i] = id.String()
+	}
+
+	var models []model.RecordPfc
+	err := tx.Where("record_id IN ?", recordIDStrs).Find(&models).Error
+	if err != nil {
+		logError("FindByRecordIDs", err, "count", len(recordIDs))
+		return nil, err
+	}
+
+	recordPfcs := make([]*entity.RecordPfc, len(models))
+	for i, m := range models {
+		recordPfcs[i] = toRecordPfcEntity(&m)
+	}
+
+	return recordPfcs, nil
+}
+
+// toRecordPfcModel はエンティティをGORMモデルに変換する
+func toRecordPfcModel(recordPfc *entity.RecordPfc) model.RecordPfc {
+	return model.RecordPfc{
+		ID:       recordPfc.ID().String(),
+		RecordID: recordPfc.RecordID().String(),
+		Protein:  recordPfc.Protein(),
+		Fat:      recordPfc.Fat(),
+		Carbs:    recordPfc.Carbs(),
+	}
+}
+
+// toRecordPfcEntity はGORMモデルをエンティティに変換する
+func toRecordPfcEntity(m *model.RecordPfc) *entity.RecordPfc {
+	return entity.ReconstructRecordPfc(
+		m.ID,
+		m.RecordID,
+		m.Protein,
+		m.Fat,
+		m.Carbs,
+	)
+}

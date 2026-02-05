@@ -2,7 +2,7 @@ package entity
 
 import "caltrack/domain/vo"
 
-// RecordPfc はカロリー記録のPFC情報を表すEntity
+// RecordPfc は食事記録のPFC情報（グラム）を表すEntity
 type RecordPfc struct {
 	id       vo.RecordPfcID
 	recordID vo.RecordID

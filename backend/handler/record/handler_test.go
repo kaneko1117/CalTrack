@@ -58,6 +58,34 @@ func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx contex
 	return fn(ctx)
 }
 
+// mockRecordPfcRepository はRecordPfcRepositoryのモック実装
+type mockRecordPfcRepository struct {
+	save            func(ctx context.Context, recordPfc *entity.RecordPfc) error
+	findByRecordID  func(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error)
+	findByRecordIDs func(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error)
+}
+
+func (m *mockRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
+	if m.save != nil {
+		return m.save(ctx, recordPfc)
+	}
+	return nil
+}
+
+func (m *mockRecordPfcRepository) FindByRecordID(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error) {
+	if m.findByRecordID != nil {
+		return m.findByRecordID(ctx, recordID)
+	}
+	return nil, nil
+}
+
+func (m *mockRecordPfcRepository) FindByRecordIDs(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error) {
+	if m.findByRecordIDs != nil {
+		return m.findByRecordIDs(ctx, recordIDs)
+	}
+	return nil, nil
+}
+
 // mockUserRepository はUserRepositoryのモック実装（Handler用）
 type mockUserRepository struct {
 	findByID func(ctx context.Context, id vo.UserID) (*entity.User, error)
@@ -84,16 +112,18 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 
 // setupHandler はテスト用のハンドラをセットアップする
 func setupHandler(recordRepo repository.RecordRepository) *record.RecordHandler {
+	recordPfcRepo := &mockRecordPfcRepository{}
 	userRepo := &mockUserRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
 	return record.NewRecordHandler(uc)
 }
 
 // setupHandlerWithUserRepo はUserRepositoryを指定してテスト用のハンドラをセットアップする
 func setupHandlerWithUserRepo(recordRepo repository.RecordRepository, userRepo repository.UserRepository) *record.RecordHandler {
+	recordPfcRepo := &mockRecordPfcRepository{}
 	txManager := &mockTransactionManager{}
-	uc := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
 	return record.NewRecordHandler(uc)
 }
 

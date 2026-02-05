@@ -46,16 +46,19 @@ func main() {
 	userRepo := gormPersistence.NewGormUserRepository(config.DB)
 	sessionRepo := gormPersistence.NewGormSessionRepository(config.DB)
 	recordRepo := gormPersistence.NewGormRecordRepository(config.DB)
+	recordPfcRepo := gormPersistence.NewGormRecordPfcRepository(config.DB)
 	txManager := gormPersistence.NewGormTransactionManager(config.DB)
 
 	// DI - Service
 	imageAnalyzer := infraService.NewGeminiImageAnalyzer(config.GeminiClient)
+	// pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(config.GeminiClient)
 
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	recordUsecase := usecase.NewRecordUsecase(recordRepo, userRepo, txManager)
+	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
 	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer)
+	// nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, pfcAnalyzer)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)

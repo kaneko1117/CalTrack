@@ -80,3 +80,10 @@ Delete(ctx context.Context, id ID) error
 - 具体的なDB操作
 - HTTP関連の処理
 - 外部サービスの直接呼び出し
+
+## Service Interface（AI連携等）
+
+### プロンプトの責務
+- AIサービス（Gemini等）へのプロンプトはUsecase層で構築する
+- Infrastructure層はプロンプトをConfigで受け取り、APIに送信するのみ
+- ビジネスロジック（何を聞くか）はUsecase層、技術的実装（どう聞くか）はInfrastructure層
