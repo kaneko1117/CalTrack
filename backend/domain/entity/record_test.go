@@ -112,13 +112,13 @@ func TestRecord_AddItem(t *testing.T) {
 
 func TestReconstructRecord(t *testing.T) {
 	t.Run("DB復元", func(t *testing.T) {
-		idStr := "record-123"
-		userIDStr := "user-456"
+		idStr := "550e8400-e29b-41d4-a716-446655440000"
+		userIDStr := "660e8400-e29b-41d4-a716-446655440001"
 		eatenAtTime := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 		createdAt := time.Date(2024, 6, 15, 12, 30, 0, 0, time.UTC)
 		items := []entity.RecordItem{
-			*entity.ReconstructRecordItem("item-1", idStr, "おにぎり", 180),
-			*entity.ReconstructRecordItem("item-2", idStr, "味噌汁", 50),
+			*entity.ReconstructRecordItem("770e8400-e29b-41d4-a716-446655440002", idStr, "おにぎり", 180),
+			*entity.ReconstructRecordItem("880e8400-e29b-41d4-a716-446655440003", idStr, "味噌汁", 50),
 		}
 
 		record := entity.ReconstructRecord(idStr, userIDStr, eatenAtTime, createdAt, items)
@@ -142,8 +142,8 @@ func TestReconstructRecord(t *testing.T) {
 }
 
 func TestRecord_TotalCalories(t *testing.T) {
-	idStr := "record-123"
-	userIDStr := "user-456"
+	idStr := "550e8400-e29b-41d4-a716-446655440000"
+	userIDStr := "660e8400-e29b-41d4-a716-446655440001"
 	eatenAtTime := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 	createdAt := time.Date(2024, 6, 15, 12, 30, 0, 0, time.UTC)
 
@@ -155,16 +155,16 @@ func TestRecord_TotalCalories(t *testing.T) {
 		{
 			name: "単一アイテム",
 			items: []entity.RecordItem{
-				*entity.ReconstructRecordItem("item-1", idStr, "おにぎり", 180),
+				*entity.ReconstructRecordItem("770e8400-e29b-41d4-a716-446655440002", idStr, "おにぎり", 180),
 			},
 			wantTotal: 180,
 		},
 		{
 			name: "複数アイテム",
 			items: []entity.RecordItem{
-				*entity.ReconstructRecordItem("item-1", idStr, "おにぎり", 180),
-				*entity.ReconstructRecordItem("item-2", idStr, "味噌汁", 50),
-				*entity.ReconstructRecordItem("item-3", idStr, "焼き鮭", 200),
+				*entity.ReconstructRecordItem("770e8400-e29b-41d4-a716-446655440002", idStr, "おにぎり", 180),
+				*entity.ReconstructRecordItem("880e8400-e29b-41d4-a716-446655440003", idStr, "味噌汁", 50),
+				*entity.ReconstructRecordItem("990e8400-e29b-41d4-a716-446655440004", idStr, "焼き鮭", 200),
 			},
 			wantTotal: 430,
 		},
@@ -188,8 +188,8 @@ func TestRecord_TotalCalories(t *testing.T) {
 
 func TestReconstructRecordItem(t *testing.T) {
 	t.Run("DB復元", func(t *testing.T) {
-		idStr := "item-123"
-		recordIDStr := "record-456"
+		idStr := "770e8400-e29b-41d4-a716-446655440002"
+		recordIDStr := "550e8400-e29b-41d4-a716-446655440000"
 		nameStr := "おにぎり"
 		caloriesVal := 180
 

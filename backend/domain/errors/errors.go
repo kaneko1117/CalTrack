@@ -34,6 +34,16 @@ var (
 	ErrInvalidSessionID          = errors.New("invalid session id")
 	ErrSessionExpired            = errors.New("session has expired")
 
+	// UUID errors
+	ErrUUIDRequired      = errors.New("uuid is required")
+	ErrInvalidUUIDFormat = errors.New("invalid uuid format")
+
+	// ID errors
+	ErrInvalidUserID       = errors.New("invalid user id")
+	ErrInvalidRecordID     = errors.New("invalid record id")
+	ErrInvalidRecordItemID = errors.New("invalid record item id")
+	ErrInvalidRecordPfcID  = errors.New("invalid record pfc id")
+
 	// Record Item errors
 	ErrItemNameRequired = errors.New("item name is required")
 
