@@ -94,3 +94,12 @@ func (r *Record) TotalCalories() int {
 	}
 	return total
 }
+
+// ItemNames は食品名のリストを返す
+func (r *Record) ItemNames() []string {
+	names := make([]string, len(r.items))
+	for i, item := range r.items {
+		names[i] = item.Name().String()
+	}
+	return names
+}

@@ -69,7 +69,7 @@ func (h *RecordHandler) Create(c *gin.Context) {
 	}
 
 	// Usecase実行
-	if err := h.usecase.Create(c.Request.Context(), record); err != nil {
+	if err := h.usecase.Create(c.Request.Context(), record, nil); err != nil {
 		common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error", err)
 		return
 	}

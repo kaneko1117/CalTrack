@@ -21,31 +21,42 @@ type TodayCaloriesOutput struct {
 
 // RecordUsecase はカロリー記録に関するユースケースを提供する
 type RecordUsecase struct {
-	recordRepo repository.RecordRepository
-	userRepo   repository.UserRepository
-	txManager  repository.TransactionManager
+	recordRepo    repository.RecordRepository
+	recordPfcRepo repository.RecordPfcRepository
+	userRepo      repository.UserRepository
+	txManager     repository.TransactionManager
 }
 
 // NewRecordUsecase は RecordUsecase のインスタンスを生成する
 func NewRecordUsecase(
 	recordRepo repository.RecordRepository,
+	recordPfcRepo repository.RecordPfcRepository,
 	userRepo repository.UserRepository,
 	txManager repository.TransactionManager,
 ) *RecordUsecase {
 	return &RecordUsecase{
-		recordRepo: recordRepo,
-		userRepo:   userRepo,
-		txManager:  txManager,
+		recordRepo:    recordRepo,
+		recordPfcRepo: recordPfcRepo,
+		userRepo:      userRepo,
+		txManager:     txManager,
 	}
 }
 
 // Create は新しいカロリー記録を作成する
-func (u *RecordUsecase) Create(ctx context.Context, record *entity.Record) error {
+func (u *RecordUsecase) Create(ctx context.Context, record *entity.Record, recordPfc *entity.RecordPfc) error {
 	err := u.txManager.Execute(ctx, func(txCtx context.Context) error {
 		if err := u.recordRepo.Save(txCtx, record); err != nil {
 			logError("Create", err, "record_id", record.ID().String())
 			return err
 		}
+
+		if recordPfc != nil {
+			if err := u.recordPfcRepo.Save(txCtx, recordPfc); err != nil {
+				logError("Create", err, "record_pfc_id", recordPfc.ID().String())
+				return err
+			}
+		}
+
 		return nil
 	})
 
@@ -67,11 +78,11 @@ func (u *RecordUsecase) GetTodayCalories(ctx context.Context, userID vo.UserID) 
 
 	// 今日の日付範囲を計算
 	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.AddDate(0, 0, 1)
+	start := startOfDay(now)
+	end := endOfDay(now)
 
 	// 今日のRecord取得
-	records, err := u.recordRepo.FindByUserIDAndDateRange(ctx, userID, startOfDay, endOfDay)
+	records, err := u.recordRepo.FindByUserIDAndDateRange(ctx, userID, start, end)
 	if err != nil {
 		logError("GetTodayCalories", err, "user_id", userID.String())
 		return nil, err
@@ -87,7 +98,7 @@ func (u *RecordUsecase) GetTodayCalories(ctx context.Context, userID vo.UserID) 
 	targetCalories := user.CalculateTargetCalories()
 
 	return &TodayCaloriesOutput{
-		Date:           startOfDay,
+		Date:           start,
 		TotalCalories:  totalCalories,
 		TargetCalories: targetCalories,
 		Difference:     targetCalories - totalCalories,

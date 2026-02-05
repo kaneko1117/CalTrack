@@ -1,0 +1,185 @@
+package usecase
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"caltrack/config"
+	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/repository"
+	"caltrack/domain/vo"
+	"caltrack/usecase/service"
+)
+
+// NutritionUsecase は栄養分析に関するユースケースを提供する
+type NutritionUsecase struct {
+	userRepo      repository.UserRepository
+	recordRepo    repository.RecordRepository
+	recordPfcRepo repository.RecordPfcRepository
+	pfcAnalyzer   service.PfcAnalyzer
+}
+
+// NewNutritionUsecase は NutritionUsecase のインスタンスを生成する
+func NewNutritionUsecase(
+	userRepo repository.UserRepository,
+	recordRepo repository.RecordRepository,
+	recordPfcRepo repository.RecordPfcRepository,
+	pfcAnalyzer service.PfcAnalyzer,
+) *NutritionUsecase {
+	return &NutritionUsecase{
+		userRepo:      userRepo,
+		recordRepo:    recordRepo,
+		recordPfcRepo: recordPfcRepo,
+		pfcAnalyzer:   pfcAnalyzer,
+	}
+}
+
+// GetAdvice はユーザーに対する栄養アドバイスを取得する
+func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error) {
+	// ユーザー取得
+	user, err := u.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		logError("GetAdvice", err, "user_id", userID.String())
+		return nil, err
+	}
+	if user == nil {
+		logWarn("GetAdvice", "user not found", "user_id", userID.String())
+		return nil, domainErrors.ErrUserNotFound
+	}
+
+	// 今日の日付範囲を計算
+	now := time.Now()
+	start := startOfDay(now)
+	end := endOfDay(now)
+
+	// 今日のRecord取得
+	records, err := u.recordRepo.FindByUserIDAndDateRange(ctx, userID, start, end)
+	if err != nil {
+		logError("GetAdvice", err, "user_id", userID.String())
+		return nil, err
+	}
+
+	// RecordIDリスト抽出
+	recordIDs := make([]vo.RecordID, len(records))
+	for i, record := range records {
+		recordIDs[i] = record.ID()
+	}
+
+	// 今日のRecordPfc取得
+	recordPfcs := make([]*vo.Pfc, 0)
+	if len(recordIDs) > 0 {
+		pfcList, err := u.recordPfcRepo.FindByRecordIDs(ctx, recordIDs)
+		if err != nil {
+			logError("GetAdvice", err, "user_id", userID.String())
+			return nil, err
+		}
+		for _, recordPfc := range pfcList {
+			pfc := recordPfc.Pfc()
+			recordPfcs = append(recordPfcs, &pfc)
+		}
+	}
+
+	// 目標値計算
+	targetCalories := user.CalculateTargetCalories()
+	targetPfc := user.CalculateTargetPfc()
+
+	// 現在値集計
+	currentCalories := 0
+	currentProtein := 0.0
+	currentFat := 0.0
+	currentCarbs := 0.0
+	for _, record := range records {
+		currentCalories += record.TotalCalories()
+	}
+	for _, pfc := range recordPfcs {
+		currentProtein += pfc.Protein()
+		currentFat += pfc.Fat()
+		currentCarbs += pfc.Carbs()
+	}
+	currentPfc := vo.NewPfc(currentProtein, currentFat, currentCarbs)
+
+	// 食品リスト抽出
+	foodItems := make([]string, 0)
+	for _, record := range records {
+		foodItems = append(foodItems, record.ItemNames()...)
+	}
+
+	// PfcAnalyzer.Analyze呼び出し
+	input := service.NutritionAdviceInput{
+		TargetCalories:  targetCalories,
+		TargetPfc:       targetPfc,
+		CurrentCalories: currentCalories,
+		CurrentPfc:      currentPfc,
+		FoodItems:       foodItems,
+	}
+
+	// プロンプト構築
+	prompt := buildNutritionAdvicePrompt(input)
+
+	// Config構築
+	analyzerConfig := service.PfcAnalyzerConfig{
+		ModelName: config.GeminiModelName,
+		Prompt:    prompt,
+		Log: service.PfcAnalyzerLogConfig{
+			EnableRequestLog:  true,
+			EnableResponseLog: true,
+			EnableTokenLog:    true,
+		},
+	}
+
+	output, err := u.pfcAnalyzer.Analyze(ctx, analyzerConfig, input)
+	if err != nil {
+		logError("GetAdvice", err, "user_id", userID.String())
+		return nil, err
+	}
+
+	return output, nil
+}
+
+// buildNutritionAdvicePrompt は栄養アドバイスプロンプトを構築する
+func buildNutritionAdvicePrompt(input service.NutritionAdviceInput) string {
+	prompt := fmt.Sprintf(`あなたは栄養アドバイザーです。以下の情報に基づいて、簡潔なアドバイスを提供してください。
+
+【目標値】
+- カロリー: %d kcal
+- PFC: タンパク質 %.1fg / 脂質 %.1fg / 炭水化物 %.1fg
+
+【現在の摂取量】
+- カロリー: %d kcal
+- PFC: タンパク質 %.1fg / 脂質 %.1fg / 炭水化物 %.1fg
+
+【本日食べたもの】
+%s
+
+アドバイスは以下の形式で出力してください：
+- 3〜5行程度の簡潔な文章
+- 目標達成度を評価
+- 不足または過剰な栄養素を指摘
+- 次の食事で何を意識すべきか提案`,
+		input.TargetCalories,
+		input.TargetPfc.Protein(),
+		input.TargetPfc.Fat(),
+		input.TargetPfc.Carbs(),
+		input.CurrentCalories,
+		input.CurrentPfc.Protein(),
+		input.CurrentPfc.Fat(),
+		input.CurrentPfc.Carbs(),
+		formatFoodItems(input.FoodItems),
+	)
+
+	return prompt
+}
+
+// formatFoodItems は食品リストを整形する
+func formatFoodItems(items []string) string {
+	if len(items) == 0 {
+		return "（まだ食事記録がありません）"
+	}
+
+	result := ""
+	for i, item := range items {
+		result += fmt.Sprintf("%d. %s\n", i+1, item)
+	}
+	return result
+}

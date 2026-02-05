@@ -232,3 +232,14 @@ func (u *User) CalculateTargetCalories() int {
 
 	return int(targetCalories)
 }
+
+// CalculateTargetPfc は目標カロリーからPFCバランス（g）を計算する
+func (u *User) CalculateTargetPfc() vo.Pfc {
+	targetCalories := float64(u.CalculateTargetCalories())
+
+	protein := targetCalories * vo.ProteinRatio / vo.ProteinCalPerGram
+	fat := targetCalories * vo.FatRatio / vo.FatCalPerGram
+	carbs := targetCalories * vo.CarbsRatio / vo.CarbsCalPerGram
+
+	return vo.NewPfc(protein, fat, carbs)
+}
