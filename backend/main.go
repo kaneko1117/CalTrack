@@ -11,6 +11,7 @@ import (
 	"caltrack/handler/analyze"
 	"caltrack/handler/auth"
 	"caltrack/handler/middleware"
+	"caltrack/handler/nutrition"
 	"caltrack/handler/record"
 	"caltrack/handler/user"
 	gormPersistence "caltrack/infrastructure/persistence/gorm"
@@ -51,20 +52,21 @@ func main() {
 
 	// DI - Service
 	imageAnalyzer := infraService.NewGeminiImageAnalyzer(config.GeminiClient)
-	// pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(config.GeminiClient)
+	pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(config.GeminiClient)
 
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, txManager)
 	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer)
-	// nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, pfcAnalyzer)
+	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, pfcAnalyzer)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
 	authHandler := auth.NewAuthHandler(authUsecase)
 	recordHandler := record.NewRecordHandler(recordUsecase)
 	analyzeHandler := analyze.NewAnalyzeHandler(analyzeUsecase)
+	nutritionHandler := nutrition.NewNutritionHandler(nutritionUsecase)
 
 	// Setup router
 	r := gin.Default()
@@ -108,6 +110,7 @@ func main() {
 		authenticated.GET("/records/today", recordHandler.GetToday)
 		authenticated.GET("/statistics", recordHandler.GetStatistics)
 		authenticated.POST("/analyze-image", analyzeHandler.AnalyzeImage)
+		authenticated.GET("/nutrition/advice", nutritionHandler.GetAdvice)
 	}
 
 	// Start server
