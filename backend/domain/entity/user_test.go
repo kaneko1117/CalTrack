@@ -217,3 +217,116 @@ func TestUser_CalculateTargetCalories(t *testing.T) {
 		})
 	}
 }
+
+func TestUser_UpdateProfile_Success(t *testing.T) {
+	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
+	user, err := entity.ReconstructUser(
+		"550e8400-e29b-41d4-a716-446655440000",
+		"test@example.com",
+		"$2a$10$hashedpassword",
+		"oldnick",
+		60.0,
+		165.0,
+		birthDate,
+		"male",
+		"sedentary",
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("ReconstructUser() unexpected error: %v", err)
+	}
+
+	beforeUpdate := user.UpdatedAt()
+
+	errs := user.UpdateProfile("newnick", 175.0, 70.5, "moderate")
+	if errs != nil {
+		t.Fatalf("UpdateProfile() unexpected errors: %v", errs)
+	}
+
+	if user.Nickname().String() != "newnick" {
+		t.Errorf("Nickname = %v, want newnick", user.Nickname().String())
+	}
+	if user.Height().Cm() != 175.0 {
+		t.Errorf("Height = %v, want 175.0", user.Height().Cm())
+	}
+	if user.Weight().Kg() != 70.5 {
+		t.Errorf("Weight = %v, want 70.5", user.Weight().Kg())
+	}
+	if user.ActivityLevel().String() != "moderate" {
+		t.Errorf("ActivityLevel = %v, want moderate", user.ActivityLevel().String())
+	}
+	if !user.UpdatedAt().After(beforeUpdate) {
+		t.Error("UpdatedAt should be updated")
+	}
+}
+
+func TestUser_UpdateProfile_ValidationErrors(t *testing.T) {
+	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
+	user, err := entity.ReconstructUser(
+		"550e8400-e29b-41d4-a716-446655440000",
+		"test@example.com",
+		"$2a$10$hashedpassword",
+		"oldnick",
+		60.0,
+		165.0,
+		birthDate,
+		"male",
+		"sedentary",
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("ReconstructUser() unexpected error: %v", err)
+	}
+
+	errs := user.UpdateProfile("", -1, 600, "invalid")
+	if len(errs) != 4 {
+		t.Fatalf("got %d errors, want 4: %v", len(errs), errs)
+	}
+
+	if user.Nickname().String() != "oldnick" {
+		t.Errorf("Nickname should not change on error, got %v", user.Nickname().String())
+	}
+	if user.Weight().Kg() != 60.0 {
+		t.Errorf("Weight should not change on error, got %v", user.Weight().Kg())
+	}
+	if user.Height().Cm() != 165.0 {
+		t.Errorf("Height should not change on error, got %v", user.Height().Cm())
+	}
+	if user.ActivityLevel().String() != "sedentary" {
+		t.Errorf("ActivityLevel should not change on error, got %v", user.ActivityLevel().String())
+	}
+}
+
+func TestUser_UpdateProfile_PartialErrors(t *testing.T) {
+	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
+	user, err := entity.ReconstructUser(
+		"550e8400-e29b-41d4-a716-446655440000",
+		"test@example.com",
+		"$2a$10$hashedpassword",
+		"oldnick",
+		60.0,
+		165.0,
+		birthDate,
+		"male",
+		"sedentary",
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("ReconstructUser() unexpected error: %v", err)
+	}
+
+	errs := user.UpdateProfile("", 175.0, 70.5, "moderate")
+	if len(errs) != 1 {
+		t.Fatalf("got %d errors, want 1: %v", len(errs), errs)
+	}
+
+	if user.Nickname().String() != "oldnick" {
+		t.Errorf("Nickname should not change on partial error, got %v", user.Nickname().String())
+	}
+	if user.Height().Cm() != 165.0 {
+		t.Errorf("Height should not change on partial error, got %v", user.Height().Cm())
+	}
+}

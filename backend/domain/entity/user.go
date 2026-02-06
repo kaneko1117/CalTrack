@@ -243,3 +243,38 @@ func (u *User) CalculateTargetPfc() vo.Pfc {
 
 	return vo.NewPfc(protein, fat, carbs)
 }
+
+// UpdateProfile はニックネーム、身長、体重、活動レベルを更新する。
+// バリデーションエラーはまとめて返す。全て有効な場合のみ状態を変更する。
+func (u *User) UpdateProfile(
+	nicknameStr string,
+	heightVal float64,
+	weightVal float64,
+	activityLevelStr string,
+) []error {
+	var errs []error
+
+	nickname, err := vo.NewNickname(nicknameStr)
+	errs = appendIfErr(errs, err)
+
+	height, err := vo.NewHeight(heightVal)
+	errs = appendIfErr(errs, err)
+
+	weight, err := vo.NewWeight(weightVal)
+	errs = appendIfErr(errs, err)
+
+	activityLevel, err := vo.NewActivityLevel(activityLevelStr)
+	errs = appendIfErr(errs, err)
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	u.nickname = nickname
+	u.height = height
+	u.weight = weight
+	u.activityLevel = activityLevel
+	u.updatedAt = time.Now()
+
+	return nil
+}
