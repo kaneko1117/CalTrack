@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/vo"
 	"caltrack/handler/common"
 	"caltrack/handler/user/dto"
 	"caltrack/usecase"
@@ -61,15 +62,68 @@ func (h *UserHandler) Register(c *gin.Context) {
 	})
 }
 
+// UpdateProfile は認証ユーザーのプロフィールを更新する
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		common.RespondError(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated", nil)
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid request body", nil)
+		return
+	}
+
+	userID := vo.ReconstructUserID(userIDStr.(string))
+
+	updatedUser, err := h.usecase.UpdateProfile(c.Request.Context(), userID, req.ToInput())
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.NewUpdateProfileResponse(updatedUser))
+}
+
 func (h *UserHandler) handleError(c *gin.Context, err error) {
 	if errors.Is(err, domainErrors.ErrEmailAlreadyExists) {
 		common.RespondError(c, http.StatusConflict, common.CodeEmailAlreadyExists, err.Error(), nil)
 		return
 	}
 
+	if errors.Is(err, domainErrors.ErrUserNotFound) {
+		common.RespondError(c, http.StatusNotFound, common.CodeNotFound, "User not found", nil)
+		return
+	}
+
+	if isValidationError(err) {
+		common.RespondValidationError(c, []string{err.Error()})
+		return
+	}
+
 	// 500エラーの場合はHandler層のログヘルパーでログ出力
 	common.LogError("handleError", err, "method", c.Request.Method, "path", c.Request.URL.Path)
 	common.RespondError(c, http.StatusInternalServerError, common.CodeInternalError, "Internal server error", nil)
+}
+
+func isValidationError(err error) bool {
+	validationErrors := []error{
+		domainErrors.ErrNicknameRequired,
+		domainErrors.ErrNicknameTooLong,
+		domainErrors.ErrWeightMustBePositive,
+		domainErrors.ErrWeightTooHeavy,
+		domainErrors.ErrHeightMustBePositive,
+		domainErrors.ErrHeightTooTall,
+		domainErrors.ErrInvalidActivityLevel,
+	}
+	for _, ve := range validationErrors {
+		if errors.Is(err, ve) {
+			return true
+		}
+	}
+	return false
 }
 
 func extractErrorMessages(errs []error) []string {

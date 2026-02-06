@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"caltrack/domain/entity"
+	"caltrack/usecase"
 )
 
 type RegisterUserRequest struct {
@@ -35,4 +36,22 @@ func (r RegisterUserRequest) ToDomain() (*entity.User, error, []error) {
 	)
 
 	return user, nil, errs
+}
+
+// UpdateProfileRequest はプロフィール更新リクエストDTO
+type UpdateProfileRequest struct {
+	Nickname      string  `json:"nickname" example:"NewNickname"`
+	Height        float64 `json:"height" example:"175.0"`
+	Weight        float64 `json:"weight" example:"70.5"`
+	ActivityLevel string  `json:"activityLevel" example:"moderate"`
+}
+
+// ToInput はUsecaseのUpdateProfileInputに変換する
+func (r UpdateProfileRequest) ToInput() usecase.UpdateProfileInput {
+	return usecase.UpdateProfileInput{
+		Nickname:      r.Nickname,
+		Height:        r.Height,
+		Weight:        r.Weight,
+		ActivityLevel: r.ActivityLevel,
+	}
 }
