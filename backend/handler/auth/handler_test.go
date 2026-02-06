@@ -50,6 +50,10 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 	return nil, nil
 }
 
+func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 // mockSessionRepository はSessionRepositoryのモック実装
 type mockSessionRepository struct {
 	save           func(ctx context.Context, session *entity.Session) error

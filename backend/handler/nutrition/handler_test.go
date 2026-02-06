@@ -50,6 +50,10 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 	return nil, nil
 }
 
+func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 // mockRecordRepository はRecordRepositoryのモック実装
 type mockRecordRepository struct {
 	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
