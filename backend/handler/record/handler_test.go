@@ -111,6 +111,10 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 	return nil, nil
 }
 
+func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 // mockAdviceCacheRepository はAdviceCacheRepositoryのモック実装
 type mockAdviceCacheRepository struct{}
 

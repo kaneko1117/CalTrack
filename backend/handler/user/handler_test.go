@@ -44,6 +44,10 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 	return nil, nil
 }
 
+func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 type mockTransactionManager struct{}
 
 func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {

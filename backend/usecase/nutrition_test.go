@@ -78,6 +78,10 @@ func (m *mockNutritionUserRepository) FindByID(ctx context.Context, id vo.UserID
 	return nil, nil
 }
 
+func (m *mockNutritionUserRepository) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 // mockNutritionRecordRepository はRecordRepositoryのモック実装（Nutrition用）
 type mockNutritionRecordRepository struct {
 	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)

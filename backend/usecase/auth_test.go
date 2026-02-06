@@ -63,6 +63,10 @@ func (m *mockUserRepositoryForAuth) FindByID(ctx context.Context, id vo.UserID) 
 	return nil, nil
 }
 
+func (m *mockUserRepositoryForAuth) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 // mockTxManager はTransactionManagerのモック実装
 type mockTxManager struct{}
 

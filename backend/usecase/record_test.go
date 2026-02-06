@@ -91,6 +91,10 @@ func (m *mockRecordUserRepository) FindByID(ctx context.Context, id vo.UserID) (
 	return nil, nil
 }
 
+func (m *mockRecordUserRepository) Update(ctx context.Context, user *entity.User) error {
+	return nil
+}
+
 // mockRecordAdviceCacheRepository はAdviceCacheRepositoryのモック実装
 type mockRecordAdviceCacheRepository struct {
 	deleteByUserIDAndDate func(ctx context.Context, userID vo.UserID, date time.Time) error

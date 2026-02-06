@@ -70,6 +70,17 @@ func (r *GormUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entit
 	return toUserEntity(&m)
 }
 
+// Update は既存ユーザーを更新する
+func (r *GormUserRepository) Update(ctx context.Context, user *entity.User) error {
+	tx := GetTx(ctx, r.db)
+	m := toUserModel(user)
+	if err := tx.Save(&m).Error; err != nil {
+		logError("Update", err, "user_id", user.ID().String())
+		return err
+	}
+	return nil
+}
+
 func toUserModel(user *entity.User) model.User {
 	return model.User{
 		ID:             user.ID().String(),
