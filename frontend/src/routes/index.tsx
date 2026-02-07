@@ -10,6 +10,7 @@ import { HomePage } from "../pages/HomePage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { LoginPage } from "../pages/LoginPage";
+import { SettingsPage } from "../pages/SettingsPage";
 
 /**
  * 認証関連のルート定義
@@ -38,6 +39,10 @@ const mainRoutes: RouteObject[] = [
   {
     path: "/dashboard",
     element: <DashboardPage />,
+  },
+  {
+    path: "/settings",
+    element: <SettingsPage />,
   },
   // 将来追加予定:
   // { path: "/meals", element: <MealsPage /> },

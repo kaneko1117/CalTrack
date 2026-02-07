@@ -30,7 +30,6 @@ export type UseFormReturn<F extends string> = {
   reset: () => void;
   isValid: boolean;
   isPending: boolean;
-  setFormState: React.Dispatch<React.SetStateAction<Record<F, string>>>;
 };
 
 /**
@@ -72,6 +71,14 @@ export function useForm<F extends string, T, D = unknown>(
 
   const [formState, setFormState] = useState(initialFormState);
   const [errors, setErrors] = useState(initialErrors);
+
+  // React公式推奨: レンダー中にprops変更を検知してstateを同期
+  const [prevInitialFormState, setPrevInitialFormState] = useState(initialFormState);
+  if (initialFormState !== prevInitialFormState) {
+    setPrevInitialFormState(initialFormState);
+    setFormState(initialFormState);
+    setErrors(initialErrors);
+  }
 
   // SWRベースのmutationフック
   const { trigger, isMutating, error: apiError, reset: resetMutation } = useRequestMutation<T, D>(
@@ -138,6 +145,5 @@ export function useForm<F extends string, T, D = unknown>(
     reset,
     isValid,
     isPending: isMutating,
-    setFormState,
   };
 }
