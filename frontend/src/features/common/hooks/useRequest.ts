@@ -4,7 +4,7 @@
  */
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { fetcher, mutate } from "@/lib/swr";
+import { mutate } from "@/lib/swr";
 import type { ApiErrorResponse } from "@/lib/api";
 
 type MutationMethod = "POST" | "PUT" | "PATCH" | "DELETE";
@@ -36,7 +36,6 @@ type UseRequestMutationReturn<T, D> = {
 export function useRequestGet<T>(url: string | null): UseRequestGetReturn<T> {
   const { data, error, isLoading, isValidating, mutate: swrMutate } = useSWR<T, ApiErrorResponse>(
     url,
-    fetcher,
     { revalidateOnFocus: false }
   );
   return {
