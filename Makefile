@@ -12,7 +12,7 @@ COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml
         lint lint-backend lint-frontend fmt fmt-backend fmt-frontend \
         migrate migrate-status migrate-down migrate-new \
         shell-backend shell-frontend shell-mysql clean \
-        swagger storybook build-storybook \
+        swagger mock-gen mock-clean storybook build-storybook \
         up-prod down-prod
 
 # =============================================================================
@@ -69,6 +69,10 @@ help:
 	@echo ""
 	@echo "Swagger:"
 	@echo "  make swagger         - Swaggerドキュメント生成"
+	@echo ""
+	@echo "モック:"
+	@echo "  make mock-gen        - モックファイル生成"
+	@echo "  make mock-clean      - モックファイル削除"
 	@echo ""
 	@echo "Storybook:"
 	@echo "  make storybook       - Storybook起動（ポート6006）"
@@ -195,6 +199,29 @@ shell-mysql:
 
 swagger:
 	$(COMPOSE_DEV) exec backend swag init
+
+# =============================================================================
+# モック生成
+# =============================================================================
+
+MOCKGEN := $(shell go env GOPATH)/bin/mockgen
+
+mock-gen:
+	cd backend && mkdir -p mock
+	cd backend && $(MOCKGEN) -source=domain/repository/user_repository.go -destination=mock/mock_user_repository.go -package=mock
+	cd backend && $(MOCKGEN) -source=domain/repository/session_repository.go -destination=mock/mock_session_repository.go -package=mock
+	cd backend && $(MOCKGEN) -source=domain/repository/record_repository.go -destination=mock/mock_record_repository.go -package=mock
+	cd backend && $(MOCKGEN) -source=domain/repository/record_pfc_repository.go -destination=mock/mock_record_pfc_repository.go -package=mock
+	cd backend && $(MOCKGEN) -source=domain/repository/advice_cache_repository.go -destination=mock/mock_advice_cache_repository.go -package=mock
+	cd backend && $(MOCKGEN) -source=domain/repository/transaction.go -destination=mock/mock_transaction_manager.go -package=mock
+	cd backend && $(MOCKGEN) -source=usecase/service/image_analyzer.go -destination=mock/mock_image_analyzer.go -package=mock
+	cd backend && $(MOCKGEN) -source=usecase/service/pfc_analyzer.go -destination=mock/mock_pfc_analyzer.go -package=mock
+	cd backend && $(MOCKGEN) -source=usecase/service/pfc_estimator.go -destination=mock/mock_pfc_estimator.go -package=mock
+	@echo "Mock generation completed."
+
+mock-clean:
+	rm -rf backend/mock/
+	@echo "Mock files cleaned."
 
 # =============================================================================
 # Storybook
