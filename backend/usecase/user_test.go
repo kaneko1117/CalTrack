@@ -9,46 +9,19 @@ import (
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
+	"caltrack/mock"
 	"caltrack/usecase"
+
+	gomock "go.uber.org/mock/gomock"
 )
 
-type mockUserRepository struct {
-	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
-	save          func(ctx context.Context, user *entity.User) error
-	findByID      func(ctx context.Context, id vo.UserID) (*entity.User, error)
-	update        func(ctx context.Context, user *entity.User) error
-}
-
-func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
-	return m.existsByEmail(ctx, email)
-}
-
-func (m *mockUserRepository) Save(ctx context.Context, u *entity.User) error {
-	return m.save(ctx, u)
-}
-
-func (m *mockUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
-	return nil, nil
-}
-
-func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
-	if m.findByID != nil {
-		return m.findByID(ctx, id)
-	}
-	return nil, nil
-}
-
-func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
-	if m.update != nil {
-		return m.update(ctx, user)
-	}
-	return nil
-}
-
-type mockTransactionManager struct{}
-
-func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
+// setupUserMocks はUser Usecase用のモックを初期化する
+func setupUserMocks(t *testing.T) (*mock.MockUserRepository, *mock.MockTransactionManager, *gomock.Controller) {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	userRepo := mock.NewMockUserRepository(ctrl)
+	txManager := mock.NewMockTransactionManager(ctrl)
+	return userRepo, txManager, ctrl
 }
 
 func validUser(t *testing.T) *entity.User {
@@ -93,18 +66,22 @@ func reconstructedUser(t *testing.T) *entity.User {
 // TestUserUsecase_Register はユーザー登録機能のテスト
 func TestUserUsecase_Register(t *testing.T) {
 	t.Run("正常系_登録成功", func(t *testing.T) {
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return false, nil
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
-		registeredUser, err := uc.Register(context.Background(), validUser(t))
+		user := validUser(t)
+		email, _ := vo.NewEmail("test@example.com")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			ExistsByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(false, nil)
+		userRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			Return(nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
+		registeredUser, err := uc.Register(context.Background(), user)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -115,18 +92,19 @@ func TestUserUsecase_Register(t *testing.T) {
 	})
 
 	t.Run("異常系_メールアドレスが既に存在する", func(t *testing.T) {
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return true, nil
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
-		_, err := uc.Register(context.Background(), validUser(t))
+		user := validUser(t)
+		email, _ := vo.NewEmail("test@example.com")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			ExistsByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(true, nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
+		_, err := uc.Register(context.Background(), user)
 
 		if err != domainErrors.ErrEmailAlreadyExists {
 			t.Errorf("got %v, want ErrEmailAlreadyExists", err)
@@ -134,19 +112,20 @@ func TestUserUsecase_Register(t *testing.T) {
 	})
 
 	t.Run("異常系_リポジトリエラー", func(t *testing.T) {
-		repoErr := errors.New("db error")
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return false, repoErr
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
-		_, err := uc.Register(context.Background(), validUser(t))
+		user := validUser(t)
+		email, _ := vo.NewEmail("test@example.com")
+		repoErr := errors.New("db error")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			ExistsByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(false, repoErr)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
+		_, err := uc.Register(context.Background(), user)
 
 		if err != repoErr {
 			t.Errorf("got %v, want repoErr", err)
@@ -154,19 +133,23 @@ func TestUserUsecase_Register(t *testing.T) {
 	})
 
 	t.Run("異常系_保存エラー", func(t *testing.T) {
-		saveErr := errors.New("save error")
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return false, nil
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return saveErr
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
-		_, err := uc.Register(context.Background(), validUser(t))
+		user := validUser(t)
+		email, _ := vo.NewEmail("test@example.com")
+		saveErr := errors.New("save error")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			ExistsByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(false, nil)
+		userRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			Return(saveErr)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
+		_, err := uc.Register(context.Background(), user)
 
 		if !errors.Is(err, saveErr) {
 			t.Errorf("got %v, want saveErr", err)
@@ -177,18 +160,20 @@ func TestUserUsecase_Register(t *testing.T) {
 // TestUserUsecase_UpdateProfile はプロフィール更新機能のテスト
 func TestUserUsecase_UpdateProfile(t *testing.T) {
 	t.Run("正常系_プロフィール更新成功", func(t *testing.T) {
-		user := reconstructedUser(t)
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-			update: func(ctx context.Context, u *entity.User) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		user := reconstructedUser(t)
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(user.ID())).
+			Return(user, nil)
+		userRepo.EXPECT().
+			Update(gomock.Any(), gomock.Any()).
+			Return(nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		updatedUser, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
 			Nickname:      "newnick",
 			Height:        170.0,
@@ -214,15 +199,17 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
-		userID := vo.NewUserID()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		userID := vo.NewUserID()
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		_, err := uc.UpdateProfile(context.Background(), userID, usecase.UpdateProfileInput{
 			Nickname:      "newnick",
 			Height:        170.0,
@@ -236,15 +223,17 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_バリデーションエラー", func(t *testing.T) {
-		user := reconstructedUser(t)
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		user := reconstructedUser(t)
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(user.ID())).
+			Return(user, nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		_, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
 			Nickname:      "", // ニックネームが空
 			Height:        170.0,
@@ -258,16 +247,18 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_FindByIDリポジトリエラー", func(t *testing.T) {
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		repoErr := errors.New("db error")
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, repoErr
-			},
-		}
-		txManager := &mockTransactionManager{}
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, repoErr)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		_, err := uc.UpdateProfile(context.Background(), userID, usecase.UpdateProfileInput{
 			Nickname:      "newnick",
 			Height:        170.0,
@@ -281,19 +272,21 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_Updateリポジトリエラー", func(t *testing.T) {
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
+
 		user := reconstructedUser(t)
 		updateErr := errors.New("update error")
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-			update: func(ctx context.Context, u *entity.User) error {
-				return updateErr
-			},
-		}
-		txManager := &mockTransactionManager{}
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(user.ID())).
+			Return(user, nil)
+		userRepo.EXPECT().
+			Update(gomock.Any(), gomock.Any()).
+			Return(updateErr)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		_, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
 			Nickname:      "newnick",
 			Height:        170.0,
@@ -307,18 +300,20 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("正常系_更新後のEntityが返却される", func(t *testing.T) {
-		user := reconstructedUser(t)
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-			update: func(ctx context.Context, u *entity.User) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		user := reconstructedUser(t)
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(user.ID())).
+			Return(user, nil)
+		userRepo.EXPECT().
+			Update(gomock.Any(), gomock.Any()).
+			Return(nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		updatedUser, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
 			Nickname:      "updatednick",
 			Height:        180.0,
@@ -344,15 +339,17 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 // TestUserUsecase_GetProfile はユーザー情報取得機能のテスト
 func TestUserUsecase_GetProfile(t *testing.T) {
 	t.Run("正常系_プロフィール取得成功", func(t *testing.T) {
-		user := reconstructedUser(t)
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		user := reconstructedUser(t)
+
+		// GetProfileはトランザクションを使用しないのでEXPECTは不要
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(user.ID())).
+			Return(user, nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		result, err := uc.GetProfile(context.Background(), user.ID())
 
 		if err != nil {
@@ -382,15 +379,16 @@ func TestUserUsecase_GetProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
-		userID := vo.NewUserID()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, nil
-			},
-		}
-		txManager := &mockTransactionManager{}
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		userID := vo.NewUserID()
+
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, nil)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		_, err := uc.GetProfile(context.Background(), userID)
 
 		if err != domainErrors.ErrUserNotFound {
@@ -399,16 +397,17 @@ func TestUserUsecase_GetProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_リポジトリエラー", func(t *testing.T) {
+		userRepo, txManager, ctrl := setupUserMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		repoErr := errors.New("db error")
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, repoErr
-			},
-		}
-		txManager := &mockTransactionManager{}
 
-		uc := usecase.NewUserUsecase(repo, txManager)
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, repoErr)
+
+		uc := usecase.NewUserUsecase(userRepo, txManager)
 		_, err := uc.GetProfile(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {

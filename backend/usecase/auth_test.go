@@ -9,69 +9,29 @@ import (
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
+	"caltrack/mock"
 	"caltrack/usecase"
+
+	gomock "go.uber.org/mock/gomock"
 )
 
-// mockSessionRepository はSessionRepositoryのモック実装
-type mockSessionRepository struct {
-	save           func(ctx context.Context, session *entity.Session) error
-	findByID       func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error)
-	deleteByID     func(ctx context.Context, sessionID vo.SessionID) error
-	deleteByUserID func(ctx context.Context, userID vo.UserID) error
+// setupAuthMocks はテスト用のモックを初期化する
+func setupAuthMocks(t *testing.T) (*mock.MockUserRepository, *mock.MockSessionRepository, *mock.MockTransactionManager, *gomock.Controller) {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	userRepo := mock.NewMockUserRepository(ctrl)
+	sessionRepo := mock.NewMockSessionRepository(ctrl)
+	txManager := mock.NewMockTransactionManager(ctrl)
+	return userRepo, sessionRepo, txManager, ctrl
 }
 
-func (m *mockSessionRepository) Save(ctx context.Context, session *entity.Session) error {
-	return m.save(ctx, session)
-}
-
-func (m *mockSessionRepository) FindByID(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-	return m.findByID(ctx, sessionID)
-}
-
-func (m *mockSessionRepository) DeleteByID(ctx context.Context, sessionID vo.SessionID) error {
-	return m.deleteByID(ctx, sessionID)
-}
-
-func (m *mockSessionRepository) DeleteByUserID(ctx context.Context, userID vo.UserID) error {
-	return m.deleteByUserID(ctx, userID)
-}
-
-// mockUserRepositoryForAuth はUserRepositoryのモック実装（auth用）
-type mockUserRepositoryForAuth struct {
-	findByEmail   func(ctx context.Context, email vo.Email) (*entity.User, error)
-	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
-	save          func(ctx context.Context, user *entity.User) error
-	findByID      func(ctx context.Context, id vo.UserID) (*entity.User, error)
-}
-
-func (m *mockUserRepositoryForAuth) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
-	return m.findByEmail(ctx, email)
-}
-
-func (m *mockUserRepositoryForAuth) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
-	return m.existsByEmail(ctx, email)
-}
-
-func (m *mockUserRepositoryForAuth) Save(ctx context.Context, user *entity.User) error {
-	return m.save(ctx, user)
-}
-
-func (m *mockUserRepositoryForAuth) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
-	if m.findByID != nil {
-		return m.findByID(ctx, id)
-	}
-	return nil, nil
-}
-
-func (m *mockUserRepositoryForAuth) Update(ctx context.Context, user *entity.User) error {
-	return nil
-}
-
-// mockTxManager はTransactionManagerのモック実装
-type mockTxManager struct{}
-
-func (m *mockTxManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
+// setupTxManagerExecute はTransactionManager.ExecuteのDoAndReturnを設定する
+func setupTxManagerExecute(txManager *mock.MockTransactionManager) {
+	txManager.EXPECT().
+		Execute(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, fn func(ctx context.Context) error) error {
+			return fn(ctx)
+		})
 }
 
 // validUserForAuth はテスト用の有効なユーザーを生成する
@@ -120,19 +80,21 @@ func validSession(t *testing.T, userID vo.UserID) *entity.Session {
 // TestAuthUsecase_Login はログイン機能のテスト
 func TestAuthUsecase_Login(t *testing.T) {
 	t.Run("正常系_ログイン成功", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		user := validUserForAuth(t)
 
-		userRepo := &mockUserRepositoryForAuth{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		sessionRepo := &mockSessionRepository{
-			save: func(ctx context.Context, session *entity.Session) error {
-				return nil
-			},
-		}
-		txManager := &mockTxManager{}
+		// VOを作成してgomock.Eq()で比較
+		email, _ := vo.NewEmail("test@example.com")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(user, nil)
+		sessionRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			Return(nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		output, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -158,9 +120,10 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_無効なメールアドレス形式", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -174,9 +137,10 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_空のメールアドレス", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -190,9 +154,10 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_無効なパスワード形式", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -206,9 +171,10 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_空のパスワード", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -222,13 +188,15 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return nil, nil
-			},
-		}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		email, _ := vo.NewEmail("notfound@example.com")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(nil, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -242,15 +210,16 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_パスワードが一致しない", func(t *testing.T) {
-		user := validUserForAuth(t)
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
 
-		userRepo := &mockUserRepositoryForAuth{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		user := validUserForAuth(t)
+		email, _ := vo.NewEmail("test@example.com")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(user, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -264,14 +233,16 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーリポジトリエラー", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		repoErr := errors.New("db error")
-		userRepo := &mockUserRepositoryForAuth{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return nil, repoErr
-			},
-		}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		email, _ := vo.NewEmail("test@example.com")
+
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(nil, repoErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -285,20 +256,20 @@ func TestAuthUsecase_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_セッション保存エラー", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		user := validUserForAuth(t)
 		saveErr := errors.New("session save error")
+		email, _ := vo.NewEmail("test@example.com")
 
-		userRepo := &mockUserRepositoryForAuth{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		sessionRepo := &mockSessionRepository{
-			save: func(ctx context.Context, session *entity.Session) error {
-				return saveErr
-			},
-		}
-		txManager := &mockTxManager{}
+		setupTxManagerExecute(txManager)
+		userRepo.EXPECT().
+			FindByEmail(gomock.Any(), gomock.Eq(email)).
+			Return(user, nil)
+		sessionRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			Return(saveErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.Login(context.Background(), usecase.LoginInput{
@@ -319,15 +290,15 @@ func TestAuthUsecase_Login(t *testing.T) {
 // TestAuthUsecase_Logout はログアウト機能のテスト
 func TestAuthUsecase_Logout(t *testing.T) {
 	t.Run("正常系_ログアウト成功", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		sid := validSessionID(t)
 
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{
-			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
-				return nil
-			},
-		}
-		txManager := &mockTxManager{}
+		setupTxManagerExecute(txManager)
+		sessionRepo.EXPECT().
+			DeleteByID(gomock.Any(), gomock.Eq(sid)).
+			Return(nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		err := uc.Logout(context.Background(), sid.String())
@@ -338,9 +309,10 @@ func TestAuthUsecase_Logout(t *testing.T) {
 	})
 
 	t.Run("異常系_無効なセッションID", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		err := uc.Logout(context.Background(), "invalid-session-id")
@@ -351,9 +323,10 @@ func TestAuthUsecase_Logout(t *testing.T) {
 	})
 
 	t.Run("異常系_空のセッションID", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		err := uc.Logout(context.Background(), "")
@@ -364,16 +337,16 @@ func TestAuthUsecase_Logout(t *testing.T) {
 	})
 
 	t.Run("異常系_セッション削除エラー", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		sid := validSessionID(t)
 		deleteErr := errors.New("delete error")
 
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{
-			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
-				return deleteErr
-			},
-		}
-		txManager := &mockTxManager{}
+		setupTxManagerExecute(txManager)
+		sessionRepo.EXPECT().
+			DeleteByID(gomock.Any(), gomock.Eq(sid)).
+			Return(deleteErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		err := uc.Logout(context.Background(), sid.String())
@@ -391,16 +364,15 @@ func TestAuthUsecase_Logout(t *testing.T) {
 // TestAuthUsecase_ValidateSession はセッション検証機能のテスト
 func TestAuthUsecase_ValidateSession(t *testing.T) {
 	t.Run("正常系_セッション検証成功", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		session := validSession(t, userID)
 
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{
-			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-				return session, nil
-			},
-		}
-		txManager := &mockTxManager{}
+		sessionRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(session.ID())).
+			Return(session, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		result, err := uc.ValidateSession(context.Background(), session.ID().String())
@@ -417,9 +389,10 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 	})
 
 	t.Run("異常系_無効なセッションID", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.ValidateSession(context.Background(), "invalid-session-id")
@@ -430,9 +403,10 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 	})
 
 	t.Run("異常系_空のセッションID", func(t *testing.T) {
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTxManager{}
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
+		// バリデーションエラーで早期returnするのでEXPECTは不要
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.ValidateSession(context.Background(), "")
@@ -443,15 +417,14 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 	})
 
 	t.Run("異常系_セッションが見つからない", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		sid := validSessionID(t)
 
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{
-			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-				return nil, nil
-			},
-		}
-		txManager := &mockTxManager{}
+		sessionRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(sid)).
+			Return(nil, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.ValidateSession(context.Background(), sid.String())
@@ -462,6 +435,9 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 	})
 
 	t.Run("異常系_セッション有効期限切れ", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		// 期限切れのセッションを作成
 		expiredSession, err := entity.ReconstructSession(
@@ -474,13 +450,9 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 			t.Fatalf("failed to create expired session: %v", err)
 		}
 
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{
-			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-				return expiredSession, nil
-			},
-		}
-		txManager := &mockTxManager{}
+		sessionRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(expiredSession.ID())).
+			Return(expiredSession, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err = uc.ValidateSession(context.Background(), expiredSession.ID().String())
@@ -491,16 +463,15 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 	})
 
 	t.Run("異常系_リポジトリエラー", func(t *testing.T) {
+		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
+		defer ctrl.Finish()
+
 		sid := validSessionID(t)
 		repoErr := errors.New("db error")
 
-		userRepo := &mockUserRepositoryForAuth{}
-		sessionRepo := &mockSessionRepository{
-			findByID: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-				return nil, repoErr
-			},
-		}
-		txManager := &mockTxManager{}
+		sessionRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(sid)).
+			Return(nil, repoErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 		_, err := uc.ValidateSession(context.Background(), sid.String())

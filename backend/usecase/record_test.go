@@ -10,133 +10,32 @@ import (
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/repository"
 	"caltrack/domain/vo"
+	"caltrack/mock"
 	"caltrack/usecase"
 	"caltrack/usecase/service"
+
+	gomock "go.uber.org/mock/gomock"
 )
 
-// mockRecordRepository はRecordRepositoryのモック実装
-type mockRecordRepository struct {
-	save                     func(ctx context.Context, record *entity.Record) error
-	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
-	getDailyCalories         func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error)
-}
-
-func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) error {
-	return m.save(ctx, record)
-}
-
-func (m *mockRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-	if m.findByUserIDAndDateRange != nil {
-		return m.findByUserIDAndDateRange(ctx, userID, startTime, endTime)
-	}
-	return nil, nil
-}
-
-func (m *mockRecordRepository) GetDailyCalories(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-	if m.getDailyCalories != nil {
-		return m.getDailyCalories(ctx, userID, period)
-	}
-	return nil, nil
-}
-
-// mockRecordPfcRepository はRecordPfcRepositoryのモック実装
-type mockRecordPfcRepository struct {
-	save            func(ctx context.Context, recordPfc *entity.RecordPfc) error
-	findByRecordID  func(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error)
-	findByRecordIDs func(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error)
-}
-
-func (m *mockRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
-	if m.save != nil {
-		return m.save(ctx, recordPfc)
-	}
-	return nil
-}
-
-func (m *mockRecordPfcRepository) FindByRecordID(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error) {
-	if m.findByRecordID != nil {
-		return m.findByRecordID(ctx, recordID)
-	}
-	return nil, nil
-}
-
-func (m *mockRecordPfcRepository) FindByRecordIDs(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error) {
-	if m.findByRecordIDs != nil {
-		return m.findByRecordIDs(ctx, recordIDs)
-	}
-	return nil, nil
-}
-
-// mockRecordUserRepository はUserRepositoryのモック実装（Record用）
-type mockRecordUserRepository struct {
-	findByID func(ctx context.Context, id vo.UserID) (*entity.User, error)
-}
-
-func (m *mockRecordUserRepository) Save(ctx context.Context, user *entity.User) error {
-	return nil
-}
-
-func (m *mockRecordUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
-	return nil, nil
-}
-
-func (m *mockRecordUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
-	return false, nil
-}
-
-func (m *mockRecordUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
-	if m.findByID != nil {
-		return m.findByID(ctx, id)
-	}
-	return nil, nil
-}
-
-func (m *mockRecordUserRepository) Update(ctx context.Context, user *entity.User) error {
-	return nil
-}
-
-// mockRecordAdviceCacheRepository はAdviceCacheRepositoryのモック実装
-type mockRecordAdviceCacheRepository struct {
-	deleteByUserIDAndDate func(ctx context.Context, userID vo.UserID, date time.Time) error
-}
-
-func (m *mockRecordAdviceCacheRepository) Save(ctx context.Context, cache *entity.AdviceCache) error {
-	return nil
-}
-
-func (m *mockRecordAdviceCacheRepository) FindByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error) {
-	return nil, nil
-}
-
-func (m *mockRecordAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) error {
-	if m.deleteByUserIDAndDate != nil {
-		return m.deleteByUserIDAndDate(ctx, userID, date)
-	}
-	return nil
-}
-
-// mockRecordTransactionManager はTransactionManagerのモック実装
-type mockRecordTransactionManager struct{}
-
-func (m *mockRecordTransactionManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
-}
-
-// mockPfcEstimator はPfcEstimatorのモック実装
-type mockPfcEstimator struct {
-	estimate func(ctx context.Context, config service.PfcEstimatorConfig, input service.PfcEstimateInput) (*service.PfcEstimateOutput, error)
-}
-
-func (m *mockPfcEstimator) Estimate(ctx context.Context, config service.PfcEstimatorConfig, input service.PfcEstimateInput) (*service.PfcEstimateOutput, error) {
-	if m.estimate != nil {
-		return m.estimate(ctx, config, input)
-	}
-	// デフォルトは固定値を返す
-	return &service.PfcEstimateOutput{
-		Protein: 20.0,
-		Fat:     10.0,
-		Carbs:   30.0,
-	}, nil
+// setupRecordMocks はテスト用のモックを初期化する
+func setupRecordMocks(t *testing.T) (
+	*mock.MockRecordRepository,
+	*mock.MockRecordPfcRepository,
+	*mock.MockUserRepository,
+	*mock.MockAdviceCacheRepository,
+	*mock.MockTransactionManager,
+	*mock.MockPfcEstimator,
+	*gomock.Controller,
+) {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	return mock.NewMockRecordRepository(ctrl),
+		mock.NewMockRecordPfcRepository(ctrl),
+		mock.NewMockUserRepository(ctrl),
+		mock.NewMockAdviceCacheRepository(ctrl),
+		mock.NewMockTransactionManager(ctrl),
+		mock.NewMockPfcEstimator(ctrl),
+		ctrl
 }
 
 // validRecord はテスト用の有効なRecordを生成する
@@ -148,77 +47,6 @@ func validRecord(t *testing.T) *entity.Record {
 		t.Fatalf("failed to create valid record: %v", err)
 	}
 	return record
-}
-
-func TestRecordUsecase_Create(t *testing.T) {
-	t.Run("正常系_記録が保存されキャッシュが無効化される", func(t *testing.T) {
-		var savedRecord *entity.Record
-		var savedRecordPfc *entity.RecordPfc
-		cacheDeleted := false
-		recordRepo := &mockRecordRepository{
-			save: func(ctx context.Context, record *entity.Record) error {
-				savedRecord = record
-				return nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{
-			save: func(ctx context.Context, recordPfc *entity.RecordPfc) error {
-				savedRecordPfc = recordPfc
-				return nil
-			},
-		}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{
-			deleteByUserIDAndDate: func(ctx context.Context, userID vo.UserID, date time.Time) error {
-				cacheDeleted = true
-				return nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{}
-		txManager := &mockRecordTransactionManager{}
-		pfcEstimator := &mockPfcEstimator{}
-
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
-		record := validRecord(t)
-		err := uc.Create(context.Background(), record)
-
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if savedRecord == nil {
-			t.Error("record should be saved")
-		}
-		if savedRecord.ID().String() != record.ID().String() {
-			t.Errorf("saved record ID = %s, want %s", savedRecord.ID().String(), record.ID().String())
-		}
-		if savedRecordPfc == nil {
-			t.Error("recordPfc should be saved")
-		}
-		if !cacheDeleted {
-			t.Error("cache should be deleted")
-		}
-	})
-
-	t.Run("異常系_保存時にエラーが発生", func(t *testing.T) {
-		saveErr := errors.New("save error")
-		recordRepo := &mockRecordRepository{
-			save: func(ctx context.Context, record *entity.Record) error {
-				return saveErr
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		userRepo := &mockRecordUserRepository{}
-		txManager := &mockRecordTransactionManager{}
-		pfcEstimator := &mockPfcEstimator{}
-
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
-		record := validRecord(t)
-		err := uc.Create(context.Background(), record)
-
-		if !errors.Is(err, saveErr) {
-			t.Errorf("got %v, want saveErr", err)
-		}
-	})
 }
 
 // validUserForRecord はRecord用テストのための有効なUserを生成する
@@ -244,8 +72,89 @@ func validUserForRecord(t *testing.T, userID vo.UserID) *entity.User {
 	return user
 }
 
+func TestRecordUsecase_Create(t *testing.T) {
+	t.Run("正常系_記録が保存されキャッシュが無効化される", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
+		record := validRecord(t)
+		var savedRecord *entity.Record
+		var savedRecordPfc *entity.RecordPfc
+		cacheDeleted := false
+
+		setupTxManagerExecute(txManager)
+		recordRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, r *entity.Record) error {
+				savedRecord = r
+				return nil
+			})
+		recordPfcRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, rp *entity.RecordPfc) error {
+				savedRecordPfc = rp
+				return nil
+			})
+		pfcEstimator.EXPECT().
+			Estimate(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(&service.PfcEstimateOutput{
+				Protein: 20.0,
+				Fat:     10.0,
+				Carbs:   30.0,
+			}, nil)
+		adviceCacheRepo.EXPECT().
+			DeleteByUserIDAndDate(gomock.Any(), gomock.Eq(record.UserID()), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, userID vo.UserID, date time.Time) error {
+				cacheDeleted = true
+				return nil
+			})
+
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		err := uc.Create(context.Background(), record)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if savedRecord == nil {
+			t.Error("record should be saved")
+		}
+		if savedRecord.ID().String() != record.ID().String() {
+			t.Errorf("saved record ID = %s, want %s", savedRecord.ID().String(), record.ID().String())
+		}
+		if savedRecordPfc == nil {
+			t.Error("recordPfc should be saved")
+		}
+		if !cacheDeleted {
+			t.Error("cache should be deleted")
+		}
+	})
+
+	t.Run("異常系_保存時にエラーが発生", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
+		record := validRecord(t)
+		saveErr := errors.New("save error")
+
+		setupTxManagerExecute(txManager)
+		recordRepo.EXPECT().
+			Save(gomock.Any(), gomock.Any()).
+			Return(saveErr)
+
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		err := uc.Create(context.Background(), record)
+
+		if !errors.Is(err, saveErr) {
+			t.Errorf("got %v, want saveErr", err)
+		}
+	})
+}
+
 func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	t.Run("正常系_今日のカロリー情報を取得", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 
@@ -259,21 +168,13 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 
 		records := []*entity.Record{record1, record2}
 
-		recordRepo := &mockRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-				return records, nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			FindByUserIDAndDateRange(gomock.Any(), gomock.Eq(userID), gomock.Any(), gomock.Any()).
+			Return(records, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		output, err := uc.GetTodayCalories(context.Background(), userID)
 
@@ -305,24 +206,19 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("正常系_記録が0件の場合", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 
-		recordRepo := &mockRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-				return []*entity.Record{}, nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			FindByUserIDAndDateRange(gomock.Any(), gomock.Eq(userID), gomock.Any(), gomock.Any()).
+			Return([]*entity.Record{}, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		output, err := uc.GetTodayCalories(context.Background(), userID)
 
@@ -342,19 +238,15 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, nil // ユーザーが存在しない
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
@@ -364,20 +256,16 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		repoErr := errors.New("db error")
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, repoErr
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, repoErr)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
@@ -387,25 +275,20 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("異常系_Record取得時にエラー", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 		repoErr := errors.New("db error")
 
-		recordRepo := &mockRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, uid vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-				return nil, repoErr
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			FindByUserIDAndDateRange(gomock.Any(), gomock.Eq(userID), gomock.Any(), gomock.Any()).
+			Return(nil, repoErr)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
@@ -417,6 +300,9 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 
 func TestRecordUsecase_GetStatistics(t *testing.T) {
 	t.Run("正常系_週間統計データを取得", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 		targetCalories := user.CalculateTargetCalories()
@@ -445,21 +331,13 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 
 		period, _ := vo.NewStatisticsPeriod("week")
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return dailyCalories, nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
+			Return(dailyCalories, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
@@ -499,25 +377,20 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("正常系_データがない場合", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 		period, _ := vo.NewStatisticsPeriod("week")
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return []repository.DailyCalories{}, nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
+			Return([]repository.DailyCalories{}, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
@@ -547,29 +420,20 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("正常系_月間統計データを取得", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 		period, _ := vo.NewStatisticsPeriod("month")
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				// 期間がmonthであることを確認
-				if p.String() != "month" {
-					t.Errorf("period = %s, want month", p.String())
-				}
-				return []repository.DailyCalories{}, nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
+			Return([]repository.DailyCalories{}, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
@@ -584,6 +448,9 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("正常系_平均カロリーの計算", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 		period, _ := vo.NewStatisticsPeriod("week")
@@ -596,21 +463,13 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			{Date: vo.ReconstructEatenAt(now), Calories: vo.ReconstructCalories(3000)},
 		}
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return dailyCalories, nil
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
+			Return(dailyCalories, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
@@ -626,20 +485,16 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		period, _ := vo.NewStatisticsPeriod("week")
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, nil)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
@@ -649,21 +504,17 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		period, _ := vo.NewStatisticsPeriod("week")
 		repoErr := errors.New("db error")
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, repoErr
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(nil, repoErr)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
@@ -673,26 +524,21 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_DailyCalories取得時にエラー", func(t *testing.T) {
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		defer ctrl.Finish()
+
 		userID := vo.NewUserID()
 		user := validUserForRecord(t, userID)
 		period, _ := vo.NewStatisticsPeriod("week")
 		repoErr := errors.New("db error")
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, uid vo.UserID, p vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return nil, repoErr
-			},
-		}
-		userRepo := &mockRecordUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return user, nil
-			},
-		}
-		recordPfcRepo := &mockRecordPfcRepository{}
-		adviceCacheRepo := &mockRecordAdviceCacheRepository{}
-		txManager := &mockRecordTransactionManager{}
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), gomock.Eq(userID)).
+			Return(user, nil)
+		recordRepo.EXPECT().
+			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
+			Return(nil, repoErr)
 
-		pfcEstimator := &mockPfcEstimator{}
 		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 

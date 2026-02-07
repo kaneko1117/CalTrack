@@ -336,4 +336,118 @@ describe("useForm", () => {
       expect(mockReset).toHaveBeenCalled();
     });
   });
+
+  describe("initialFormState動的変更", () => {
+    it("initialFormStateが変更されたらフォーム状態が同期される", () => {
+      const initialProps = {
+        config: { email: mockEmailFactory, password: mockPasswordFactory },
+        initialFormState: { email: "", password: "" },
+        initialErrors: { email: null, password: null },
+        url: "/api/test",
+        transformData: (data: Record<TestField, string>) => ({
+          email: data.email,
+          password: data.password,
+        }),
+      };
+
+      const { result, rerender } = renderHook(
+        (props) => useForm<TestField, TestResponse, TestRequest>(props),
+        { initialProps }
+      );
+
+      // 初期状態確認
+      expect(result.current.formState).toEqual({ email: "", password: "" });
+
+      // initialFormStateを変更
+      const newProps = {
+        ...initialProps,
+        initialFormState: { email: "updated@example.com", password: "newpass123" },
+      };
+
+      act(() => {
+        rerender(newProps);
+      });
+
+      // フォーム状態が同期される
+      expect(result.current.formState).toEqual({
+        email: "updated@example.com",
+        password: "newpass123",
+      });
+    });
+
+    it("同じ参照のinitialFormStateではフォーム状態が変更されない", () => {
+      const sameInitialFormState = { email: "", password: "" };
+      const initialProps = {
+        config: { email: mockEmailFactory, password: mockPasswordFactory },
+        initialFormState: sameInitialFormState,
+        initialErrors: { email: null, password: null },
+        url: "/api/test",
+        transformData: (data: Record<TestField, string>) => ({
+          email: data.email,
+          password: data.password,
+        }),
+      };
+
+      const { result, rerender } = renderHook(
+        (props) => useForm<TestField, TestResponse, TestRequest>(props),
+        { initialProps }
+      );
+
+      // ユーザーが入力
+      act(() => {
+        result.current.handleChange("email")("user@example.com");
+      });
+
+      expect(result.current.formState.email).toBe("user@example.com");
+
+      // 同じ参照で再レンダー
+      act(() => {
+        rerender(initialProps);
+      });
+
+      // 入力内容が維持される
+      expect(result.current.formState.email).toBe("user@example.com");
+    });
+
+    it("initialFormState変更時にエラー状態もリセットされる", () => {
+      const initialProps = {
+        config: { email: mockEmailFactory, password: mockPasswordFactory },
+        initialFormState: { email: "", password: "" },
+        initialErrors: { email: null, password: null },
+        url: "/api/test",
+        transformData: (data: Record<TestField, string>) => ({
+          email: data.email,
+          password: data.password,
+        }),
+      };
+
+      const { result, rerender } = renderHook(
+        (props) => useForm<TestField, TestResponse, TestRequest>(props),
+        { initialProps }
+      );
+
+      // バリデーションエラーを発生させる
+      act(() => {
+        result.current.handleChange("email")("invalid-email");
+      });
+
+      expect(result.current.errors.email).toBe(
+        "有効なメールアドレスを入力してください"
+      );
+
+      // initialFormStateを変更
+      const newProps = {
+        ...initialProps,
+        initialFormState: { email: "valid@example.com", password: "pass123" },
+      };
+
+      act(() => {
+        rerender(newProps);
+      });
+
+      // エラーもリセットされる
+      expect(result.current.errors.email).toBeNull();
+      expect(result.current.formState.email).toBe("valid@example.com");
+    });
+  });
 });
