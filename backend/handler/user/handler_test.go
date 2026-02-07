@@ -453,3 +453,133 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 		}
 	})
 }
+
+func TestUserHandler_GetProfile(t *testing.T) {
+	t.Run("正常系_プロフィール取得成功", func(t *testing.T) {
+		testUser := createTestUser()
+		repo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return testUser, nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/users/profile", nil)
+		c.Set("userID", testUser.ID().String())
+
+		handler.GetProfile(c)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d, body: %s", w.Code, http.StatusOK, w.Body.String())
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// 全7フィールド検証
+		if response["email"] != testUser.Email().String() {
+			t.Errorf("email = %v, want %v", response["email"], testUser.Email().String())
+		}
+		if response["nickname"] != testUser.Nickname().String() {
+			t.Errorf("nickname = %v, want %v", response["nickname"], testUser.Nickname().String())
+		}
+		if response["weight"] != 70.0 {
+			t.Errorf("weight = %v, want 70.0", response["weight"])
+		}
+		if response["height"] != 170.0 {
+			t.Errorf("height = %v, want 170.0", response["height"])
+		}
+		if response["birthDate"] != "1990-01-01" {
+			t.Errorf("birthDate = %v, want 1990-01-01", response["birthDate"])
+		}
+		if response["gender"] != "male" {
+			t.Errorf("gender = %v, want male", response["gender"])
+		}
+		if response["activityLevel"] != "moderate" {
+			t.Errorf("activityLevel = %v, want moderate", response["activityLevel"])
+		}
+
+		// userIdが含まれないこと確認
+		if _, exists := response["userId"]; exists {
+			t.Errorf("userId should not be included in response")
+		}
+
+		// createdAt/updatedAtが含まれないこと確認
+		if _, exists := response["createdAt"]; exists {
+			t.Errorf("createdAt should not be included in response")
+		}
+		if _, exists := response["updatedAt"]; exists {
+			t.Errorf("updatedAt should not be included in response")
+		}
+	})
+
+	t.Run("異常系_認証なし", func(t *testing.T) {
+		repo := &mockUserRepository{}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/users/profile", nil)
+		// userIDをセットしない
+
+		handler.GetProfile(c)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+		}
+	})
+
+	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
+		testUser := createTestUser()
+		repo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, domainErrors.ErrUserNotFound
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/users/profile", nil)
+		c.Set("userID", testUser.ID().String())
+
+		handler.GetProfile(c)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		}
+	})
+
+	t.Run("異常系_DB取得失敗", func(t *testing.T) {
+		testUser := createTestUser()
+		repo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, errors.New("database error")
+			},
+		}
+		txManager := &mockTransactionManager{}
+		uc := usecase.NewUserUsecase(repo, txManager)
+		handler := user.NewUserHandler(uc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/users/profile", nil)
+		c.Set("userID", testUser.ID().String())
+
+		handler.GetProfile(c)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+	})
+}

@@ -27,3 +27,27 @@ func NewUpdateProfileResponse(user *entity.User) UpdateProfileResponse {
 		ActivityLevel: user.ActivityLevel().String(),
 	}
 }
+
+// GetProfileResponse はプロフィール取得レスポンスDTO
+type GetProfileResponse struct {
+	Email         string  `json:"email" example:"user@example.com"`
+	Nickname      string  `json:"nickname" example:"John"`
+	Weight        float64 `json:"weight" example:"70.5"`
+	Height        float64 `json:"height" example:"175.0"`
+	BirthDate     string  `json:"birthDate" example:"1990-01-15"`
+	Gender        string  `json:"gender" example:"male"`
+	ActivityLevel string  `json:"activityLevel" example:"moderate"`
+}
+
+// NewGetProfileResponse はEntityからレスポンスDTOを生成する
+func NewGetProfileResponse(user *entity.User) GetProfileResponse {
+	return GetProfileResponse{
+		Email:         user.Email().String(),
+		Nickname:      user.Nickname().String(),
+		Weight:        user.Weight().Kg(),
+		Height:        user.Height().Cm(),
+		BirthDate:     user.BirthDate().Time().Format("2006-01-02"),
+		Gender:        user.Gender().String(),
+		ActivityLevel: user.ActivityLevel().String(),
+	}
+}

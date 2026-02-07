@@ -62,6 +62,25 @@ func (h *UserHandler) Register(c *gin.Context) {
 	})
 }
 
+// GetProfile は認証ユーザーのプロフィールを取得する
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		common.RespondError(c, http.StatusUnauthorized, common.CodeUnauthorized, "User not authenticated", nil)
+		return
+	}
+
+	userID := vo.ReconstructUserID(userIDStr.(string))
+
+	user, err := h.usecase.GetProfile(c.Request.Context(), userID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.NewGetProfileResponse(user))
+}
+
 // UpdateProfile は認証ユーザーのプロフィールを更新する
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")

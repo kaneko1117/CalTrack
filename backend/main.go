@@ -108,6 +108,7 @@ func main() {
 	authenticated := api.Group("")
 	authenticated.Use(middleware.AuthMiddleware(authUsecase))
 	{
+		authenticated.GET("/users/profile", userHandler.GetProfile)
 		authenticated.PATCH("/users/profile", userHandler.UpdateProfile)
 		authenticated.POST("/records", recordHandler.Create)
 		authenticated.GET("/records/today", recordHandler.GetToday)
