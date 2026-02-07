@@ -7,7 +7,7 @@ import useSWRMutation from "swr/mutation";
 import { fetcher, mutate } from "@/lib/swr";
 import type { ApiErrorResponse } from "@/lib/api";
 
-type MutationMethod = "POST" | "PUT" | "DELETE";
+type MutationMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 type UseRequestOptions<T> = {
   onSuccess?: (data: T) => void;

@@ -17,7 +17,7 @@ export const fetcher = async <T>(url: string): Promise<T> => {
   }
 };
 
-type MutationMethod = "POST" | "PUT" | "DELETE";
+type MutationMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** Mutation用fetcher */
 export const mutate = async <T>(
