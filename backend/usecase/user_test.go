@@ -340,3 +340,79 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 		}
 	})
 }
+
+// TestUserUsecase_GetProfile はユーザー情報取得機能のテスト
+func TestUserUsecase_GetProfile(t *testing.T) {
+	t.Run("正常系_プロフィール取得成功", func(t *testing.T) {
+		user := reconstructedUser(t)
+		repo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return user, nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+
+		uc := usecase.NewUserUsecase(repo, txManager)
+		result, err := uc.GetProfile(context.Background(), user.ID())
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result == nil {
+			t.Fatal("result should not be nil")
+		}
+		if result.Email().String() != "test@example.com" {
+			t.Errorf("email got %v, want test@example.com", result.Email().String())
+		}
+		if result.Nickname().String() != "oldnick" {
+			t.Errorf("nickname got %v, want oldnick", result.Nickname().String())
+		}
+		if result.Weight().Kg() != 60.0 {
+			t.Errorf("weight got %v, want 60.0", result.Weight().Kg())
+		}
+		if result.Height().Cm() != 165.0 {
+			t.Errorf("height got %v, want 165.0", result.Height().Cm())
+		}
+		if result.Gender().String() != "male" {
+			t.Errorf("gender got %v, want male", result.Gender().String())
+		}
+		if result.ActivityLevel().String() != "sedentary" {
+			t.Errorf("activity level got %v, want sedentary", result.ActivityLevel().String())
+		}
+	})
+
+	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
+		userID := vo.NewUserID()
+		repo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, nil
+			},
+		}
+		txManager := &mockTransactionManager{}
+
+		uc := usecase.NewUserUsecase(repo, txManager)
+		_, err := uc.GetProfile(context.Background(), userID)
+
+		if err != domainErrors.ErrUserNotFound {
+			t.Errorf("got %v, want ErrUserNotFound", err)
+		}
+	})
+
+	t.Run("異常系_リポジトリエラー", func(t *testing.T) {
+		userID := vo.NewUserID()
+		repoErr := errors.New("db error")
+		repo := &mockUserRepository{
+			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+				return nil, repoErr
+			},
+		}
+		txManager := &mockTransactionManager{}
+
+		uc := usecase.NewUserUsecase(repo, txManager)
+		_, err := uc.GetProfile(context.Background(), userID)
+
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
+}
