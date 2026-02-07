@@ -1,11 +1,15 @@
 /**
  * Header - 共通ヘッダーコンポーネント
  */
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogoutButton } from "@/features/auth";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { useRequestMutation } from "@/features/common/hooks";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ハンバーガーメニューアイコン
 function MenuIcon() {
@@ -28,13 +32,35 @@ function MenuIcon() {
   );
 }
 
+// ログアウトアイコン
+function LogoutIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="mr-2"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
 // 設定アイコン
 function SettingsIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -49,18 +75,17 @@ function SettingsIcon() {
   );
 }
 
+type LogoutResponse = { message: string };
+
 export function Header() {
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { trigger: logout, isMutating: isLoggingOut } =
+    useRequestMutation<LogoutResponse>("/api/v1/auth/logout", "POST", {
+      onSuccess: () => navigate("/"),
+    });
 
   const handleSettingsClick = () => {
     navigate("/settings");
-    setMenuOpen(false);
-  };
-
-  const handleLogoutSuccess = () => {
-    setMenuOpen(false);
-    navigate("/");
   };
 
   return (
@@ -71,8 +96,8 @@ export function Header() {
         </Link>
 
         {/* ハンバーガーメニュー */}
-        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-          <SheetTrigger asChild>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
               type="button"
               className="rounded-md p-2 hover:bg-secondary transition-colors"
@@ -80,30 +105,26 @@ export function Header() {
             >
               <MenuIcon />
             </button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>メニュー</SheetTitle>
-            </SheetHeader>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {/* 設定 */}
+            <DropdownMenuItem onClick={handleSettingsClick}>
+              <SettingsIcon />
+              設定
+            </DropdownMenuItem>
 
-            <div className="flex flex-col gap-4 mt-8">
-              {/* 設定リンク */}
-              <Button
-                variant="outline"
-                onClick={handleSettingsClick}
-                className="w-full justify-start"
-              >
-                <SettingsIcon />
-                設定
-              </Button>
+            <DropdownMenuSeparator />
 
-              {/* ログアウトボタン */}
-              <div className="mt-auto pt-8">
-                <LogoutButton onSuccess={handleLogoutSuccess} />
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+            {/* ログアウト */}
+            <DropdownMenuItem
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+            >
+              <LogoutIcon />
+              {isLoggingOut ? "ログアウト中..." : "ログアウト"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

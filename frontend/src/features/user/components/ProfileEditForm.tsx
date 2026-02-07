@@ -16,10 +16,47 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { getApiErrorMessage } from "@/features/common";
-import { ACTIVITY_LEVEL_OPTIONS } from "@/domain/valueObjects";
+import { ACTIVITY_LEVEL_OPTIONS, GENDER_OPTIONS } from "@/domain/valueObjects";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useUpdateProfile } from "../hooks/useUpdateProfile";
 import type { UpdateProfileResponse } from "../api";
+
+/**
+ * 読み取り専用フィールドコンポーネント
+ * メールアドレス、生年月日、性別など編集不可なフィールドを表示
+ */
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-muted-foreground font-medium text-sm">
+        {label}
+      </Label>
+      <div className="h-11 flex items-center px-3 rounded-md bg-muted text-foreground text-sm">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 性別値をラベルに変換
+ */
+function getGenderLabel(value: string): string {
+  const option = GENDER_OPTIONS.find((o) => o.value === value);
+  return option ? option.label : value;
+}
+
+/**
+ * ISO日付を日本語形式にフォーマット (YYYY年M月D日)
+ */
+function formatBirthDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return isoDate;
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${year}年${month}月${day}日`;
+}
 
 /**
  * AlertCircleアイコン - エラー表示用
@@ -59,7 +96,7 @@ function FieldError({ id, message }: { id: string; message: string }) {
 }
 
 /**
- * ローディングスケルトン - データ読み込み中の表示
+ * ローディングスケルトン - データ読み込み中の表示（7フィールド対応）
  */
 function LoadingSkeleton() {
   return (
@@ -70,10 +107,17 @@ function LoadingSkeleton() {
       </CardHeader>
       <CardContent>
         <div className="space-y-5">
+          {/* メールアドレス */}
           <div className="space-y-2">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-11 w-full" />
           </div>
+          {/* ニックネーム */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+          {/* 生年月日・性別 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Skeleton className="h-5 w-24" />
@@ -84,10 +128,23 @@ function LoadingSkeleton() {
               <Skeleton className="h-11 w-full" />
             </div>
           </div>
+          {/* 体重・身長 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-11 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-11 w-full" />
+            </div>
+          </div>
+          {/* 活動レベル */}
           <div className="space-y-2">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-11 w-full" />
           </div>
+          {/* 送信ボタン */}
           <div className="!mt-10">
             <Skeleton className="h-12 w-full" />
           </div>
@@ -154,7 +211,7 @@ export function ProfileEditForm({ onSuccess }: ProfileEditFormProps) {
           プロフィール編集
         </CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          ユーザー情報を更新できます
+          ユーザー情報を確認・更新できます
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -181,6 +238,11 @@ export function ProfileEditForm({ onSuccess }: ProfileEditFormProps) {
             </div>
           )}
 
+          {/* メールアドレス（読み取り専用） */}
+          {currentUser && (
+            <ReadOnlyField label="メールアドレス" value={currentUser.email} />
+          )}
+
           {/* ニックネーム */}
           <div className="space-y-2">
             <Label htmlFor="nickname" className="text-foreground font-medium">
@@ -202,6 +264,20 @@ export function ProfileEditForm({ onSuccess }: ProfileEditFormProps) {
               <FieldError id="nickname-error" message={errors.nickname} />
             )}
           </div>
+
+          {/* 生年月日・性別（2カラム、読み取り専用） */}
+          {currentUser && (
+            <div className="grid grid-cols-2 gap-4">
+              <ReadOnlyField
+                label="生年月日"
+                value={formatBirthDate(currentUser.birthDate)}
+              />
+              <ReadOnlyField
+                label="性別"
+                value={getGenderLabel(currentUser.gender)}
+              />
+            </div>
+          )}
 
           {/* 体重・身長（2カラム） */}
           <div className="grid grid-cols-2 gap-4">
