@@ -97,6 +97,21 @@ func (u *UserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, input
 	return updatedUser, nil
 }
 
+// GetProfile は認証ユーザーのプロフィールを取得する
+func (u *UserUsecase) GetProfile(ctx context.Context, userID vo.UserID) (*entity.User, error) {
+	user, err := u.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		logError("GetProfile", err, "user_id", userID.String())
+		return nil, err
+	}
+	if user == nil {
+		logWarn("GetProfile", "user not found", "user_id", userID.String())
+		return nil, domainErrors.ErrUserNotFound
+	}
+
+	return user, nil
+}
+
 // formatErrors は複数のエラーをカンマ区切りの文字列に変換する
 func formatErrors(errs []error) string {
 	msgs := make([]string, len(errs))
