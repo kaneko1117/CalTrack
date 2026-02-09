@@ -76,10 +76,16 @@ Delete(ctx context.Context, id ID) error
 4. Repository経由でデータ保存
 5. Output生成・返却
 
+### 集計を含む処理フロー
+- 基本的な集計はRepository経由でSQL集計結果を取得する（`architecture.md` の集計方針を参照）
+- 取得した集計結果に対してビジネスルールを適用する場合は、Domainのメソッドを呼び出す
+- Usecase層自体では集計ロジックを実装しない
+
 ### 禁止事項
 - 具体的なDB操作
 - HTTP関連の処理
 - 外部サービスの直接呼び出し
+- Usecase層での集計ロジック実装（SQLまたはDomainに委譲する）
 
 ## テスト
 

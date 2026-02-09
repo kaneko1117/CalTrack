@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -15,7 +16,7 @@ import (
 	"caltrack/handler/common"
 	"caltrack/handler/nutrition"
 	"caltrack/handler/nutrition/dto"
-	"caltrack/usecase/service"
+	"caltrack/usecase"
 )
 
 func init() {
@@ -24,24 +25,29 @@ func init() {
 
 // MockNutritionUsecase はNutritionUsecaseのモック実装
 type MockNutritionUsecase struct {
-	GetAdviceFunc func(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error)
+	GetTodayPfcFunc func(ctx context.Context, userID vo.UserID) (*usecase.TodayPfcOutput, error)
 }
 
-func (m *MockNutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error) {
-	if m.GetAdviceFunc != nil {
-		return m.GetAdviceFunc(ctx, userID)
+func (m *MockNutritionUsecase) GetTodayPfc(ctx context.Context, userID vo.UserID) (*usecase.TodayPfcOutput, error) {
+	if m.GetTodayPfcFunc != nil {
+		return m.GetTodayPfcFunc(ctx, userID)
 	}
 	return nil, nil
 }
 
-func TestNutritionHandler_GetAdvice(t *testing.T) {
-	t.Run("正常系_アドバイス取得成功", func(t *testing.T) {
+func TestNutritionHandler_GetTodayPfc(t *testing.T) {
+	t.Run("正常系_今日のPFC取得成功", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
+		now := time.Now()
 
 		mockUsecase := &MockNutritionUsecase{
-			GetAdviceFunc: func(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error) {
-				return &service.NutritionAdviceOutput{
-					Advice: "バランスの良い食事を心がけましょう。",
+			GetTodayPfcFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayPfcOutput, error) {
+				currentPfc := vo.NewPfc(50, 30, 200)
+				targetPfc := vo.NewPfc(100, 50, 300)
+				return &usecase.TodayPfcOutput{
+					Date:       now,
+					CurrentPfc: currentPfc,
+					TargetPfc:  targetPfc,
 				}, nil
 			},
 		}
@@ -50,27 +56,46 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/advice", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/today-pfc", nil)
 		c.Set("userID", userIDStr)
 
-		handler.GetAdvice(c)
+		handler.GetTodayPfc(c)
 
 		if w.Code != http.StatusOK {
 			t.Errorf("status = %d, want %d, body = %s", w.Code, http.StatusOK, w.Body.String())
 		}
 
-		var resp dto.AdviceResponse
+		var resp dto.TodayPfcResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
 		}
 
-		if resp.Advice == "" {
-			t.Error("advice should not be empty")
+		// 日付検証
+		expectedDate := now.Format("2006-01-02")
+		if resp.Date != expectedDate {
+			t.Errorf("date = %s, want %s", resp.Date, expectedDate)
 		}
 
-		expectedAdvice := "バランスの良い食事を心がけましょう。"
-		if resp.Advice != expectedAdvice {
-			t.Errorf("advice = %s, want %s", resp.Advice, expectedAdvice)
+		// CurrentPfc検証
+		if resp.CurrentPfc.Protein != 50 {
+			t.Errorf("current protein = %d, want 50", resp.CurrentPfc.Protein)
+		}
+		if resp.CurrentPfc.Fat != 30 {
+			t.Errorf("current fat = %d, want 30", resp.CurrentPfc.Fat)
+		}
+		if resp.CurrentPfc.Carbohydrates != 200 {
+			t.Errorf("current carbs = %d, want 200", resp.CurrentPfc.Carbohydrates)
+		}
+
+		// TargetPfc検証
+		if resp.TargetPfc.Protein != 100 {
+			t.Errorf("target protein = %d, want 100", resp.TargetPfc.Protein)
+		}
+		if resp.TargetPfc.Fat != 50 {
+			t.Errorf("target fat = %d, want 50", resp.TargetPfc.Fat)
+		}
+		if resp.TargetPfc.Carbohydrates != 300 {
+			t.Errorf("target carbs = %d, want 300", resp.TargetPfc.Carbohydrates)
 		}
 	})
 
@@ -80,10 +105,10 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/advice", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/today-pfc", nil)
 		// userIDを設定しない
 
-		handler.GetAdvice(c)
+		handler.GetTodayPfc(c)
 
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
@@ -103,7 +128,7 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
 		mockUsecase := &MockNutritionUsecase{
-			GetAdviceFunc: func(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error) {
+			GetTodayPfcFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayPfcOutput, error) {
 				return nil, domainErrors.ErrUserNotFound
 			},
 		}
@@ -112,10 +137,10 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/advice", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/today-pfc", nil)
 		c.Set("userID", userIDStr)
 
-		handler.GetAdvice(c)
+		handler.GetTodayPfc(c)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
@@ -135,7 +160,7 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
 		mockUsecase := &MockNutritionUsecase{
-			GetAdviceFunc: func(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error) {
+			GetTodayPfcFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayPfcOutput, error) {
 				return nil, errors.New("database connection error")
 			},
 		}
@@ -144,10 +169,10 @@ func TestNutritionHandler_GetAdvice(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/advice", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/nutrition/today-pfc", nil)
 		c.Set("userID", userIDStr)
 
-		handler.GetAdvice(c)
+		handler.GetTodayPfc(c)
 
 		if w.Code != http.StatusInternalServerError {
 			t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)

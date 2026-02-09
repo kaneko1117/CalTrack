@@ -11,12 +11,12 @@ import (
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
 	"caltrack/handler/nutrition/dto"
-	"caltrack/usecase/service"
+	"caltrack/usecase"
 )
 
 // NutritionUsecaseInterface はNutritionUsecaseのインターフェース
 type NutritionUsecaseInterface interface {
-	GetAdvice(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error)
+	GetTodayPfc(ctx context.Context, userID vo.UserID) (*usecase.TodayPfcOutput, error)
 }
 
 // NutritionHandler は栄養分析関連のHTTPハンドラ
@@ -29,8 +29,8 @@ func NewNutritionHandler(uc NutritionUsecaseInterface) *NutritionHandler {
 	return &NutritionHandler{usecase: uc}
 }
 
-// GetAdvice は栄養アドバイスを取得する
-func (h *NutritionHandler) GetAdvice(c *gin.Context) {
+// GetTodayPfc は今日のPFC摂取量と目標PFCを取得する
+func (h *NutritionHandler) GetTodayPfc(c *gin.Context) {
 	// コンテキストからユーザーIDを取得
 	userIDStr, exists := c.Get("userID")
 	if !exists {
@@ -42,7 +42,7 @@ func (h *NutritionHandler) GetAdvice(c *gin.Context) {
 	userID := vo.ReconstructUserID(userIDStr.(string))
 
 	// Usecase実行
-	output, err := h.usecase.GetAdvice(c.Request.Context(), userID)
+	output, err := h.usecase.GetTodayPfc(c.Request.Context(), userID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrUserNotFound) {
 			common.RespondError(c, http.StatusNotFound, common.CodeNotFound, "User not found", nil)
@@ -53,5 +53,5 @@ func (h *NutritionHandler) GetAdvice(c *gin.Context) {
 	}
 
 	// 成功レスポンス
-	c.JSON(http.StatusOK, dto.NewAdviceResponse(output))
+	c.JSON(http.StatusOK, dto.NewTodayPfcResponse(output))
 }
