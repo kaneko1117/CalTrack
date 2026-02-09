@@ -52,3 +52,11 @@ func CloseGemini() {
 		log.Println("Gemini client closed")
 	}
 }
+
+// DefaultAIConfig はデフォルトのAI設定を提供する
+type DefaultAIConfig struct{}
+
+// GeminiModelName は使用するGeminiモデル名を返す
+func (c DefaultAIConfig) GeminiModelName() string {
+	return GeminiModelName
+}

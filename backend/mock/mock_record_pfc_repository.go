@@ -92,7 +92,7 @@ func (mr *MockRecordPfcRepositoryMockRecorder) GetDailyPfc(ctx, userID, startTim
 func (m *MockRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", ctx, recordPfc)
-	ret0, _ := ret[1].(error)
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 
