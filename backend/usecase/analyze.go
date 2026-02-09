@@ -8,9 +8,6 @@ import (
 	"caltrack/usecase/service"
 )
 
-// 画像解析に使用するAIモデル名
-const geminiModelName = "gemini-3-flash-preview"
-
 // 画像解析に使用するプロンプト
 const analyzePrompt = `この画像に写っている食品を分析し、以下のJSON形式で回答してください。
 食品が複数ある場合は全て列挙してください。
@@ -43,12 +40,14 @@ type AnalyzedItemOutput struct {
 // AnalyzeUsecase は画像解析に関するユースケースを提供する
 type AnalyzeUsecase struct {
 	imageAnalyzer service.ImageAnalyzer
+	aiConfig      AIConfig
 }
 
 // NewAnalyzeUsecase は AnalyzeUsecase のインスタンスを生成する
-func NewAnalyzeUsecase(imageAnalyzer service.ImageAnalyzer) *AnalyzeUsecase {
+func NewAnalyzeUsecase(imageAnalyzer service.ImageAnalyzer, aiConfig AIConfig) *AnalyzeUsecase {
 	return &AnalyzeUsecase{
 		imageAnalyzer: imageAnalyzer,
+		aiConfig:      aiConfig,
 	}
 }
 
@@ -64,13 +63,8 @@ func (u *AnalyzeUsecase) AnalyzeImage(ctx context.Context, imageData string, mim
 
 	// 解析設定を構築（ビジネスロジックとしてUsecase層で管理）
 	config := service.ImageAnalyzerConfig{
-		ModelName: geminiModelName,
+		ModelName: u.aiConfig.GeminiModelName(),
 		Prompt:    analyzePrompt,
-		Log: service.ImageAnalyzerLogConfig{
-			EnableRequestLog:  true,
-			EnableResponseLog: true,
-			EnableTokenLog:    true,
-		},
 	}
 
 	// 画像解析サービスを呼び出し

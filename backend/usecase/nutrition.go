@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"caltrack/config"
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/repository"
@@ -32,6 +31,7 @@ type NutritionUsecase struct {
 	recordPfcRepo   repository.RecordPfcRepository
 	adviceCacheRepo repository.AdviceCacheRepository
 	pfcAnalyzer     service.PfcAnalyzer
+	aiConfig        AIConfig
 }
 
 // NewNutritionUsecase は NutritionUsecase のインスタンスを生成する
@@ -41,6 +41,7 @@ func NewNutritionUsecase(
 	recordPfcRepo repository.RecordPfcRepository,
 	adviceCacheRepo repository.AdviceCacheRepository,
 	pfcAnalyzer service.PfcAnalyzer,
+	aiConfig AIConfig,
 ) *NutritionUsecase {
 	return &NutritionUsecase{
 		userRepo:        userRepo,
@@ -48,6 +49,7 @@ func NewNutritionUsecase(
 		recordPfcRepo:   recordPfcRepo,
 		adviceCacheRepo: adviceCacheRepo,
 		pfcAnalyzer:     pfcAnalyzer,
+		aiConfig:        aiConfig,
 	}
 }
 
@@ -160,13 +162,8 @@ func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*se
 
 	// Config構築
 	analyzerConfig := service.PfcAnalyzerConfig{
-		ModelName: config.GeminiModelName,
+		ModelName: u.aiConfig.GeminiModelName(),
 		Prompt:    prompt,
-		Log: service.PfcAnalyzerLogConfig{
-			EnableRequestLog:  true,
-			EnableResponseLog: true,
-			EnableTokenLog:    true,
-		},
 	}
 
 	output, err := u.pfcAnalyzer.Analyze(ctx, analyzerConfig, input)

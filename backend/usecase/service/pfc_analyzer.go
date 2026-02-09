@@ -15,16 +15,9 @@ type NutritionAdviceInput struct {
 	TimeContext     string
 }
 
-type PfcAnalyzerLogConfig struct {
-	EnableRequestLog  bool
-	EnableResponseLog bool
-	EnableTokenLog    bool
-}
-
 type PfcAnalyzerConfig struct {
 	ModelName string
 	Prompt    string
-	Log       PfcAnalyzerLogConfig
 }
 
 type NutritionAdviceOutput struct {

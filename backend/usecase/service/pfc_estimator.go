@@ -20,14 +20,6 @@ type PfcEstimateOutput struct {
 type PfcEstimatorConfig struct {
 	ModelName string
 	Prompt    string
-	Log       PfcEstimatorLogConfig
-}
-
-// PfcEstimatorLogConfig はログ設定
-type PfcEstimatorLogConfig struct {
-	EnableRequestLog  bool
-	EnableResponseLog bool
-	EnableTokenLog    bool
 }
 
 // PfcEstimator は食品名からPFCを推定するサービスインターフェース

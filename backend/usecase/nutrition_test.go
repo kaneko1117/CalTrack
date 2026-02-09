@@ -23,21 +23,26 @@ func setupNutritionMocks(t *testing.T) (
 	*mock.MockRecordPfcRepository,
 	*mock.MockAdviceCacheRepository,
 	*mock.MockPfcAnalyzer,
+	*mock.MockAIConfig,
 	*gomock.Controller,
 ) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
+	aiConfig := mock.NewMockAIConfig(ctrl)
+	// デフォルトでモデル名を返すように設定
+	aiConfig.EXPECT().GeminiModelName().Return("test-model").AnyTimes()
 	return mock.NewMockUserRepository(ctrl),
 		mock.NewMockRecordRepository(ctrl),
 		mock.NewMockRecordPfcRepository(ctrl),
 		mock.NewMockAdviceCacheRepository(ctrl),
 		mock.NewMockPfcAnalyzer(ctrl),
+		aiConfig,
 		ctrl
 }
 
 func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	t.Run("正常系_今日の記録がない場合は固定文言が返される", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -51,7 +56,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			FindByUserIDAndDateRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).
 			Return([]*entity.Record{}, nil)
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		output, err := uc.GetAdvice(context.Background(), userID)
 
 		if err != nil {
@@ -64,7 +69,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("正常系_キャッシュがある場合はキャッシュが返される", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -92,7 +97,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 
 		// analyzer.Analyzeは呼ばれないこと（EXPECTを設定しないことで検証）
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		output, err := uc.GetAdvice(context.Background(), userID)
 
 		if err != nil {
@@ -105,7 +110,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("正常系_キャッシュがない場合はAI呼び出し後にキャッシュ保存される", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -159,7 +164,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 				return nil
 			})
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		output, err := uc.GetAdvice(context.Background(), userID)
 
 		if err != nil {
@@ -176,7 +181,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -185,7 +190,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			FindByID(gomock.Any(), userID).
 			Return(nil, nil)
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -194,7 +199,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -204,7 +209,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			FindByID(gomock.Any(), userID).
 			Return(nil, repoErr)
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -213,7 +218,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("異常系_Record取得時にエラー", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -228,7 +233,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			FindByUserIDAndDateRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).
 			Return(nil, repoErr)
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -237,7 +242,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("異常系_RecordPfc取得時にエラー", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -263,7 +268,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			FindByRecordIDs(gomock.Any(), gomock.Any()).
 			Return(nil, repoErr)
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -272,7 +277,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 	})
 
 	t.Run("異常系_PfcAnalyzer実行時にエラー", func(t *testing.T) {
-		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, ctrl := setupNutritionMocks(t)
+		userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -302,7 +307,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 			Analyze(gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(nil, analyzeErr)
 
-		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer)
+		uc := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, analyzer, aiConfig)
 		_, err := uc.GetAdvice(context.Background(), userID)
 
 		if !errors.Is(err, analyzeErr) {
@@ -313,7 +318,7 @@ func TestNutritionUsecase_GetAdvice(t *testing.T) {
 
 func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 	t.Run("正常系_今日のPFC摂取量と目標を取得", func(t *testing.T) {
-		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		userRepo, _, recordPfcRepo, _, _, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -329,7 +334,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 			GetDailyPfc(gomock.Any(), userID, gomock.Any(), gomock.Any()).
 			Return(dailyPfc, nil)
 
-		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil, aiConfig)
 		output, err := uc.GetTodayPfc(context.Background(), userID)
 
 		if err != nil {
@@ -359,7 +364,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 	})
 
 	t.Run("正常系_記録がない場合はゼロPFCが返される", func(t *testing.T) {
-		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		userRepo, _, recordPfcRepo, _, _, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -375,7 +380,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 			GetDailyPfc(gomock.Any(), userID, gomock.Any(), gomock.Any()).
 			Return(dailyPfc, nil)
 
-		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil, aiConfig)
 		output, err := uc.GetTodayPfc(context.Background(), userID)
 
 		if err != nil {
@@ -394,7 +399,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
-		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		userRepo, _, recordPfcRepo, _, _, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -403,7 +408,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 			FindByID(gomock.Any(), userID).
 			Return(nil, nil)
 
-		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil, aiConfig)
 		_, err := uc.GetTodayPfc(context.Background(), userID)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -412,7 +417,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
-		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		userRepo, _, recordPfcRepo, _, _, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -422,7 +427,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 			FindByID(gomock.Any(), userID).
 			Return(nil, repoErr)
 
-		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil, aiConfig)
 		_, err := uc.GetTodayPfc(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -431,7 +436,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 	})
 
 	t.Run("異常系_DailyPfc取得時にエラー", func(t *testing.T) {
-		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		userRepo, _, recordPfcRepo, _, _, aiConfig, ctrl := setupNutritionMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -446,7 +451,7 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 			GetDailyPfc(gomock.Any(), userID, gomock.Any(), gomock.Any()).
 			Return(vo.DailyPfc{}, repoErr)
 
-		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil, aiConfig)
 		_, err := uc.GetTodayPfc(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {

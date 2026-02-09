@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/google/generative-ai-go/genai"
 
 	"caltrack/domain/vo"
+	"caltrack/pkg/logger"
 	usecaseService "caltrack/usecase/service"
 )
 
@@ -56,9 +56,7 @@ func (g *GeminiImageAnalyzer) Analyze(ctx context.Context, config usecaseService
 	}
 
 	// リクエストログ
-	if config.Log.EnableRequestLog {
-		log.Printf("[INFO] Gemini API Request - Model: %s, MimeType: %s, ImageDataLength: %d", config.ModelName, mimeType, len(imageData))
-	}
+	logger.Debug("Gemini API Request", "model", config.ModelName, "mimeType", mimeType, "imageDataLength", len(imageData))
 
 	// configで指定されたプロンプトを使用してリクエストを送信
 	resp, err := model.GenerateContent(ctx, genai.Text(config.Prompt), imageBlob)
@@ -67,29 +65,27 @@ func (g *GeminiImageAnalyzer) Analyze(ctx context.Context, config usecaseService
 	}
 
 	// トークン使用量ログ
-	if config.Log.EnableTokenLog && resp.UsageMetadata != nil {
-		log.Printf("[INFO] Gemini API Token Usage - PromptTokens: %d, CandidatesTokens: %d, TotalTokens: %d",
-			resp.UsageMetadata.PromptTokenCount,
-			resp.UsageMetadata.CandidatesTokenCount,
-			resp.UsageMetadata.TotalTokenCount)
+	if resp.UsageMetadata != nil {
+		logger.Debug("Gemini API Token Usage",
+			"promptTokens", resp.UsageMetadata.PromptTokenCount,
+			"candidatesTokens", resp.UsageMetadata.CandidatesTokenCount,
+			"totalTokens", resp.UsageMetadata.TotalTokenCount)
 	}
 
 	// レスポンスからテキストを抽出
 	responseText, err := extractResponseText(resp)
 	if err != nil {
-		log.Printf("[ERROR] Failed to extract response text: %v", err)
+		logger.Error("Failed to extract response text", "error", err)
 		return nil, err
 	}
 
 	// レスポンスログ
-	if config.Log.EnableResponseLog {
-		log.Printf("[INFO] Gemini API Response - Text: %s", responseText)
-	}
+	logger.Debug("Gemini API Response", "text", responseText)
 
 	// JSONをパース
 	items, err := parseGeminiResponse(responseText)
 	if err != nil {
-		log.Printf("[ERROR] Failed to parse Gemini response: %v, response: %s", err, responseText)
+		logger.Error("Failed to parse Gemini response", "error", err, "response", responseText)
 		return nil, err
 	}
 
@@ -144,14 +140,14 @@ func parseGeminiResponse(responseText string) ([]usecaseService.AnalyzedItem, er
 		// 食品名のVO作成
 		itemName, err := vo.NewItemName(r.Name)
 		if err != nil {
-			log.Printf("[WARN] Invalid item name skipped: %s, error: %v", r.Name, err)
+			logger.Warn("Invalid item name skipped", "name", r.Name, "error", err)
 			continue
 		}
 
 		// カロリーのVO作成
 		calories, err := vo.NewCalories(r.Calories)
 		if err != nil {
-			log.Printf("[WARN] Invalid calories skipped: %d, error: %v", r.Calories, err)
+			logger.Warn("Invalid calories skipped", "calories", r.Calories, "error", err)
 			continue
 		}
 
