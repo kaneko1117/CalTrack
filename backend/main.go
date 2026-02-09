@@ -53,7 +53,6 @@ func main() {
 
 	// DI - Service
 	imageAnalyzer := infraService.NewGeminiImageAnalyzer(config.GeminiClient)
-	pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(config.GeminiClient)
 	pfcEstimator := infraService.NewGeminiPfcEstimator(config.GeminiClient)
 
 	// DI - Usecase
@@ -61,7 +60,7 @@ func main() {
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
 	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
 	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer)
-	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, pfcAnalyzer)
+	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordPfcRepo)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
@@ -115,6 +114,7 @@ func main() {
 		authenticated.GET("/statistics", recordHandler.GetStatistics)
 		authenticated.POST("/analyze-image", analyzeHandler.AnalyzeImage)
 		authenticated.GET("/nutrition/advice", nutritionHandler.GetAdvice)
+		authenticated.GET("/nutrition/today-pfc", nutritionHandler.GetTodayPfc)
 	}
 
 	// Start server

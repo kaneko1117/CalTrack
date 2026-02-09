@@ -14,6 +14,7 @@ import (
 	vo "caltrack/domain/vo"
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -72,11 +73,26 @@ func (mr *MockRecordPfcRepositoryMockRecorder) FindByRecordIDs(ctx, recordIDs an
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByRecordIDs", reflect.TypeOf((*MockRecordPfcRepository)(nil).FindByRecordIDs), ctx, recordIDs)
 }
 
+// GetDailyPfc mocks base method.
+func (m *MockRecordPfcRepository) GetDailyPfc(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) (vo.DailyPfc, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDailyPfc", ctx, userID, startTime, endTime)
+	ret0, _ := ret[0].(vo.DailyPfc)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDailyPfc indicates an expected call of GetDailyPfc.
+func (mr *MockRecordPfcRepositoryMockRecorder) GetDailyPfc(ctx, userID, startTime, endTime any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDailyPfc", reflect.TypeOf((*MockRecordPfcRepository)(nil).GetDailyPfc), ctx, userID, startTime, endTime)
+}
+
 // Save mocks base method.
 func (m *MockRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", ctx, recordPfc)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[1].(error)
 	return ret0
 }
 

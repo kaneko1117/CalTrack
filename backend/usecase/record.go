@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"caltrack/config"
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/repository"
@@ -31,6 +30,7 @@ type RecordUsecase struct {
 	adviceCacheRepo repository.AdviceCacheRepository
 	txManager       repository.TransactionManager
 	pfcEstimator    service.PfcEstimator
+	aiConfig        AIConfig
 }
 
 // NewRecordUsecase は RecordUsecase のインスタンスを生成する
@@ -41,6 +41,7 @@ func NewRecordUsecase(
 	adviceCacheRepo repository.AdviceCacheRepository,
 	txManager repository.TransactionManager,
 	pfcEstimator service.PfcEstimator,
+	aiConfig AIConfig,
 ) *RecordUsecase {
 	return &RecordUsecase{
 		recordRepo:      recordRepo,
@@ -49,6 +50,7 @@ func NewRecordUsecase(
 		adviceCacheRepo: adviceCacheRepo,
 		txManager:       txManager,
 		pfcEstimator:    pfcEstimator,
+		aiConfig:        aiConfig,
 	}
 }
 
@@ -99,7 +101,7 @@ func (u *RecordUsecase) estimatePfc(ctx context.Context, record *entity.Record) 
 
 	// PFC推定実行
 	estimatorConfig := service.PfcEstimatorConfig{
-		ModelName: config.GeminiModelName,
+		ModelName: u.aiConfig.GeminiModelName(),
 		Prompt:    prompt,
 		Log: service.PfcEstimatorLogConfig{
 			EnableRequestLog:  true,
