@@ -25,16 +25,21 @@ func setupRecordMocks(t *testing.T) (
 	*mock.MockAdviceCacheRepository,
 	*mock.MockTransactionManager,
 	*mock.MockPfcEstimator,
+	*mock.MockAIConfig,
 	*gomock.Controller,
 ) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
+	aiConfig := mock.NewMockAIConfig(ctrl)
+	// デフォルトでモデル名を返すように設定
+	aiConfig.EXPECT().GeminiModelName().Return("test-model").AnyTimes()
 	return mock.NewMockRecordRepository(ctrl),
 		mock.NewMockRecordPfcRepository(ctrl),
 		mock.NewMockUserRepository(ctrl),
 		mock.NewMockAdviceCacheRepository(ctrl),
 		mock.NewMockTransactionManager(ctrl),
 		mock.NewMockPfcEstimator(ctrl),
+		aiConfig,
 		ctrl
 }
 
@@ -74,7 +79,7 @@ func validUserForRecord(t *testing.T, userID vo.UserID) *entity.User {
 
 func TestRecordUsecase_Create(t *testing.T) {
 	t.Run("正常系_記録が保存されキャッシュが無効化される", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		record := validRecord(t)
@@ -109,7 +114,7 @@ func TestRecordUsecase_Create(t *testing.T) {
 				return nil
 			})
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		err := uc.Create(context.Background(), record)
 
 		if err != nil {
@@ -130,7 +135,7 @@ func TestRecordUsecase_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_保存時にエラーが発生", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		record := validRecord(t)
@@ -141,7 +146,7 @@ func TestRecordUsecase_Create(t *testing.T) {
 			Save(gomock.Any(), gomock.Any()).
 			Return(saveErr)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		err := uc.Create(context.Background(), record)
 
 		if !errors.Is(err, saveErr) {
@@ -152,7 +157,7 @@ func TestRecordUsecase_Create(t *testing.T) {
 
 func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	t.Run("正常系_今日のカロリー情報を取得", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -175,7 +180,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			FindByUserIDAndDateRange(gomock.Any(), gomock.Eq(userID), gomock.Any(), gomock.Any()).
 			Return(records, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		output, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if err != nil {
@@ -206,7 +211,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("正常系_記録が0件の場合", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -219,7 +224,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			FindByUserIDAndDateRange(gomock.Any(), gomock.Eq(userID), gomock.Any(), gomock.Any()).
 			Return([]*entity.Record{}, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		output, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if err != nil {
@@ -238,7 +243,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -247,7 +252,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			FindByID(gomock.Any(), gomock.Eq(userID)).
 			Return(nil, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -256,7 +261,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -266,7 +271,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			FindByID(gomock.Any(), gomock.Eq(userID)).
 			Return(nil, repoErr)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -275,7 +280,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 	})
 
 	t.Run("異常系_Record取得時にエラー", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -289,7 +294,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 			FindByUserIDAndDateRange(gomock.Any(), gomock.Eq(userID), gomock.Any(), gomock.Any()).
 			Return(nil, repoErr)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		_, err := uc.GetTodayCalories(context.Background(), userID)
 
 		if !errors.Is(err, repoErr) {
@@ -300,7 +305,7 @@ func TestRecordUsecase_GetTodayCalories(t *testing.T) {
 
 func TestRecordUsecase_GetStatistics(t *testing.T) {
 	t.Run("正常系_週間統計データを取得", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -338,7 +343,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
 			Return(dailyCalories, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -377,7 +382,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("正常系_データがない場合", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -391,7 +396,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
 			Return([]repository.DailyCalories{}, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -420,7 +425,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("正常系_月間統計データを取得", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -434,7 +439,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
 			Return([]repository.DailyCalories{}, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -448,7 +453,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("正常系_平均カロリーの計算", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -470,7 +475,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
 			Return(dailyCalories, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		output, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if err != nil {
@@ -485,7 +490,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -495,7 +500,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			FindByID(gomock.Any(), gomock.Eq(userID)).
 			Return(nil, nil)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, domainErrors.ErrUserNotFound) {
@@ -504,7 +509,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -515,7 +520,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			FindByID(gomock.Any(), gomock.Eq(userID)).
 			Return(nil, repoErr)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, repoErr) {
@@ -524,7 +529,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_DailyCalories取得時にエラー", func(t *testing.T) {
-		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, ctrl := setupRecordMocks(t)
+		recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig, ctrl := setupRecordMocks(t)
 		defer ctrl.Finish()
 
 		userID := vo.NewUserID()
@@ -539,7 +544,7 @@ func TestRecordUsecase_GetStatistics(t *testing.T) {
 			GetDailyCalories(gomock.Any(), gomock.Eq(userID), gomock.Eq(period)).
 			Return(nil, repoErr)
 
-		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
+		uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
 		_, err := uc.GetStatistics(context.Background(), userID, period)
 
 		if !errors.Is(err, repoErr) {

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 
 	"github.com/google/generative-ai-go/genai"
 
+	"caltrack/pkg/logger"
 	usecaseService "caltrack/usecase/service"
 )
 
@@ -46,9 +46,7 @@ func (g *GeminiPfcEstimator) Estimate(ctx context.Context, config usecaseService
 	model := g.client.GenerativeModel(config.ModelName)
 
 	// リクエストログ
-	if config.Log.EnableRequestLog {
-		log.Printf("[INFO] Gemini PFC Estimator Request - Model: %s, FoodItems: %v", config.ModelName, input.FoodItems)
-	}
+	logger.Debug("Gemini PFC Estimator Request", "model", config.ModelName, "foodItems", input.FoodItems)
 
 	// configで指定されたプロンプトを使用してリクエストを送信
 	resp, err := model.GenerateContent(ctx, genai.Text(config.Prompt))
@@ -57,29 +55,27 @@ func (g *GeminiPfcEstimator) Estimate(ctx context.Context, config usecaseService
 	}
 
 	// トークン使用量ログ
-	if config.Log.EnableTokenLog && resp.UsageMetadata != nil {
-		log.Printf("[INFO] Gemini PFC Estimator Token Usage - PromptTokens: %d, CandidatesTokens: %d, TotalTokens: %d",
-			resp.UsageMetadata.PromptTokenCount,
-			resp.UsageMetadata.CandidatesTokenCount,
-			resp.UsageMetadata.TotalTokenCount)
+	if resp.UsageMetadata != nil {
+		logger.Debug("Gemini PFC Estimator Token Usage",
+			"promptTokens", resp.UsageMetadata.PromptTokenCount,
+			"candidatesTokens", resp.UsageMetadata.CandidatesTokenCount,
+			"totalTokens", resp.UsageMetadata.TotalTokenCount)
 	}
 
 	// レスポンスからテキストを抽出
 	responseText, err := extractResponseText(resp)
 	if err != nil {
-		log.Printf("[ERROR] Failed to extract response text: %v", err)
+		logger.Error("Failed to extract response text", "error", err)
 		return nil, err
 	}
 
 	// レスポンスログ
-	if config.Log.EnableResponseLog {
-		log.Printf("[INFO] Gemini PFC Estimator Response - Raw: %s", responseText)
-	}
+	logger.Debug("Gemini PFC Estimator Response", "raw", responseText)
 
 	// JSONをパース
 	output, err := parsePfcResponse(responseText)
 	if err != nil {
-		log.Printf("[ERROR] Failed to parse PFC response: %v, raw: %s", err, responseText)
+		logger.Error("Failed to parse PFC response", "error", err, "raw", responseText)
 		return nil, fmt.Errorf("failed to parse PFC response: %w", err)
 	}
 

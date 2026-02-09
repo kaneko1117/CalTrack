@@ -217,6 +217,7 @@ mock-gen:
 	cd backend && $(MOCKGEN) -source=usecase/service/image_analyzer.go -destination=mock/mock_image_analyzer.go -package=mock
 	cd backend && $(MOCKGEN) -source=usecase/service/pfc_analyzer.go -destination=mock/mock_pfc_analyzer.go -package=mock
 	cd backend && $(MOCKGEN) -source=usecase/service/pfc_estimator.go -destination=mock/mock_pfc_estimator.go -package=mock
+	cd backend && $(MOCKGEN) -source=usecase/ai_config.go -destination=mock/mock_ai_config.go -package=mock
 	@echo "Mock generation completed."
 
 mock-clean:

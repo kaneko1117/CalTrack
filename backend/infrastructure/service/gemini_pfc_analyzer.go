@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/google/generative-ai-go/genai"
 
+	"caltrack/pkg/logger"
 	usecaseService "caltrack/usecase/service"
 )
 
@@ -33,9 +33,7 @@ func (g *GeminiPfcAnalyzer) Analyze(ctx context.Context, config usecaseService.P
 	model := g.client.GenerativeModel(config.ModelName)
 
 	// リクエストログ
-	if config.Log.EnableRequestLog {
-		log.Printf("[INFO] Gemini PFC Analyzer Request - Model: %s", config.ModelName)
-	}
+	logger.Debug("Gemini PFC Analyzer Request", "model", config.ModelName)
 
 	// Gemini APIにリクエスト送信
 	resp, err := model.GenerateContent(ctx, genai.Text(config.Prompt))
@@ -44,24 +42,22 @@ func (g *GeminiPfcAnalyzer) Analyze(ctx context.Context, config usecaseService.P
 	}
 
 	// トークン使用量ログ
-	if config.Log.EnableTokenLog && resp.UsageMetadata != nil {
-		log.Printf("[INFO] Gemini API Token Usage - PromptTokens: %d, CandidatesTokens: %d, TotalTokens: %d",
-			resp.UsageMetadata.PromptTokenCount,
-			resp.UsageMetadata.CandidatesTokenCount,
-			resp.UsageMetadata.TotalTokenCount)
+	if resp.UsageMetadata != nil {
+		logger.Debug("Gemini API Token Usage",
+			"promptTokens", resp.UsageMetadata.PromptTokenCount,
+			"candidatesTokens", resp.UsageMetadata.CandidatesTokenCount,
+			"totalTokens", resp.UsageMetadata.TotalTokenCount)
 	}
 
 	// レスポンスからテキストを抽出
 	responseText, err := extractResponseText(resp)
 	if err != nil {
-		log.Printf("[ERROR] Failed to extract response text: %v", err)
+		logger.Error("Failed to extract response text", "error", err)
 		return nil, err
 	}
 
 	// レスポンスログ
-	if config.Log.EnableResponseLog {
-		log.Printf("[INFO] Gemini PFC Analyzer Response - Advice length: %d chars", len(responseText))
-	}
+	logger.Debug("Gemini PFC Analyzer Response", "adviceLength", len(responseText))
 
 	return &usecaseService.NutritionAdviceOutput{
 		Advice: responseText,

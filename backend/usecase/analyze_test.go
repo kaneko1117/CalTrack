@@ -15,11 +15,14 @@ import (
 )
 
 // setupAnalyzeMocks はテスト用のモックをセットアップするヘルパー関数
-func setupAnalyzeMocks(t *testing.T) (*mock.MockImageAnalyzer, *gomock.Controller) {
+func setupAnalyzeMocks(t *testing.T) (*mock.MockImageAnalyzer, *mock.MockAIConfig, *gomock.Controller) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	imageAnalyzer := mock.NewMockImageAnalyzer(ctrl)
-	return imageAnalyzer, ctrl
+	aiConfig := mock.NewMockAIConfig(ctrl)
+	// デフォルトでモデル名を返すように設定
+	aiConfig.EXPECT().GeminiModelName().Return("test-model").AnyTimes()
+	return imageAnalyzer, aiConfig, ctrl
 }
 
 // TestAnalyzeUsecase_AnalyzeImage は画像解析機能のテスト
@@ -43,7 +46,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 			t.Fatalf("failed to create Calories: %v", err)
 		}
 
-		mockAnalyzer, ctrl := setupAnalyzeMocks(t)
+		mockAnalyzer, aiConfig, ctrl := setupAnalyzeMocks(t)
 		defer ctrl.Finish()
 
 		// Analyze メソッドの期待値を設定
@@ -59,7 +62,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 				{Name: itemName2, Calories: calories2},
 			}, nil)
 
-		uc := usecase.NewAnalyzeUsecase(mockAnalyzer)
+		uc := usecase.NewAnalyzeUsecase(mockAnalyzer, aiConfig)
 		result, err := uc.AnalyzeImage(context.Background(), "base64encodedimage", "image/jpeg")
 
 		if err != nil {
@@ -86,12 +89,12 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 	})
 
 	t.Run("異常系_画像データが空の場合、ErrImageDataRequiredを返す", func(t *testing.T) {
-		mockAnalyzer, ctrl := setupAnalyzeMocks(t)
+		mockAnalyzer, aiConfig, ctrl := setupAnalyzeMocks(t)
 		defer ctrl.Finish()
 
 		// バリデーションエラーのため、Analyzeは呼ばれないことを検証（EXPECT未設定）
 
-		uc := usecase.NewAnalyzeUsecase(mockAnalyzer)
+		uc := usecase.NewAnalyzeUsecase(mockAnalyzer, aiConfig)
 		_, err := uc.AnalyzeImage(context.Background(), "", "image/jpeg")
 
 		if err != domainErrors.ErrImageDataRequired {
@@ -100,12 +103,12 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 	})
 
 	t.Run("異常系_MIMEタイプが空の場合、ErrMimeTypeRequiredを返す", func(t *testing.T) {
-		mockAnalyzer, ctrl := setupAnalyzeMocks(t)
+		mockAnalyzer, aiConfig, ctrl := setupAnalyzeMocks(t)
 		defer ctrl.Finish()
 
 		// バリデーションエラーのため、Analyzeは呼ばれないことを検証（EXPECT未設定）
 
-		uc := usecase.NewAnalyzeUsecase(mockAnalyzer)
+		uc := usecase.NewAnalyzeUsecase(mockAnalyzer, aiConfig)
 		_, err := uc.AnalyzeImage(context.Background(), "base64encodedimage", "")
 
 		if err != domainErrors.ErrMimeTypeRequired {
@@ -114,7 +117,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 	})
 
 	t.Run("異常系_解析結果が空の場合、ErrNoFoodDetectedを返す", func(t *testing.T) {
-		mockAnalyzer, ctrl := setupAnalyzeMocks(t)
+		mockAnalyzer, aiConfig, ctrl := setupAnalyzeMocks(t)
 		defer ctrl.Finish()
 
 		// Analyze メソッドの期待値を設定（空の配列を返す）
@@ -127,7 +130,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 			).
 			Return([]service.AnalyzedItem{}, nil)
 
-		uc := usecase.NewAnalyzeUsecase(mockAnalyzer)
+		uc := usecase.NewAnalyzeUsecase(mockAnalyzer, aiConfig)
 		_, err := uc.AnalyzeImage(context.Background(), "base64encodedimage", "image/jpeg")
 
 		if err != domainErrors.ErrNoFoodDetected {
@@ -137,7 +140,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 
 	t.Run("異常系_画像解析サービスがエラーを返す場合", func(t *testing.T) {
 		analyzeErr := errors.New("analysis service error")
-		mockAnalyzer, ctrl := setupAnalyzeMocks(t)
+		mockAnalyzer, aiConfig, ctrl := setupAnalyzeMocks(t)
 		defer ctrl.Finish()
 
 		// Analyze メソッドの期待値を設定（エラーを返す）
@@ -150,7 +153,7 @@ func TestAnalyzeUsecase_AnalyzeImage(t *testing.T) {
 			).
 			Return(nil, analyzeErr)
 
-		uc := usecase.NewAnalyzeUsecase(mockAnalyzer)
+		uc := usecase.NewAnalyzeUsecase(mockAnalyzer, aiConfig)
 		_, err := uc.AnalyzeImage(context.Background(), "base64encodedimage", "image/jpeg")
 
 		if err != analyzeErr {
