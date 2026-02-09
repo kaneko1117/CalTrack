@@ -1,11 +1,13 @@
 package record
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
@@ -13,13 +15,20 @@ import (
 	"caltrack/usecase"
 )
 
+// RecordUsecaseInterface はRecordUsecaseのインターフェース
+type RecordUsecaseInterface interface {
+	Create(ctx context.Context, record *entity.Record) error
+	GetTodayCalories(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error)
+	GetStatistics(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error)
+}
+
 // RecordHandler はカロリー記録関連のHTTPハンドラ
 type RecordHandler struct {
-	usecase *usecase.RecordUsecase
+	usecase RecordUsecaseInterface
 }
 
 // NewRecordHandler は RecordHandler のインスタンスを生成する
-func NewRecordHandler(uc *usecase.RecordUsecase) *RecordHandler {
+func NewRecordHandler(uc RecordUsecaseInterface) *RecordHandler {
 	return &RecordHandler{usecase: uc}
 }
 

@@ -23,58 +23,43 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-type mockUserRepository struct {
-	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
-	save          func(ctx context.Context, user *entity.User) error
-	findByID      func(ctx context.Context, id vo.UserID) (*entity.User, error)
-	update        func(ctx context.Context, user *entity.User) error
+// MockUserUsecase はUserUsecaseのモック実装
+type MockUserUsecase struct {
+	RegisterFunc      func(ctx context.Context, user *entity.User) (*entity.User, error)
+	GetProfileFunc    func(ctx context.Context, userID vo.UserID) (*entity.User, error)
+	UpdateProfileFunc func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error)
 }
 
-func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
-	return m.existsByEmail(ctx, email)
-}
-
-func (m *mockUserRepository) Save(ctx context.Context, u *entity.User) error {
-	return m.save(ctx, u)
-}
-
-func (m *mockUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
-	return nil, nil
-}
-
-func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
-	if m.findByID != nil {
-		return m.findByID(ctx, id)
+func (m *MockUserUsecase) Register(ctx context.Context, user *entity.User) (*entity.User, error) {
+	if m.RegisterFunc != nil {
+		return m.RegisterFunc(ctx, user)
 	}
 	return nil, nil
 }
 
-func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
-	if m.update != nil {
-		return m.update(ctx, user)
+func (m *MockUserUsecase) GetProfile(ctx context.Context, userID vo.UserID) (*entity.User, error) {
+	if m.GetProfileFunc != nil {
+		return m.GetProfileFunc(ctx, userID)
 	}
-	return nil
+	return nil, nil
 }
 
-type mockTransactionManager struct{}
-
-func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
+func (m *MockUserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+	if m.UpdateProfileFunc != nil {
+		return m.UpdateProfileFunc(ctx, userID, input)
+	}
+	return nil, nil
 }
 
 func TestUserHandler_Register(t *testing.T) {
 	t.Run("正常系_登録成功", func(t *testing.T) {
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return false, nil
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return nil
+		testUser := createTestUser()
+		mockUC := &MockUserUsecase{
+			RegisterFunc: func(ctx context.Context, user *entity.User) (*entity.User, error) {
+				return testUser, nil
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"email": "test@example.com",
@@ -100,17 +85,12 @@ func TestUserHandler_Register(t *testing.T) {
 	})
 
 	t.Run("異常系_メールアドレス重複", func(t *testing.T) {
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return true, nil
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return nil
+		mockUC := &MockUserUsecase{
+			RegisterFunc: func(ctx context.Context, user *entity.User) (*entity.User, error) {
+				return nil, domainErrors.ErrEmailAlreadyExists
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"email": "test@example.com",
@@ -136,17 +116,8 @@ func TestUserHandler_Register(t *testing.T) {
 	})
 
 	t.Run("異常系_バリデーションエラー", func(t *testing.T) {
-		repo := &mockUserRepository{
-			existsByEmail: func(ctx context.Context, email vo.Email) (bool, error) {
-				return false, nil
-			},
-			save: func(ctx context.Context, u *entity.User) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		mockUC := &MockUserUsecase{}
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"email": "invalid-email",
@@ -172,10 +143,8 @@ func TestUserHandler_Register(t *testing.T) {
 	})
 
 	t.Run("異常系_不正な生年月日フォーマット", func(t *testing.T) {
-		repo := &mockUserRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		mockUC := &MockUserUsecase{}
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"email": "test@example.com",
@@ -225,17 +194,14 @@ func createTestUser() *entity.User {
 func TestUserHandler_UpdateProfile(t *testing.T) {
 	t.Run("正常系_プロフィール更新成功", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUC := &MockUserUsecase{
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+				// 更新後のユーザーを返す
+				testUser.UpdateProfile("UpdatedNickname", 175.0, 72.5, "active")
 				return testUser, nil
 			},
-			update: func(ctx context.Context, user *entity.User) error {
-				return nil
-			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"nickname": "UpdatedNickname",
@@ -279,10 +245,8 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_認証なし", func(t *testing.T) {
-		repo := &mockUserRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		mockUC := &MockUserUsecase{}
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"nickname": "UpdatedNickname",
@@ -306,10 +270,8 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_無効なリクエストボディ", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		mockUC := &MockUserUsecase{}
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `invalid json`
 
@@ -328,14 +290,12 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUC := &MockUserUsecase{
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
 				return nil, domainErrors.ErrUserNotFound
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"nickname": "UpdatedNickname",
@@ -359,14 +319,12 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_バリデーションエラー_ニックネーム空", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
+		mockUC := &MockUserUsecase{
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+				return nil, domainErrors.ErrNicknameRequired
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"nickname": "",
@@ -390,14 +348,12 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_バリデーションエラー_不正な活動レベル", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
+		mockUC := &MockUserUsecase{
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+				return nil, domainErrors.ErrInvalidActivityLevel
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"nickname": "UpdatedNickname",
@@ -421,17 +377,12 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_DB更新失敗", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-			update: func(ctx context.Context, user *entity.User) error {
-				return errors.New("database error")
+		mockUC := &MockUserUsecase{
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+				return nil, errors.New("database error")
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
 			"nickname": "UpdatedNickname",
@@ -457,14 +408,12 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 func TestUserHandler_GetProfile(t *testing.T) {
 	t.Run("正常系_プロフィール取得成功", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUC := &MockUserUsecase{
+			GetProfileFunc: func(ctx context.Context, userID vo.UserID) (*entity.User, error) {
 				return testUser, nil
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -520,10 +469,8 @@ func TestUserHandler_GetProfile(t *testing.T) {
 	})
 
 	t.Run("異常系_認証なし", func(t *testing.T) {
-		repo := &mockUserRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		mockUC := &MockUserUsecase{}
+		handler := user.NewUserHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -539,14 +486,12 @@ func TestUserHandler_GetProfile(t *testing.T) {
 
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUC := &MockUserUsecase{
+			GetProfileFunc: func(ctx context.Context, userID vo.UserID) (*entity.User, error) {
 				return nil, domainErrors.ErrUserNotFound
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -562,14 +507,12 @@ func TestUserHandler_GetProfile(t *testing.T) {
 
 	t.Run("異常系_DB取得失敗", func(t *testing.T) {
 		testUser := createTestUser()
-		repo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUC := &MockUserUsecase{
+			GetProfileFunc: func(ctx context.Context, userID vo.UserID) (*entity.User, error) {
 				return nil, errors.New("database error")
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewUserUsecase(repo, txManager)
-		handler := user.NewUserHandler(uc)
+		handler := user.NewUserHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)

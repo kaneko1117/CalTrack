@@ -13,7 +13,6 @@ import (
 
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
-	"caltrack/domain/vo"
 	"caltrack/handler/auth"
 	"caltrack/handler/common"
 	"caltrack/usecase"
@@ -23,66 +22,32 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-// mockUserRepository はUserRepositoryのモック実装
-type mockUserRepository struct {
-	existsByEmail func(ctx context.Context, email vo.Email) (bool, error)
-	save          func(ctx context.Context, user *entity.User) error
-	findByEmail   func(ctx context.Context, email vo.Email) (*entity.User, error)
-	findByID      func(ctx context.Context, id vo.UserID) (*entity.User, error)
+// MockAuthUsecase はAuthUsecaseのモック実装
+type MockAuthUsecase struct {
+	LoginFunc           func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error)
+	LogoutFunc          func(ctx context.Context, sessionIDStr string) error
+	ValidateSessionFunc func(ctx context.Context, sessionIDStr string) (*entity.Session, error)
 }
 
-func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
-	return m.existsByEmail(ctx, email)
-}
-
-func (m *mockUserRepository) Save(ctx context.Context, u *entity.User) error {
-	return m.save(ctx, u)
-}
-
-func (m *mockUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
-	return m.findByEmail(ctx, email)
-}
-
-func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
-	if m.findByID != nil {
-		return m.findByID(ctx, id)
+func (m *MockAuthUsecase) Login(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+	if m.LoginFunc != nil {
+		return m.LoginFunc(ctx, input)
 	}
 	return nil, nil
 }
 
-func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
+func (m *MockAuthUsecase) Logout(ctx context.Context, sessionIDStr string) error {
+	if m.LogoutFunc != nil {
+		return m.LogoutFunc(ctx, sessionIDStr)
+	}
 	return nil
 }
 
-// mockSessionRepository はSessionRepositoryのモック実装
-type mockSessionRepository struct {
-	save           func(ctx context.Context, session *entity.Session) error
-	findByID       func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error)
-	deleteByID     func(ctx context.Context, sessionID vo.SessionID) error
-	deleteByUserID func(ctx context.Context, userID vo.UserID) error
-}
-
-func (m *mockSessionRepository) Save(ctx context.Context, session *entity.Session) error {
-	return m.save(ctx, session)
-}
-
-func (m *mockSessionRepository) FindByID(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
-	return m.findByID(ctx, sessionID)
-}
-
-func (m *mockSessionRepository) DeleteByID(ctx context.Context, sessionID vo.SessionID) error {
-	return m.deleteByID(ctx, sessionID)
-}
-
-func (m *mockSessionRepository) DeleteByUserID(ctx context.Context, userID vo.UserID) error {
-	return m.deleteByUserID(ctx, userID)
-}
-
-// mockTransactionManager はTransactionManagerのモック実装
-type mockTransactionManager struct{}
-
-func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
+func (m *MockAuthUsecase) ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+	if m.ValidateSessionFunc != nil {
+		return m.ValidateSessionFunc(ctx, sessionIDStr)
+	}
+	return nil, nil
 }
 
 // createTestUser はテスト用ユーザーを作成するヘルパー関数
@@ -111,19 +76,20 @@ func TestAuthHandler_Login(t *testing.T) {
 		testPassword := "password123"
 		testUser := createTestUser(t, testEmail, testPassword)
 
-		userRepo := &mockUserRepository{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return testUser, nil
+		mockUC := &MockAuthUsecase{
+			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+				// テスト用のセッションを作成
+				session, err := entity.NewSessionWithUserID(testUser.ID())
+				if err != nil {
+					return nil, err
+				}
+				return &usecase.LoginOutput{
+					User:    testUser,
+					Session: session,
+				}, nil
 			},
 		}
-		sessionRepo := &mockSessionRepository{
-			save: func(ctx context.Context, session *entity.Session) error {
-				return nil
-			},
-		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		handler := auth.NewAuthHandler(mockUC)
 
 		reqBody := `{"email": "test@example.com", "password": "password123"}`
 
@@ -176,19 +142,12 @@ func TestAuthHandler_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_認証情報不正", func(t *testing.T) {
-		testEmail := "test@example.com"
-		testPassword := "password123"
-		testUser := createTestUser(t, testEmail, testPassword)
-
-		userRepo := &mockUserRepository{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return testUser, nil
+		mockUC := &MockAuthUsecase{
+			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+				return nil, domainErrors.ErrInvalidCredentials
 			},
 		}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		handler := auth.NewAuthHandler(mockUC)
 
 		// 間違ったパスワードでログイン試行
 		reqBody := `{"email": "test@example.com", "password": "wrongpassword"}`
@@ -216,15 +175,12 @@ func TestAuthHandler_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_ユーザー未登録", func(t *testing.T) {
-		userRepo := &mockUserRepository{
-			findByEmail: func(ctx context.Context, email vo.Email) (*entity.User, error) {
-				return nil, nil // ユーザーが見つからない
+		mockUC := &MockAuthUsecase{
+			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+				return nil, domainErrors.ErrInvalidCredentials
 			},
 		}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		handler := auth.NewAuthHandler(mockUC)
 
 		reqBody := `{"email": "notfound@example.com", "password": "password123"}`
 
@@ -250,11 +206,12 @@ func TestAuthHandler_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_メールアドレス形式不正", func(t *testing.T) {
-		userRepo := &mockUserRepository{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		mockUC := &MockAuthUsecase{
+			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+				return nil, domainErrors.ErrInvalidCredentials
+			},
+		}
+		handler := auth.NewAuthHandler(mockUC)
 
 		reqBody := `{"email": "invalid-email", "password": "password123"}`
 
@@ -280,11 +237,8 @@ func TestAuthHandler_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_リクエストボディ不正", func(t *testing.T) {
-		userRepo := &mockUserRepository{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		mockUC := &MockAuthUsecase{}
+		handler := auth.NewAuthHandler(mockUC)
 
 		reqBody := `{invalid json}`
 
@@ -312,15 +266,12 @@ func TestAuthHandler_Login(t *testing.T) {
 
 func TestAuthHandler_Logout(t *testing.T) {
 	t.Run("正常系_ログアウト成功", func(t *testing.T) {
-		userRepo := &mockUserRepository{}
-		sessionRepo := &mockSessionRepository{
-			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
+		mockUC := &MockAuthUsecase{
+			LogoutFunc: func(ctx context.Context, sessionIDStr string) error {
 				return nil
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		handler := auth.NewAuthHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -352,11 +303,8 @@ func TestAuthHandler_Logout(t *testing.T) {
 	})
 
 	t.Run("正常系_Cookie未設定", func(t *testing.T) {
-		userRepo := &mockUserRepository{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		mockUC := &MockAuthUsecase{}
+		handler := auth.NewAuthHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -372,11 +320,12 @@ func TestAuthHandler_Logout(t *testing.T) {
 	})
 
 	t.Run("異常系_セッションID不正", func(t *testing.T) {
-		userRepo := &mockUserRepository{}
-		sessionRepo := &mockSessionRepository{}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		mockUC := &MockAuthUsecase{
+			LogoutFunc: func(ctx context.Context, sessionIDStr string) error {
+				return domainErrors.ErrInvalidSessionID
+			},
+		}
+		handler := auth.NewAuthHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -396,15 +345,12 @@ func TestAuthHandler_Logout(t *testing.T) {
 	})
 
 	t.Run("異常系_セッション削除エラー", func(t *testing.T) {
-		userRepo := &mockUserRepository{}
-		sessionRepo := &mockSessionRepository{
-			deleteByID: func(ctx context.Context, sessionID vo.SessionID) error {
+		mockUC := &MockAuthUsecase{
+			LogoutFunc: func(ctx context.Context, sessionIDStr string) error {
 				return domainErrors.ErrSessionNotFound
 			},
 		}
-		txManager := &mockTransactionManager{}
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		handler := auth.NewAuthHandler(uc)
+		handler := auth.NewAuthHandler(mockUC)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)

@@ -1,18 +1,24 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/handler/common"
-	"caltrack/usecase"
 )
 
+// AuthSessionValidator はセッション検証用のインターフェース
+type AuthSessionValidator interface {
+	ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error)
+}
+
 // AuthMiddleware は認証ミドルウェアを生成する
-func AuthMiddleware(authUsecase *usecase.AuthUsecase) gin.HandlerFunc {
+func AuthMiddleware(authUsecase AuthSessionValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// CookieからセッションIDを取得
 		sessionID, err := c.Cookie("session_id")

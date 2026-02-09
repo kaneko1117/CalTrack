@@ -84,6 +84,13 @@ func RespondValidationError(c echo.Context, details []string) error
 - バージョニング: `/api/v1/`
 - リソース名は複数形
 
+## テスト
+
+### モック方針
+- **Usecaseインターフェースに対するモックを使用すること**（Repository層のモックは使わない）
+- 各handler.goに定義された `{Domain}UsecaseInterface` に対してモックを作成
+- テストの関心事はHandler層のみ（HTTPリクエスト/レスポンスのマッピング）
+
 ## 禁止事項
 
 - ビジネスロジックの実装

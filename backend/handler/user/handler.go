@@ -1,11 +1,13 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
@@ -13,11 +15,18 @@ import (
 	"caltrack/usecase"
 )
 
-type UserHandler struct {
-	usecase *usecase.UserUsecase
+// UserUsecaseInterface はUserUsecaseのインターフェース
+type UserUsecaseInterface interface {
+	Register(ctx context.Context, user *entity.User) (*entity.User, error)
+	GetProfile(ctx context.Context, userID vo.UserID) (*entity.User, error)
+	UpdateProfile(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error)
 }
 
-func NewUserHandler(uc *usecase.UserUsecase) *UserHandler {
+type UserHandler struct {
+	usecase UserUsecaseInterface
+}
+
+func NewUserHandler(uc UserUsecaseInterface) *UserHandler {
 	return &UserHandler{usecase: uc}
 }
 

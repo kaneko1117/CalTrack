@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
 	"caltrack/handler/auth/dto"
@@ -22,13 +24,20 @@ const (
 	cookieMaxAge = int(vo.SessionDurationDays * 24 * time.Hour / time.Second)
 )
 
+// AuthUsecaseInterface はAuthUsecaseのインターフェース
+type AuthUsecaseInterface interface {
+	Login(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error)
+	Logout(ctx context.Context, sessionIDStr string) error
+	ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error)
+}
+
 // AuthHandler は認証関連のHTTPハンドラ
 type AuthHandler struct {
-	usecase *usecase.AuthUsecase
+	usecase AuthUsecaseInterface
 }
 
 // NewAuthHandler は AuthHandler のインスタンスを生成する
-func NewAuthHandler(uc *usecase.AuthUsecase) *AuthHandler {
+func NewAuthHandler(uc AuthUsecaseInterface) *AuthHandler {
 	return &AuthHandler{usecase: uc}
 }
 
