@@ -196,11 +196,66 @@ function validate(form: FormState): FormErrors {
 
 ## Storybook
 
-**コンポーネント実装時は必ずStoryを作成すること**
+**コンポーネント実装時は必ずStoryファイルを作成すること（省略不可）**
+
+### 基本ルール
 
 - ファイル: `{Component}.stories.tsx`
 - 配置: コンポーネントと同じディレクトリ
-- 必須Story: Default, Loading（該当時）, Empty（該当時）
+- import: `import type { Meta, StoryObj } from "@storybook/react-vite"`
+
+### title命名規則
+
+| 配置先 | title |
+|--------|-------|
+| `features/{feature}/components/` | `Features/{Feature}/{Component}` |
+| `components/ui/` | `UI/{Component}` |
+| `components/` | `Components/{Component}` |
+| `pages/` | `Pages/{Page}` |
+
+### チェックリスト
+
+コンポーネントの特性に応じて、以下のStoryが必要か確認すること:
+
+| Story | 条件 | 必須度 |
+|-------|------|--------|
+| Default | 常に | **必須** |
+| Loading | isLoading propsがある場合 | **必須** |
+| Empty | データなし状態がある場合 | **必須** |
+| Error | error propsがある場合 | **必須** |
+| バリエーション | 状態違いが意味を持つ場合 | 推奨 |
+
+### テンプレート
+
+```tsx
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { ComponentName } from "./ComponentName";
+
+const meta: Meta<typeof ComponentName> = {
+  title: "Features/{Feature}/{ComponentName}",
+  component: ComponentName,
+  tags: ["autodocs"],
+  parameters: {
+    layout: "centered",
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[720px] p-4">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+export default meta;
+type Story = StoryObj<typeof ComponentName>;
+
+export const Default: Story = {
+  args: {
+    // デフォルトprops
+  },
+};
+```
 
 ---
 

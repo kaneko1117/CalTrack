@@ -10,3 +10,4 @@ export * from "./itemName";
 export * from "./calories";
 export * from "./eatenAt";
 export * from "./imageFile";
+export * from "./pfcNutrient";
