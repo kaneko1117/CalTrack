@@ -134,6 +134,10 @@ func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*se
 		foodItems = append(foodItems, record.ItemNames()...)
 	}
 
+	// 最新記録の時間帯コンテキストを取得
+	latestRecord := findLatestRecord(records)
+	timeContext := latestRecord.EatenAt().TimeContext()
+
 	// PfcAnalyzer.Analyze呼び出し
 	input := service.NutritionAdviceInput{
 		TargetCalories:  targetCalories,
@@ -141,6 +145,7 @@ func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*se
 		CurrentCalories: currentCalories,
 		CurrentPfc:      currentPfc,
 		FoodItems:       foodItems,
+		TimeContext:     timeContext,
 	}
 
 	// プロンプト構築
@@ -177,6 +182,9 @@ func (u *NutritionUsecase) GetAdvice(ctx context.Context, userID vo.UserID) (*se
 func buildNutritionAdvicePrompt(input service.NutritionAdviceInput) string {
 	prompt := fmt.Sprintf(`あなたは栄養アドバイザーです。以下の情報に基づいて、簡潔なアドバイスを提供してください。
 
+【時間帯情報】
+%s
+
 【目標値】
 - カロリー: %d kcal
 - PFC: タンパク質 %.1fg / 脂質 %.1fg / 炭水化物 %.1fg
@@ -193,6 +201,7 @@ func buildNutritionAdvicePrompt(input service.NutritionAdviceInput) string {
 - 目標達成度を評価
 - 不足または過剰な栄養素を指摘
 - 次の食事で何を意識すべきか提案`,
+		input.TimeContext,
 		input.TargetCalories,
 		input.TargetPfc.Protein(),
 		input.TargetPfc.Fat(),
@@ -218,4 +227,15 @@ func formatFoodItems(items []string) string {
 		result += fmt.Sprintf("%d. %s\n", i+1, item)
 	}
 	return result
+}
+
+// findLatestRecord は記録リストから最新の記録を返す
+func findLatestRecord(records []*entity.Record) *entity.Record {
+	latest := records[0]
+	for _, record := range records[1:] {
+		if record.EatenAt().Time().After(latest.EatenAt().Time()) {
+			latest = record
+		}
+	}
+	return latest
 }
