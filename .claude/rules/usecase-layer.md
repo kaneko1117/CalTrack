@@ -81,6 +81,13 @@ Delete(ctx context.Context, id ID) error
 - HTTP関連の処理
 - 外部サービスの直接呼び出し
 
+## テスト
+
+### モック方針
+- **`backend/mock/` の自動生成モック（uber-go/mock）を使用すること**（手書きモック禁止）
+- モック生成: `make mock-gen`
+- Repository / Service のインターフェースに対するモックが `backend/mock/` に生成済み
+
 ## Service Interface（AI連携等）
 
 ### プロンプトの責務

@@ -1,6 +1,7 @@
 package nutrition
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -10,16 +11,21 @@ import (
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
 	"caltrack/handler/nutrition/dto"
-	"caltrack/usecase"
+	"caltrack/usecase/service"
 )
+
+// NutritionUsecaseInterface はNutritionUsecaseのインターフェース
+type NutritionUsecaseInterface interface {
+	GetAdvice(ctx context.Context, userID vo.UserID) (*service.NutritionAdviceOutput, error)
+}
 
 // NutritionHandler は栄養分析関連のHTTPハンドラ
 type NutritionHandler struct {
-	usecase *usecase.NutritionUsecase
+	usecase NutritionUsecaseInterface
 }
 
 // NewNutritionHandler は NutritionHandler のインスタンスを生成する
-func NewNutritionHandler(uc *usecase.NutritionUsecase) *NutritionHandler {
+func NewNutritionHandler(uc NutritionUsecaseInterface) *NutritionHandler {
 	return &NutritionHandler{usecase: uc}
 }
 

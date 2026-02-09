@@ -14,211 +14,53 @@ import (
 
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
-	"caltrack/domain/repository"
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
 	"caltrack/handler/record"
 	"caltrack/handler/record/dto"
 	"caltrack/usecase"
-	"caltrack/usecase/service"
 )
 
 func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-// mockRecordRepository はRecordRepositoryのモック実装
-type mockRecordRepository struct {
-	save                     func(ctx context.Context, record *entity.Record) error
-	findByUserIDAndDateRange func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error)
-	getDailyCalories         func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error)
+// MockRecordUsecase はRecordUsecaseのモック実装
+type MockRecordUsecase struct {
+	CreateFunc           func(ctx context.Context, record *entity.Record) error
+	GetTodayCaloriesFunc func(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error)
+	GetStatisticsFunc    func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error)
 }
 
-func (m *mockRecordRepository) Save(ctx context.Context, record *entity.Record) error {
-	return m.save(ctx, record)
-}
-
-func (m *mockRecordRepository) FindByUserIDAndDateRange(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-	if m.findByUserIDAndDateRange != nil {
-		return m.findByUserIDAndDateRange(ctx, userID, startTime, endTime)
-	}
-	return nil, nil
-}
-
-func (m *mockRecordRepository) GetDailyCalories(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-	if m.getDailyCalories != nil {
-		return m.getDailyCalories(ctx, userID, period)
-	}
-	return nil, nil
-}
-
-// mockTransactionManager はTransactionManagerのモック実装
-type mockTransactionManager struct{}
-
-func (m *mockTransactionManager) Execute(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
-}
-
-// mockRecordPfcRepository はRecordPfcRepositoryのモック実装
-type mockRecordPfcRepository struct {
-	save            func(ctx context.Context, recordPfc *entity.RecordPfc) error
-	findByRecordID  func(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error)
-	findByRecordIDs func(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error)
-}
-
-func (m *mockRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
-	if m.save != nil {
-		return m.save(ctx, recordPfc)
+func (m *MockRecordUsecase) Create(ctx context.Context, rec *entity.Record) error {
+	if m.CreateFunc != nil {
+		return m.CreateFunc(ctx, rec)
 	}
 	return nil
 }
 
-func (m *mockRecordPfcRepository) FindByRecordID(ctx context.Context, recordID vo.RecordID) (*entity.RecordPfc, error) {
-	if m.findByRecordID != nil {
-		return m.findByRecordID(ctx, recordID)
+func (m *MockRecordUsecase) GetTodayCalories(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error) {
+	if m.GetTodayCaloriesFunc != nil {
+		return m.GetTodayCaloriesFunc(ctx, userID)
 	}
 	return nil, nil
 }
 
-func (m *mockRecordPfcRepository) FindByRecordIDs(ctx context.Context, recordIDs []vo.RecordID) ([]*entity.RecordPfc, error) {
-	if m.findByRecordIDs != nil {
-		return m.findByRecordIDs(ctx, recordIDs)
+func (m *MockRecordUsecase) GetStatistics(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
+	if m.GetStatisticsFunc != nil {
+		return m.GetStatisticsFunc(ctx, userID, period)
 	}
 	return nil, nil
-}
-
-// mockUserRepository はUserRepositoryのモック実装（Handler用）
-type mockUserRepository struct {
-	findByID func(ctx context.Context, id vo.UserID) (*entity.User, error)
-}
-
-func (m *mockUserRepository) Save(ctx context.Context, user *entity.User) error {
-	return nil
-}
-
-func (m *mockUserRepository) FindByEmail(ctx context.Context, email vo.Email) (*entity.User, error) {
-	return nil, nil
-}
-
-func (m *mockUserRepository) ExistsByEmail(ctx context.Context, email vo.Email) (bool, error) {
-	return false, nil
-}
-
-func (m *mockUserRepository) FindByID(ctx context.Context, id vo.UserID) (*entity.User, error) {
-	if m.findByID != nil {
-		return m.findByID(ctx, id)
-	}
-	return nil, nil
-}
-
-func (m *mockUserRepository) Update(ctx context.Context, user *entity.User) error {
-	return nil
-}
-
-// mockAdviceCacheRepository はAdviceCacheRepositoryのモック実装
-type mockAdviceCacheRepository struct{}
-
-func (m *mockAdviceCacheRepository) Save(ctx context.Context, cache *entity.AdviceCache) error {
-	return nil
-}
-
-func (m *mockAdviceCacheRepository) FindByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) (*entity.AdviceCache, error) {
-	return nil, nil
-}
-
-func (m *mockAdviceCacheRepository) DeleteByUserIDAndDate(ctx context.Context, userID vo.UserID, date time.Time) error {
-	return nil
-}
-
-// mockPfcEstimator はPfcEstimatorのモック実装
-type mockPfcEstimator struct {
-	estimate func(ctx context.Context, config service.PfcEstimatorConfig, input service.PfcEstimateInput) (*service.PfcEstimateOutput, error)
-}
-
-func (m *mockPfcEstimator) Estimate(ctx context.Context, config service.PfcEstimatorConfig, input service.PfcEstimateInput) (*service.PfcEstimateOutput, error) {
-	if m.estimate != nil {
-		return m.estimate(ctx, config, input)
-	}
-	// デフォルトは固定値を返す
-	return &service.PfcEstimateOutput{
-		Protein: 20.0,
-		Fat:     10.0,
-		Carbs:   30.0,
-	}, nil
-}
-
-// setupHandler はテスト用のハンドラをセットアップする
-func setupHandler(recordRepo repository.RecordRepository) *record.RecordHandler {
-	recordPfcRepo := &mockRecordPfcRepository{}
-	userRepo := &mockUserRepository{}
-	adviceCacheRepo := &mockAdviceCacheRepository{}
-	txManager := &mockTransactionManager{}
-	pfcEstimator := &mockPfcEstimator{}
-	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
-	return record.NewRecordHandler(uc)
-}
-
-// setupHandlerWithUserRepo はUserRepositoryを指定してテスト用のハンドラをセットアップする
-func setupHandlerWithUserRepo(recordRepo repository.RecordRepository, userRepo repository.UserRepository) *record.RecordHandler {
-	recordPfcRepo := &mockRecordPfcRepository{}
-	adviceCacheRepo := &mockAdviceCacheRepository{}
-	txManager := &mockTransactionManager{}
-	pfcEstimator := &mockPfcEstimator{}
-	uc := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator)
-	return record.NewRecordHandler(uc)
-}
-
-// createTestUser はテスト用のユーザーを作成する
-func createTestUser(userIDStr string) *entity.User {
-	birthDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
-	user, _ := entity.ReconstructUser(
-		userIDStr,
-		"test@example.com",
-		"$2a$10$dummy_hash_value_for_testing",
-		"テストユーザー",
-		70.0,  // weight
-		170.0, // height
-		birthDate,
-		"male",
-		"moderate",
-		time.Now(),
-		time.Now(),
-	)
-	return user
-}
-
-// createTestRecord はテスト用のRecordを作成する
-func createTestRecord(userIDStr string, eatenAt time.Time, items []struct {
-	name     string
-	calories int
-}) *entity.Record {
-	recordItems := make([]entity.RecordItem, len(items))
-	recordIDStr := "record-" + eatenAt.Format("20060102150405")
-	for i, item := range items {
-		recordItems[i] = *entity.ReconstructRecordItem(
-			"item-"+recordIDStr+"-"+item.name,
-			recordIDStr,
-			item.name,
-			item.calories,
-		)
-	}
-	return entity.ReconstructRecord(
-		recordIDStr,
-		userIDStr,
-		eatenAt,
-		time.Now(),
-		recordItems,
-	)
 }
 
 func TestRecordHandler_Create(t *testing.T) {
 	t.Run("正常系_記録が作成される", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{
-			save: func(ctx context.Context, record *entity.Record) error {
+		mockUsecase := &MockRecordUsecase{
+			CreateFunc: func(ctx context.Context, rec *entity.Record) error {
 				return nil
 			},
 		}
-		handler := setupHandler(recordRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		// 現在時刻から少し前の日時を使用（未来日時エラーを回避）
 		eatenAt := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
@@ -260,8 +102,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_認証なし", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		reqBody := `{
 		"eatenAt": "2024-01-15T12:00:00Z",
@@ -291,8 +133,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_無効なリクエストボディ", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		reqBody := `{invalid json}`
 
@@ -319,8 +161,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_明細が空", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		reqBody := `{
 		"eatenAt": "2024-01-15T12:00:00Z",
@@ -353,8 +195,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_無効なeatenAt形式", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		reqBody := `{
 		"eatenAt": "invalid-date-format",
@@ -384,8 +226,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_未来日時エラー", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		// 1年後の日時を設定
 		futureTime := time.Now().AddDate(1, 0, 0).Format(time.RFC3339)
@@ -417,8 +259,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_カロリーが負の値", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		eatenAt := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
 		reqBody := `{
@@ -449,8 +291,8 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_食品名が空", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		handler := setupHandler(recordRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		eatenAt := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
 		reqBody := `{
@@ -481,12 +323,12 @@ func TestRecordHandler_Create(t *testing.T) {
 	})
 
 	t.Run("異常系_DB保存失敗", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{
-			save: func(ctx context.Context, record *entity.Record) error {
+		mockUsecase := &MockRecordUsecase{
+			CreateFunc: func(ctx context.Context, rec *entity.Record) error {
 				return context.DeadlineExceeded
 			},
 		}
-		handler := setupHandler(recordRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		eatenAt := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
 		reqBody := `{
@@ -520,37 +362,46 @@ func TestRecordHandler_Create(t *testing.T) {
 func TestRecordHandler_GetToday(t *testing.T) {
 	t.Run("正常系_今日のカロリー情報が取得できる", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		// 今日のRecordを作成
+		// Usecaseのアウトプットを作成
 		now := time.Now()
-		testRecords := []*entity.Record{
-			createTestRecord(userIDStr, now.Add(-2*time.Hour), []struct {
-				name     string
-				calories int
-			}{
-				{"朝食：パン", 300},
-				{"朝食：コーヒー", 50},
-			}),
-			createTestRecord(userIDStr, now.Add(-1*time.Hour), []struct {
-				name     string
-				calories int
-			}{
-				{"昼食：ラーメン", 800},
-			}),
+		eatenAt1 := now.Add(-2 * time.Hour)
+		eatenAt2 := now.Add(-1 * time.Hour)
+
+		record1 := entity.ReconstructRecord(
+			"record-1",
+			userIDStr,
+			eatenAt1,
+			now,
+			[]entity.RecordItem{
+				*entity.ReconstructRecordItem("item-1", "record-1", "朝食：パン", 300),
+				*entity.ReconstructRecordItem("item-2", "record-1", "朝食：コーヒー", 50),
+			},
+		)
+		record2 := entity.ReconstructRecord(
+			"record-2",
+			userIDStr,
+			eatenAt2,
+			now,
+			[]entity.RecordItem{
+				*entity.ReconstructRecordItem("item-3", "record-2", "昼食：ラーメン", 800),
+			},
+		)
+
+		output := &usecase.TodayCaloriesOutput{
+			Date:           now,
+			TotalCalories:  1150,
+			TargetCalories: 2000,
+			Difference:     850,
+			Records:        []*entity.Record{record1, record2},
 		}
 
-		recordRepo := &mockRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-				return testRecords, nil
+		mockUsecase := &MockRecordUsecase{
+			GetTodayCaloriesFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error) {
+				return output, nil
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -587,19 +438,22 @@ func TestRecordHandler_GetToday(t *testing.T) {
 
 	t.Run("正常系_記録がない場合", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		recordRepo := &mockRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
-				return []*entity.Record{}, nil
+		// 空のアウトプット
+		output := &usecase.TodayCaloriesOutput{
+			Date:           time.Now(),
+			TotalCalories:  0,
+			TargetCalories: 2000,
+			Difference:     2000,
+			Records:        []*entity.Record{},
+		}
+
+		mockUsecase := &MockRecordUsecase{
+			GetTodayCaloriesFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error) {
+				return output, nil
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -627,9 +481,8 @@ func TestRecordHandler_GetToday(t *testing.T) {
 	})
 
 	t.Run("異常系_認証なし", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -655,13 +508,12 @@ func TestRecordHandler_GetToday(t *testing.T) {
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, nil // ユーザーが見つからない
+		mockUsecase := &MockRecordUsecase{
+			GetTodayCaloriesFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error) {
+				return nil, domainErrors.ErrUserNotFound
 			},
 		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -687,13 +539,12 @@ func TestRecordHandler_GetToday(t *testing.T) {
 	t.Run("異常系_ユーザー取得でDBエラー", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUsecase := &MockRecordUsecase{
+			GetTodayCaloriesFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error) {
 				return nil, errors.New("database connection error")
 			},
 		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -718,19 +569,13 @@ func TestRecordHandler_GetToday(t *testing.T) {
 
 	t.Run("異常系_Record取得でDBエラー", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		recordRepo := &mockRecordRepository{
-			findByUserIDAndDateRange: func(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) ([]*entity.Record, error) {
+		mockUsecase := &MockRecordUsecase{
+			GetTodayCaloriesFunc: func(ctx context.Context, userID vo.UserID) (*usecase.TodayCaloriesOutput, error) {
 				return nil, errors.New("database connection error")
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -757,27 +602,47 @@ func TestRecordHandler_GetToday(t *testing.T) {
 func TestRecordHandler_GetStatistics(t *testing.T) {
 	t.Run("正常系_週間統計データが取得できる", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		// 日別カロリーデータを作成
 		now := time.Now()
-		dailyCalories := []repository.DailyCalories{
-			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -6)), Calories: vo.ReconstructCalories(1800)},
-			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -5)), Calories: vo.ReconstructCalories(2200)},
-			{Date: vo.ReconstructEatenAt(now.AddDate(0, 0, -4)), Calories: vo.ReconstructCalories(2000)},
+		period, _ := vo.NewStatisticsPeriod("week")
+		output := &usecase.StatisticsOutput{
+			Period:          period,
+			TotalDays:       3,
+			AverageCalories: vo.ReconstructCalories(2000),
+			TargetCalories:  vo.ReconstructCalories(2000),
+			AchievedDays:    3,
+			OverDays:        0,
+			DailyStatistics: []usecase.DailyStatistics{
+				{
+					Date:           vo.ReconstructEatenAt(now.AddDate(0, 0, -6)),
+					TotalCalories:  vo.ReconstructCalories(1800),
+					TargetCalories: vo.ReconstructCalories(2000),
+					IsAchieved:     true,
+					IsOver:         false,
+				},
+				{
+					Date:           vo.ReconstructEatenAt(now.AddDate(0, 0, -5)),
+					TotalCalories:  vo.ReconstructCalories(2200),
+					TargetCalories: vo.ReconstructCalories(2000),
+					IsAchieved:     false,
+					IsOver:         true,
+				},
+				{
+					Date:           vo.ReconstructEatenAt(now.AddDate(0, 0, -4)),
+					TotalCalories:  vo.ReconstructCalories(2000),
+					TargetCalories: vo.ReconstructCalories(2000),
+					IsAchieved:     true,
+					IsOver:         false,
+				},
+			},
 		}
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return dailyCalories, nil
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
+				return output, nil
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -812,19 +677,24 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 
 	t.Run("正常系_月間統計データが取得できる", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return []repository.DailyCalories{}, nil
+		period, _ := vo.NewStatisticsPeriod("month")
+		output := &usecase.StatisticsOutput{
+			Period:          period,
+			TotalDays:       0,
+			AverageCalories: vo.ReconstructCalories(0),
+			TargetCalories:  vo.ReconstructCalories(2000),
+			AchievedDays:    0,
+			OverDays:        0,
+			DailyStatistics: []usecase.DailyStatistics{},
+		}
+
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
+				return output, nil
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -849,19 +719,24 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 
 	t.Run("正常系_期間未指定でデフォルトweek", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return []repository.DailyCalories{}, nil
+		period, _ := vo.NewStatisticsPeriod("week")
+		output := &usecase.StatisticsOutput{
+			Period:          period,
+			TotalDays:       0,
+			AverageCalories: vo.ReconstructCalories(0),
+			TargetCalories:  vo.ReconstructCalories(2000),
+			AchievedDays:    0,
+			OverDays:        0,
+			DailyStatistics: []usecase.DailyStatistics{},
+		}
+
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
+				return output, nil
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -887,19 +762,24 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 
 	t.Run("正常系_データがない場合", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
-				return []repository.DailyCalories{}, nil
+		period, _ := vo.NewStatisticsPeriod("week")
+		output := &usecase.StatisticsOutput{
+			Period:          period,
+			TotalDays:       0,
+			AverageCalories: vo.ReconstructCalories(0),
+			TargetCalories:  vo.ReconstructCalories(2000),
+			AchievedDays:    0,
+			OverDays:        0,
+			DailyStatistics: []usecase.DailyStatistics{},
+		}
+
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
+				return output, nil
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -929,9 +809,8 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 	})
 
 	t.Run("異常系_認証なし", func(t *testing.T) {
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -957,9 +836,8 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 	t.Run("異常系_無効な期間パラメータ", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		mockUsecase := &MockRecordUsecase{}
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -985,13 +863,12 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return nil, nil // ユーザーが見つからない
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
+				return nil, domainErrors.ErrUserNotFound
 			},
 		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -1017,13 +894,12 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 	t.Run("異常系_ユーザー取得でDBエラー", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
 
-		recordRepo := &mockRecordRepository{}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
 				return nil, errors.New("database connection error")
 			},
 		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -1048,19 +924,13 @@ func TestRecordHandler_GetStatistics(t *testing.T) {
 
 	t.Run("異常系_DailyCalories取得でDBエラー", func(t *testing.T) {
 		userIDStr := "550e8400-e29b-41d4-a716-446655440000"
-		testUser := createTestUser(userIDStr)
 
-		recordRepo := &mockRecordRepository{
-			getDailyCalories: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) ([]repository.DailyCalories, error) {
+		mockUsecase := &MockRecordUsecase{
+			GetStatisticsFunc: func(ctx context.Context, userID vo.UserID, period vo.StatisticsPeriod) (*usecase.StatisticsOutput, error) {
 				return nil, errors.New("database connection error")
 			},
 		}
-		userRepo := &mockUserRepository{
-			findByID: func(ctx context.Context, id vo.UserID) (*entity.User, error) {
-				return testUser, nil
-			},
-		}
-		handler := setupHandlerWithUserRepo(recordRepo, userRepo)
+		handler := record.NewRecordHandler(mockUsecase)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
