@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	"caltrack/domain/entity"
-	"caltrack/domain/repository"
 	"caltrack/domain/vo"
 	"caltrack/infrastructure/persistence/gorm/model"
 )
@@ -84,7 +83,7 @@ func (r *GormRecordPfcRepository) FindByRecordIDs(ctx context.Context, recordIDs
 }
 
 // GetDailyPfc は指定日時範囲のPFC合計を取得する
-func (r *GormRecordPfcRepository) GetDailyPfc(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) (*repository.DailyPfc, error) {
+func (r *GormRecordPfcRepository) GetDailyPfc(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) (vo.DailyPfc, error) {
 	tx := GetTx(ctx, r.db)
 
 	type pfcSum struct {
@@ -101,13 +100,10 @@ func (r *GormRecordPfcRepository) GetDailyPfc(ctx context.Context, userID vo.Use
 		Scan(&result).Error
 	if err != nil {
 		logError("GetDailyPfc", err, "user_id", userID.String())
-		return nil, err
+		return vo.DailyPfc{}, err
 	}
 
-	return &repository.DailyPfc{
-		Date: startTime,
-		Pfc:  vo.NewPfc(result.TotalProtein, result.TotalFat, result.TotalCarbs),
-	}, nil
+	return vo.NewDailyPfc(result.TotalProtein, result.TotalFat, result.TotalCarbs), nil
 }
 
 // toRecordPfcModel はエンティティをGORMモデルに変換する

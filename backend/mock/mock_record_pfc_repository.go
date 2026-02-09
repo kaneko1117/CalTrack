@@ -11,7 +11,6 @@ package mock
 
 import (
 	entity "caltrack/domain/entity"
-	repository "caltrack/domain/repository"
 	vo "caltrack/domain/vo"
 	context "context"
 	reflect "reflect"
@@ -75,10 +74,10 @@ func (mr *MockRecordPfcRepositoryMockRecorder) FindByRecordIDs(ctx, recordIDs an
 }
 
 // GetDailyPfc mocks base method.
-func (m *MockRecordPfcRepository) GetDailyPfc(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) (*repository.DailyPfc, error) {
+func (m *MockRecordPfcRepository) GetDailyPfc(ctx context.Context, userID vo.UserID, startTime, endTime time.Time) (vo.DailyPfc, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDailyPfc", ctx, userID, startTime, endTime)
-	ret0, _ := ret[0].(*repository.DailyPfc)
+	ret0, _ := ret[0].(vo.DailyPfc)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -93,7 +92,7 @@ func (mr *MockRecordPfcRepositoryMockRecorder) GetDailyPfc(ctx, userID, startTim
 func (m *MockRecordPfcRepository) Save(ctx context.Context, recordPfc *entity.RecordPfc) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", ctx, recordPfc)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[1].(error)
 	return ret0
 }
 

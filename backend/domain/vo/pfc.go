@@ -40,3 +40,15 @@ func (p Pfc) Fat() float64 {
 func (p Pfc) Carbs() float64 {
 	return p.carbs
 }
+
+// DailyPfc は日別PFC集計結果を表すValue Object
+type DailyPfc struct {
+	Pfc Pfc
+}
+
+// NewDailyPfc は新しいDailyPfcを生成する
+func NewDailyPfc(protein, fat, carbs float64) DailyPfc {
+	return DailyPfc{
+		Pfc: NewPfc(protein, fat, carbs),
+	}
+}

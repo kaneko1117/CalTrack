@@ -113,6 +113,7 @@ func main() {
 		authenticated.GET("/records/today", recordHandler.GetToday)
 		authenticated.GET("/statistics", recordHandler.GetStatistics)
 		authenticated.POST("/analyze-image", analyzeHandler.AnalyzeImage)
+		authenticated.GET("/nutrition/advice", nutritionHandler.GetAdvice)
 		authenticated.GET("/nutrition/today-pfc", nutritionHandler.GetTodayPfc)
 	}
 

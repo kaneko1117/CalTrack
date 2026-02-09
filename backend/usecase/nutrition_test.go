@@ -177,3 +177,109 @@ func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
 		}
 	})
 }
+
+func TestNutritionUsecase_GetTodayPfc(t *testing.T) {
+	t.Run("正常系_今日のPFC取得成功", func(t *testing.T) {
+		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		defer ctrl.Finish()
+
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+
+		dailyPfc := vo.DailyPfc{
+			Pfc: vo.NewPfc(50.0, 30.0, 150.0),
+		}
+
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), userID).
+			Return(user, nil)
+
+		recordPfcRepo.EXPECT().
+			GetDailyPfc(gomock.Any(), userID, gomock.Any(), gomock.Any()).
+			Return(dailyPfc, nil)
+
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		output, err := uc.GetTodayPfc(context.Background(), userID)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if output.CurrentPfc.Protein() != 50.0 {
+			t.Errorf("CurrentPfc.Protein = %f, want 50.0", output.CurrentPfc.Protein())
+		}
+		if output.CurrentPfc.Fat() != 30.0 {
+			t.Errorf("CurrentPfc.Fat = %f, want 30.0", output.CurrentPfc.Fat())
+		}
+		if output.CurrentPfc.Carbs() != 150.0 {
+			t.Errorf("CurrentPfc.Carbs = %f, want 150.0", output.CurrentPfc.Carbs())
+		}
+
+		// 目標値の検証（BMRベース）
+		targetPfc := user.CalculateTargetPfc()
+		if output.TargetPfc.Protein() != targetPfc.Protein() {
+			t.Errorf("TargetPfc.Protein = %f, want %f", output.TargetPfc.Protein(), targetPfc.Protein())
+		}
+	})
+
+	t.Run("異常系_ユーザーが存在しない", func(t *testing.T) {
+		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		defer ctrl.Finish()
+
+		userID := vo.NewUserID()
+
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), userID).
+			Return(nil, nil)
+
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		_, err := uc.GetTodayPfc(context.Background(), userID)
+
+		if !errors.Is(err, domainErrors.ErrUserNotFound) {
+			t.Errorf("got %v, want ErrUserNotFound", err)
+		}
+	})
+
+	t.Run("異常系_ユーザー取得時にエラー", func(t *testing.T) {
+		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		defer ctrl.Finish()
+
+		userID := vo.NewUserID()
+		repoErr := errors.New("db error")
+
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), userID).
+			Return(nil, repoErr)
+
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		_, err := uc.GetTodayPfc(context.Background(), userID)
+
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
+
+	t.Run("異常系_RecordPfc取得時にエラー", func(t *testing.T) {
+		userRepo, _, recordPfcRepo, _, _, ctrl := setupNutritionMocks(t)
+		defer ctrl.Finish()
+
+		userID := vo.NewUserID()
+		user := validUserForRecord(t, userID)
+		repoErr := errors.New("db error")
+
+		userRepo.EXPECT().
+			FindByID(gomock.Any(), userID).
+			Return(user, nil)
+
+		recordPfcRepo.EXPECT().
+			GetDailyPfc(gomock.Any(), userID, gomock.Any(), gomock.Any()).
+			Return(vo.DailyPfc{}, repoErr)
+
+		uc := usecase.NewNutritionUsecase(userRepo, nil, recordPfcRepo, nil, nil)
+		_, err := uc.GetTodayPfc(context.Background(), userID)
+
+		if !errors.Is(err, repoErr) {
+			t.Errorf("got %v, want repoErr", err)
+		}
+	})
+}
