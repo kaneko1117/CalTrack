@@ -15,7 +15,7 @@ import {
 import { PeriodSelector } from "@/features/statistics/components/PeriodSelector";
 import { StatisticsCard } from "@/features/statistics/components/StatisticsCard";
 import { CalorieChart } from "@/features/statistics/components/CalorieChart";
-import { useNutritionAdvice, NutritionAdviceCard } from "@/features/nutrition";
+import { useNutritionAdvice, NutritionAdviceCard, useTodayPfc, PfcProgressCard } from "@/features/nutrition";
 
 /**
  * DashboardPage - ダッシュボードページコンポーネント
@@ -35,6 +35,12 @@ export function DashboardPage() {
     isLoading: adviceLoading,
     refetch: adviceRefetch,
   } = useNutritionAdvice();
+  const {
+    data: pfcData,
+    error: pfcError,
+    isLoading: pfcLoading,
+    refetch: pfcRefetch,
+  } = useTodayPfc();
 
   /**
    * 記録成功時のコールバック
@@ -44,6 +50,7 @@ export function DashboardPage() {
     refetch();
     statisticsRefetch();
     adviceRefetch();
+    pfcRefetch();
   };
 
   return (
@@ -58,6 +65,15 @@ export function DashboardPage() {
               <RecordDialog onSuccess={handleRecordSuccess} />
             </div>
             <TodaySummary data={data ?? null} isLoading={isLoading} error={error ?? null} />
+          </section>
+
+          {/* 今日のPFCバランスセクション */}
+          <section>
+            <PfcProgressCard
+              data={pfcData ?? null}
+              isLoading={pfcLoading}
+              error={pfcError ?? null}
+            />
           </section>
 
           {/* PFCアドバイスセクション */}
