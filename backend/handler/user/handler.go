@@ -55,7 +55,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 	if validationErrs != nil {
-		details := extractErrorMessages(validationErrs)
+		details := common.ExtractErrorMessages(validationErrs)
 		common.RespondValidationError(c, details)
 		return
 	}
@@ -152,12 +152,4 @@ func isValidationError(err error) bool {
 		}
 	}
 	return false
-}
-
-func extractErrorMessages(errs []error) []string {
-	details := make([]string, len(errs))
-	for i, err := range errs {
-		details[i] = err.Error()
-	}
-	return details
 }

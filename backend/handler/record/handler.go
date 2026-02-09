@@ -72,7 +72,7 @@ func (h *RecordHandler) Create(c *gin.Context) {
 		return
 	}
 	if validationErrs != nil {
-		details := extractErrorMessages(validationErrs)
+		details := common.ExtractErrorMessages(validationErrs)
 		common.RespondValidationError(c, details)
 		return
 	}
@@ -178,13 +178,4 @@ func (h *RecordHandler) GetStatistics(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, dto.NewStatisticsResponse(output))
-}
-
-// extractErrorMessages はエラーリストからメッセージを抽出する
-func extractErrorMessages(errs []error) []string {
-	details := make([]string, len(errs))
-	for i, err := range errs {
-		details[i] = err.Error()
-	}
-	return details
 }
