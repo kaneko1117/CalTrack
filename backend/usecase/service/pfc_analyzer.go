@@ -12,6 +12,7 @@ type NutritionAdviceInput struct {
 	CurrentCalories int
 	CurrentPfc      vo.Pfc
 	FoodItems       []string
+	TimeContext     string
 }
 
 type PfcAnalyzerLogConfig struct {

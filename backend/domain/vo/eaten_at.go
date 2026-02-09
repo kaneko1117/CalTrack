@@ -1,6 +1,7 @@
 package vo
 
 import (
+	"fmt"
 	"time"
 
 	domainErrors "caltrack/domain/errors"
@@ -80,5 +81,26 @@ func (e EatenAt) MealType() MealType {
 		return MealTypeDinner
 	default:
 		return MealTypeLateNight
+	}
+}
+
+// TimeContext は食事日時からAIアドバイス向けの時間帯コンテキスト文字列を返す
+func (e EatenAt) TimeContext() string {
+	hour := e.value.Hour()
+	mealType := e.MealType()
+
+	switch mealType {
+	case MealTypeBreakfast:
+		return fmt.Sprintf("現在は%d時（%s）の時間帯です。昼食・夕食がまだ残っています。1日の栄養バランスを計画的に摂れるようアドバイスしてください。", hour, mealType.String())
+	case MealTypeLunch:
+		return fmt.Sprintf("現在は%d時（%s）の時間帯です。夕食がまだ残っています。午前中の食事を踏まえて、夕食で補うべき栄養素をアドバイスしてください。", hour, mealType.String())
+	case MealTypeSnack:
+		return fmt.Sprintf("現在は%d時（%s）の時間帯です。夕食がまだ残っています。間食の内容を考慮しつつ、夕食の提案をしてください。", hour, mealType.String())
+	case MealTypeDinner:
+		return fmt.Sprintf("現在は%d時（%s）の時間帯です。今日の食事はほぼ終わりです。1日の振り返りと、明日に向けたアドバイスをしてください。", hour, mealType.String())
+	case MealTypeLateNight:
+		return fmt.Sprintf("現在は%d時（%s）の時間帯です。遅い時間の食事です。消化の良さや翌日への影響を考慮したアドバイスをしてください。", hour, mealType.String())
+	default:
+		return fmt.Sprintf("現在は%d時です。", hour)
 	}
 }
