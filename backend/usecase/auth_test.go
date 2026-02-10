@@ -97,10 +97,9 @@ func TestAuthUsecase_Login(t *testing.T) {
 			Return(nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		output, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "test@example.com",
-			Password: "password123",
-		})
+		testEmail, _ := vo.NewEmail("test@example.com")
+		testPassword, _ := vo.NewPassword("password123")
+		output, err := uc.Login(context.Background(), testEmail, testPassword)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -119,74 +118,6 @@ func TestAuthUsecase_Login(t *testing.T) {
 		}
 	})
 
-	t.Run("異常系_無効なメールアドレス形式", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "invalid-email",
-			Password: "password123",
-		})
-
-		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-			t.Errorf("got %v, want ErrInvalidCredentials", err)
-		}
-	})
-
-	t.Run("異常系_空のメールアドレス", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "",
-			Password: "password123",
-		})
-
-		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-			t.Errorf("got %v, want ErrInvalidCredentials", err)
-		}
-	})
-
-	t.Run("異常系_無効なパスワード形式", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "test@example.com",
-			Password: "short",
-		})
-
-		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-			t.Errorf("got %v, want ErrInvalidCredentials", err)
-		}
-	})
-
-	t.Run("異常系_空のパスワード", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "test@example.com",
-			Password: "",
-		})
-
-		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
-			t.Errorf("got %v, want ErrInvalidCredentials", err)
-		}
-	})
-
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
 		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
 		defer ctrl.Finish()
@@ -199,10 +130,9 @@ func TestAuthUsecase_Login(t *testing.T) {
 			Return(nil, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "notfound@example.com",
-			Password: "password123",
-		})
+		testEmail, _ := vo.NewEmail("notfound@example.com")
+		testPassword, _ := vo.NewPassword("password123")
+		_, err := uc.Login(context.Background(), testEmail, testPassword)
 
 		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
 			t.Errorf("got %v, want ErrInvalidCredentials", err)
@@ -222,10 +152,9 @@ func TestAuthUsecase_Login(t *testing.T) {
 			Return(user, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "test@example.com",
-			Password: "wrongpassword",
-		})
+		testEmail, _ := vo.NewEmail("test@example.com")
+		testPassword, _ := vo.NewPassword("wrongpassword")
+		_, err := uc.Login(context.Background(), testEmail, testPassword)
 
 		if !errors.Is(err, domainErrors.ErrInvalidCredentials) {
 			t.Errorf("got %v, want ErrInvalidCredentials", err)
@@ -245,10 +174,9 @@ func TestAuthUsecase_Login(t *testing.T) {
 			Return(nil, repoErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "test@example.com",
-			Password: "password123",
-		})
+		testEmail, _ := vo.NewEmail("test@example.com")
+		testPassword, _ := vo.NewPassword("password123")
+		_, err := uc.Login(context.Background(), testEmail, testPassword)
 
 		if !errors.Is(err, repoErr) {
 			t.Errorf("got %v, want repoErr", err)
@@ -272,10 +200,9 @@ func TestAuthUsecase_Login(t *testing.T) {
 			Return(saveErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.Login(context.Background(), usecase.LoginInput{
-			Email:    "test@example.com",
-			Password: "password123",
-		})
+		testEmail, _ := vo.NewEmail("test@example.com")
+		testPassword, _ := vo.NewPassword("password123")
+		_, err := uc.Login(context.Background(), testEmail, testPassword)
 
 		if !errors.Is(err, saveErr) {
 			t.Errorf("got %v, want saveErr", err)
@@ -301,38 +228,10 @@ func TestAuthUsecase_Logout(t *testing.T) {
 			Return(nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		err := uc.Logout(context.Background(), sid.String())
+		err := uc.Logout(context.Background(), sid)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("異常系_無効なセッションID", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		err := uc.Logout(context.Background(), "invalid-session-id")
-
-		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-			t.Errorf("got %v, want ErrInvalidSessionID", err)
-		}
-	})
-
-	t.Run("異常系_空のセッションID", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		err := uc.Logout(context.Background(), "")
-
-		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-			t.Errorf("got %v, want ErrInvalidSessionID", err)
 		}
 	})
 
@@ -349,7 +248,7 @@ func TestAuthUsecase_Logout(t *testing.T) {
 			Return(deleteErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		err := uc.Logout(context.Background(), sid.String())
+		err := uc.Logout(context.Background(), sid)
 
 		if !errors.Is(err, deleteErr) {
 			t.Errorf("got %v, want deleteErr", err)
@@ -375,7 +274,7 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 			Return(session, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		result, err := uc.ValidateSession(context.Background(), session.ID().String())
+		result, err := uc.ValidateSession(context.Background(), session.ID())
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -385,34 +284,6 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 		}
 		if result.ID().String() != session.ID().String() {
 			t.Errorf("session id mismatch: got %v, want %v", result.ID().String(), session.ID().String())
-		}
-	})
-
-	t.Run("異常系_無効なセッションID", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.ValidateSession(context.Background(), "invalid-session-id")
-
-		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-			t.Errorf("got %v, want ErrInvalidSessionID", err)
-		}
-	})
-
-	t.Run("異常系_空のセッションID", func(t *testing.T) {
-		userRepo, sessionRepo, txManager, ctrl := setupAuthMocks(t)
-		defer ctrl.Finish()
-
-		// バリデーションエラーで早期returnするのでEXPECTは不要
-
-		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.ValidateSession(context.Background(), "")
-
-		if !errors.Is(err, domainErrors.ErrInvalidSessionID) {
-			t.Errorf("got %v, want ErrInvalidSessionID", err)
 		}
 	})
 
@@ -427,7 +298,7 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 			Return(nil, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.ValidateSession(context.Background(), sid.String())
+		_, err := uc.ValidateSession(context.Background(), sid)
 
 		if !errors.Is(err, domainErrors.ErrSessionNotFound) {
 			t.Errorf("got %v, want ErrSessionNotFound", err)
@@ -455,7 +326,7 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 			Return(expiredSession, nil)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err = uc.ValidateSession(context.Background(), expiredSession.ID().String())
+		_, err = uc.ValidateSession(context.Background(), expiredSession.ID())
 
 		if !errors.Is(err, domainErrors.ErrSessionExpired) {
 			t.Errorf("got %v, want ErrSessionExpired", err)
@@ -474,7 +345,7 @@ func TestAuthUsecase_ValidateSession(t *testing.T) {
 			Return(nil, repoErr)
 
 		uc := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-		_, err := uc.ValidateSession(context.Background(), sid.String())
+		_, err := uc.ValidateSession(context.Background(), sid)
 
 		if !errors.Is(err, repoErr) {
 			t.Errorf("got %v, want repoErr", err)

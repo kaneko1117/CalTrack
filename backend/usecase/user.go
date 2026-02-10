@@ -2,8 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
@@ -52,16 +50,8 @@ func (u *UserUsecase) Register(ctx context.Context, user *entity.User) (*entity.
 	return user, nil
 }
 
-// UpdateProfileInput はプロフィール更新の入力を表す
-type UpdateProfileInput struct {
-	Nickname      string
-	Height        float64
-	Weight        float64
-	ActivityLevel string
-}
-
 // UpdateProfile は認証ユーザーのプロフィールを更新する
-func (u *UserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, input UpdateProfileInput) (*entity.User, error) {
+func (u *UserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error) {
 	var updatedUser *entity.User
 
 	err := u.txManager.Execute(ctx, func(txCtx context.Context) error {
@@ -75,11 +65,7 @@ func (u *UserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, input
 			return domainErrors.ErrUserNotFound
 		}
 
-		errs := user.UpdateProfile(input.Nickname, input.Height, input.Weight, input.ActivityLevel)
-		if errs != nil {
-			logWarn("UpdateProfile", "validation errors", "user_id", userID.String(), "errors", formatErrors(errs))
-			return errs[0]
-		}
+		user.ApplyProfile(nickname, height, weight, activityLevel)
 
 		if err := u.userRepo.Update(txCtx, user); err != nil {
 			logError("UpdateProfile", err, "user_id", userID.String())
@@ -110,13 +96,4 @@ func (u *UserUsecase) GetProfile(ctx context.Context, userID vo.UserID) (*entity
 	}
 
 	return user, nil
-}
-
-// formatErrors は複数のエラーをカンマ区切りの文字列に変換する
-func formatErrors(errs []error) string {
-	msgs := make([]string, len(errs))
-	for i, err := range errs {
-		msgs[i] = err.Error()
-	}
-	return fmt.Sprintf("[%s]", strings.Join(msgs, ", "))
 }

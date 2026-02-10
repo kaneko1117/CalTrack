@@ -16,7 +16,6 @@ import (
 	domainErrors "caltrack/domain/errors"
 	"caltrack/domain/vo"
 	"caltrack/handler/user"
-	"caltrack/usecase"
 )
 
 func init() {
@@ -27,7 +26,7 @@ func init() {
 type MockUserUsecase struct {
 	RegisterFunc      func(ctx context.Context, user *entity.User) (*entity.User, error)
 	GetProfileFunc    func(ctx context.Context, userID vo.UserID) (*entity.User, error)
-	UpdateProfileFunc func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error)
+	UpdateProfileFunc func(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error)
 }
 
 func (m *MockUserUsecase) Register(ctx context.Context, user *entity.User) (*entity.User, error) {
@@ -44,9 +43,9 @@ func (m *MockUserUsecase) GetProfile(ctx context.Context, userID vo.UserID) (*en
 	return nil, nil
 }
 
-func (m *MockUserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+func (m *MockUserUsecase) UpdateProfile(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error) {
 	if m.UpdateProfileFunc != nil {
-		return m.UpdateProfileFunc(ctx, userID, input)
+		return m.UpdateProfileFunc(ctx, userID, nickname, height, weight, activityLevel)
 	}
 	return nil, nil
 }
@@ -195,7 +194,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 	t.Run("正常系_プロフィール更新成功", func(t *testing.T) {
 		testUser := createTestUser()
 		mockUC := &MockUserUsecase{
-			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error) {
 				// 更新後のユーザーを返す
 				testUser.UpdateProfile("UpdatedNickname", 175.0, 72.5, "active")
 				return testUser, nil
@@ -291,7 +290,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 	t.Run("異常系_ユーザーが見つからない", func(t *testing.T) {
 		testUser := createTestUser()
 		mockUC := &MockUserUsecase{
-			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error) {
 				return nil, domainErrors.ErrUserNotFound
 			},
 		}
@@ -319,11 +318,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_バリデーションエラー_ニックネーム空", func(t *testing.T) {
 		testUser := createTestUser()
-		mockUC := &MockUserUsecase{
-			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
-				return nil, domainErrors.ErrNicknameRequired
-			},
-		}
+		mockUC := &MockUserUsecase{}
 		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
@@ -348,11 +343,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("異常系_バリデーションエラー_不正な活動レベル", func(t *testing.T) {
 		testUser := createTestUser()
-		mockUC := &MockUserUsecase{
-			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
-				return nil, domainErrors.ErrInvalidActivityLevel
-			},
-		}
+		mockUC := &MockUserUsecase{}
 		handler := user.NewUserHandler(mockUC)
 
 		reqBody := `{
@@ -378,7 +369,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 	t.Run("異常系_DB更新失敗", func(t *testing.T) {
 		testUser := createTestUser()
 		mockUC := &MockUserUsecase{
-			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error) {
+			UpdateProfileFunc: func(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error) {
 				return nil, errors.New("database error")
 			},
 		}

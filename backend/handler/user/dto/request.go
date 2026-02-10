@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"caltrack/domain/entity"
-	"caltrack/usecase"
+	"caltrack/domain/vo"
 )
 
 type RegisterUserRequest struct {
@@ -46,12 +46,33 @@ type UpdateProfileRequest struct {
 	ActivityLevel string  `json:"activityLevel" example:"moderate"`
 }
 
-// ToInput はUsecaseのUpdateProfileInputに変換する
-func (r UpdateProfileRequest) ToInput() usecase.UpdateProfileInput {
-	return usecase.UpdateProfileInput{
-		Nickname:      r.Nickname,
-		Height:        r.Height,
-		Weight:        r.Weight,
-		ActivityLevel: r.ActivityLevel,
+// ToDomain はリクエストをドメインのVOに変換する
+func (r UpdateProfileRequest) ToDomain() (vo.Nickname, vo.Height, vo.Weight, vo.ActivityLevel, []error) {
+	var errs []error
+
+	nickname, err := vo.NewNickname(r.Nickname)
+	if err != nil {
+		errs = append(errs, err)
 	}
+
+	height, err := vo.NewHeight(r.Height)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	weight, err := vo.NewWeight(r.Weight)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	activityLevel, err := vo.NewActivityLevel(r.ActivityLevel)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return vo.Nickname{}, vo.Height{}, vo.Weight{}, vo.ActivityLevel{}, errs
+	}
+
+	return nickname, height, weight, activityLevel, nil
 }

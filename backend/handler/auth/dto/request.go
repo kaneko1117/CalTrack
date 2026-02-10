@@ -1,6 +1,6 @@
 package dto
 
-import "caltrack/usecase"
+import "caltrack/domain/vo"
 
 // LoginRequest はログインリクエストDTO
 type LoginRequest struct {
@@ -8,10 +8,17 @@ type LoginRequest struct {
 	Password string `json:"password" example:"password123"`
 }
 
-// ToInput はリクエストをUsecase入力に変換する
-func (r LoginRequest) ToInput() usecase.LoginInput {
-	return usecase.LoginInput{
-		Email:    r.Email,
-		Password: r.Password,
+// ToDomain はリクエストをドメインのVOに変換する
+func (r LoginRequest) ToDomain() (vo.Email, vo.Password, error) {
+	email, err := vo.NewEmail(r.Email)
+	if err != nil {
+		return vo.Email{}, vo.Password{}, err
 	}
+
+	password, err := vo.NewPassword(r.Password)
+	if err != nil {
+		return vo.Email{}, vo.Password{}, err
+	}
+
+	return email, password, nil
 }

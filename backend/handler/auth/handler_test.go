@@ -13,6 +13,7 @@ import (
 
 	"caltrack/domain/entity"
 	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/vo"
 	"caltrack/handler/auth"
 	"caltrack/handler/common"
 	"caltrack/usecase"
@@ -24,28 +25,28 @@ func init() {
 
 // MockAuthUsecase はAuthUsecaseのモック実装
 type MockAuthUsecase struct {
-	LoginFunc           func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error)
-	LogoutFunc          func(ctx context.Context, sessionIDStr string) error
-	ValidateSessionFunc func(ctx context.Context, sessionIDStr string) (*entity.Session, error)
+	LoginFunc           func(ctx context.Context, email vo.Email, password vo.Password) (*usecase.LoginOutput, error)
+	LogoutFunc          func(ctx context.Context, sessionID vo.SessionID) error
+	ValidateSessionFunc func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error)
 }
 
-func (m *MockAuthUsecase) Login(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+func (m *MockAuthUsecase) Login(ctx context.Context, email vo.Email, password vo.Password) (*usecase.LoginOutput, error) {
 	if m.LoginFunc != nil {
-		return m.LoginFunc(ctx, input)
+		return m.LoginFunc(ctx, email, password)
 	}
 	return nil, nil
 }
 
-func (m *MockAuthUsecase) Logout(ctx context.Context, sessionIDStr string) error {
+func (m *MockAuthUsecase) Logout(ctx context.Context, sessionID vo.SessionID) error {
 	if m.LogoutFunc != nil {
-		return m.LogoutFunc(ctx, sessionIDStr)
+		return m.LogoutFunc(ctx, sessionID)
 	}
 	return nil
 }
 
-func (m *MockAuthUsecase) ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+func (m *MockAuthUsecase) ValidateSession(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 	if m.ValidateSessionFunc != nil {
-		return m.ValidateSessionFunc(ctx, sessionIDStr)
+		return m.ValidateSessionFunc(ctx, sessionID)
 	}
 	return nil, nil
 }
@@ -77,7 +78,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		testUser := createTestUser(t, testEmail, testPassword)
 
 		mockUC := &MockAuthUsecase{
-			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+			LoginFunc: func(ctx context.Context, email vo.Email, password vo.Password) (*usecase.LoginOutput, error) {
 				// テスト用のセッションを作成
 				session, err := entity.NewSessionWithUserID(testUser.ID())
 				if err != nil {
@@ -143,7 +144,7 @@ func TestAuthHandler_Login(t *testing.T) {
 
 	t.Run("異常系_認証情報不正", func(t *testing.T) {
 		mockUC := &MockAuthUsecase{
-			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+			LoginFunc: func(ctx context.Context, email vo.Email, password vo.Password) (*usecase.LoginOutput, error) {
 				return nil, domainErrors.ErrInvalidCredentials
 			},
 		}
@@ -176,7 +177,7 @@ func TestAuthHandler_Login(t *testing.T) {
 
 	t.Run("異常系_ユーザー未登録", func(t *testing.T) {
 		mockUC := &MockAuthUsecase{
-			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
+			LoginFunc: func(ctx context.Context, email vo.Email, password vo.Password) (*usecase.LoginOutput, error) {
 				return nil, domainErrors.ErrInvalidCredentials
 			},
 		}
@@ -206,11 +207,7 @@ func TestAuthHandler_Login(t *testing.T) {
 	})
 
 	t.Run("異常系_メールアドレス形式不正", func(t *testing.T) {
-		mockUC := &MockAuthUsecase{
-			LoginFunc: func(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error) {
-				return nil, domainErrors.ErrInvalidCredentials
-			},
-		}
+		mockUC := &MockAuthUsecase{}
 		handler := auth.NewAuthHandler(mockUC)
 
 		reqBody := `{"email": "invalid-email", "password": "password123"}`
@@ -267,7 +264,7 @@ func TestAuthHandler_Login(t *testing.T) {
 func TestAuthHandler_Logout(t *testing.T) {
 	t.Run("正常系_ログアウト成功", func(t *testing.T) {
 		mockUC := &MockAuthUsecase{
-			LogoutFunc: func(ctx context.Context, sessionIDStr string) error {
+			LogoutFunc: func(ctx context.Context, sessionID vo.SessionID) error {
 				return nil
 			},
 		}
@@ -321,7 +318,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 
 	t.Run("異常系_セッションID不正", func(t *testing.T) {
 		mockUC := &MockAuthUsecase{
-			LogoutFunc: func(ctx context.Context, sessionIDStr string) error {
+			LogoutFunc: func(ctx context.Context, sessionID vo.SessionID) error {
 				return domainErrors.ErrInvalidSessionID
 			},
 		}
@@ -346,7 +343,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 
 	t.Run("異常系_セッション削除エラー", func(t *testing.T) {
 		mockUC := &MockAuthUsecase{
-			LogoutFunc: func(ctx context.Context, sessionIDStr string) error {
+			LogoutFunc: func(ctx context.Context, sessionID vo.SessionID) error {
 				return domainErrors.ErrSessionNotFound
 			},
 		}

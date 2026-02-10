@@ -26,9 +26,9 @@ const (
 
 // AuthUsecaseInterface はAuthUsecaseのインターフェース
 type AuthUsecaseInterface interface {
-	Login(ctx context.Context, input usecase.LoginInput) (*usecase.LoginOutput, error)
-	Logout(ctx context.Context, sessionIDStr string) error
-	ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error)
+	Login(ctx context.Context, email vo.Email, password vo.Password) (*usecase.LoginOutput, error)
+	Logout(ctx context.Context, sessionID vo.SessionID) error
+	ValidateSession(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error)
 }
 
 // AuthHandler は認証関連のHTTPハンドラ
@@ -60,8 +60,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// DTOからVOに変換
+	email, password, err := req.ToDomain()
+	if err != nil {
+		common.RespondError(c, http.StatusUnauthorized, common.CodeInvalidCredentials, "Invalid email or password", nil)
+		return
+	}
+
 	// Usecase実行
-	output, err := h.usecase.Login(c.Request.Context(), req.ToInput())
+	output, err := h.usecase.Login(c.Request.Context(), email, password)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -86,10 +93,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	// CookieからセッションIDを取得
-	sessionID, err := c.Cookie(sessionCookieName)
+	sessionIDStr, err := c.Cookie(sessionCookieName)
 	if err != nil {
 		// Cookieが無い場合は既にログアウト済みとして成功扱い
 		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+		return
+	}
+
+	// セッションIDをVOに変換
+	sessionID, err := vo.ParseSessionID(sessionIDStr)
+	if err != nil {
+		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid session", nil)
 		return
 	}
 
@@ -138,12 +152,6 @@ func (h *AuthHandler) handleError(c *gin.Context, err error) {
 	// 認証エラー（メールアドレスまたはパスワードが間違っている）
 	if errors.Is(err, domainErrors.ErrInvalidCredentials) {
 		common.RespondError(c, http.StatusUnauthorized, common.CodeInvalidCredentials, "Invalid email or password", nil)
-		return
-	}
-
-	// 無効なセッションID
-	if errors.Is(err, domainErrors.ErrInvalidSessionID) {
-		common.RespondError(c, http.StatusBadRequest, common.CodeInvalidRequest, "Invalid session", nil)
 		return
 	}
 

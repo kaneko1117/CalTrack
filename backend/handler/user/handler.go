@@ -12,14 +12,13 @@ import (
 	"caltrack/domain/vo"
 	"caltrack/handler/common"
 	"caltrack/handler/user/dto"
-	"caltrack/usecase"
 )
 
 // UserUsecaseInterface はUserUsecaseのインターフェース
 type UserUsecaseInterface interface {
 	Register(ctx context.Context, user *entity.User) (*entity.User, error)
 	GetProfile(ctx context.Context, userID vo.UserID) (*entity.User, error)
-	UpdateProfile(ctx context.Context, userID vo.UserID, input usecase.UpdateProfileInput) (*entity.User, error)
+	UpdateProfile(ctx context.Context, userID vo.UserID, nickname vo.Nickname, height vo.Height, weight vo.Weight, activityLevel vo.ActivityLevel) (*entity.User, error)
 }
 
 type UserHandler struct {
@@ -106,7 +105,15 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	userID := vo.ReconstructUserID(userIDStr.(string))
 
-	updatedUser, err := h.usecase.UpdateProfile(c.Request.Context(), userID, req.ToInput())
+	// DTOからVOに変換
+	nickname, height, weight, activityLevel, errs := req.ToDomain()
+	if errs != nil {
+		details := common.ExtractErrorMessages(errs)
+		common.RespondValidationError(c, details)
+		return
+	}
+
+	updatedUser, err := h.usecase.UpdateProfile(c.Request.Context(), userID, nickname, height, weight, activityLevel)
 	if err != nil {
 		h.handleError(c, err)
 		return
