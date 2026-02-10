@@ -5,6 +5,7 @@ import (
 	"time"
 
 	domainErrors "caltrack/domain/errors"
+	"caltrack/domain/helper"
 )
 
 // MealType は食事タイプを表す
@@ -66,9 +67,14 @@ func (e EatenAt) Equals(other EatenAt) bool {
 	return e.value.Equal(other.value)
 }
 
+// localHour はJSTでの時(hour)を返す
+func (e EatenAt) localHour() int {
+	return e.value.In(helper.JST()).Hour()
+}
+
 // MealType は食事日時から食事タイプを判定して返す
 func (e EatenAt) MealType() MealType {
-	hour := e.value.Hour()
+	hour := e.localHour()
 
 	switch {
 	case hour >= 5 && hour < 11:
@@ -86,7 +92,7 @@ func (e EatenAt) MealType() MealType {
 
 // TimeContext は食事日時からAIアドバイス向けの時間帯コンテキスト文字列を返す
 func (e EatenAt) TimeContext() string {
-	hour := e.value.Hour()
+	hour := e.localHour()
 	mealType := e.MealType()
 
 	switch mealType {
