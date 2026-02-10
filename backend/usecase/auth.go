@@ -29,12 +29,6 @@ func NewAuthUsecase(
 	}
 }
 
-// LoginInput はログイン処理の入力を表す
-type LoginInput struct {
-	Email    string
-	Password string
-}
-
 // LoginOutput はログイン処理の出力を表す
 type LoginOutput struct {
 	Session *entity.Session
@@ -42,24 +36,10 @@ type LoginOutput struct {
 }
 
 // Login はメールアドレスとパスワードでユーザーを認証し、セッションを作成する
-func (u *AuthUsecase) Login(ctx context.Context, input LoginInput) (*LoginOutput, error) {
-	// メールアドレスのバリデーション
-	email, err := vo.NewEmail(input.Email)
-	if err != nil {
-		logWarn("Login", "invalid email format", "email", input.Email)
-		return nil, domainErrors.ErrInvalidCredentials
-	}
-
-	// パスワードのバリデーション
-	password, err := vo.NewPassword(input.Password)
-	if err != nil {
-		logWarn("Login", "invalid password format")
-		return nil, domainErrors.ErrInvalidCredentials
-	}
-
+func (u *AuthUsecase) Login(ctx context.Context, email vo.Email, password vo.Password) (*LoginOutput, error) {
 	var output *LoginOutput
 
-	err = u.txManager.Execute(ctx, func(txCtx context.Context) error {
+	err := u.txManager.Execute(ctx, func(txCtx context.Context) error {
 		// ユーザーをメールアドレスで検索
 		user, err := u.userRepo.FindByEmail(txCtx, email)
 		if err != nil {
@@ -105,18 +85,11 @@ func (u *AuthUsecase) Login(ctx context.Context, input LoginInput) (*LoginOutput
 }
 
 // Logout はセッションを削除してログアウトする
-func (u *AuthUsecase) Logout(ctx context.Context, sessionIDStr string) error {
-	// セッションIDのバリデーション
-	sessionID, err := vo.ParseSessionID(sessionIDStr)
-	if err != nil {
-		logWarn("Logout", "invalid session id")
-		return domainErrors.ErrInvalidSessionID
-	}
-
-	err = u.txManager.Execute(ctx, func(txCtx context.Context) error {
+func (u *AuthUsecase) Logout(ctx context.Context, sessionID vo.SessionID) error {
+	err := u.txManager.Execute(ctx, func(txCtx context.Context) error {
 		// セッションの削除
 		if err := u.sessionRepo.DeleteByID(txCtx, sessionID); err != nil {
-			logError("Logout", err, "session_id", sessionIDStr)
+			logError("Logout", err, "session_id", sessionID.String())
 			return err
 		}
 		return nil
@@ -126,17 +99,11 @@ func (u *AuthUsecase) Logout(ctx context.Context, sessionIDStr string) error {
 }
 
 // ValidateSession はセッションの有効性を検証する
-func (u *AuthUsecase) ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
-	// セッションIDのバリデーション
-	sessionID, err := vo.ParseSessionID(sessionIDStr)
-	if err != nil {
-		return nil, domainErrors.ErrInvalidSessionID
-	}
-
+func (u *AuthUsecase) ValidateSession(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 	// セッションの取得
 	session, err := u.sessionRepo.FindByID(ctx, sessionID)
 	if err != nil {
-		logError("ValidateSession", err, "session_id", sessionIDStr)
+		logError("ValidateSession", err, "session_id", sessionID.String())
 		return nil, err
 	}
 	if session == nil {
@@ -145,7 +112,7 @@ func (u *AuthUsecase) ValidateSession(ctx context.Context, sessionIDStr string) 
 
 	// 有効期限の検証
 	if err := session.ValidateNotExpired(); err != nil {
-		logWarn("ValidateSession", "session expired", "session_id", sessionIDStr)
+		logWarn("ValidateSession", "session expired", "session_id", sessionID.String())
 		return nil, err
 	}
 

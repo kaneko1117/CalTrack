@@ -31,14 +31,10 @@ handler/
 
 ### 構造
 - JSONタグ使用（`json:`）
-- `ToDomain()` メソッドでEntityに変換
-
-```go
-func (r RegisterUserRequest) ToDomain() (*entity.User, error, []error) {
-    // パース処理
-    // entity.NewUser() を呼び出し
-}
-```
+- `ToDomain()` メソッドで **Entity または VO** に変換
+- プリミティブ → VO/Entity 変換は **Handler層（DTOのToDomain()）** で行う
+- Usecase層にプリミティブやInput DTOを渡さない
+- バリデーションエラーはHandler層で処理してHTTPレスポンスを返す
 
 ## Response DTO
 
@@ -48,13 +44,7 @@ func (r RegisterUserRequest) ToDomain() (*entity.User, error, []error) {
 
 ## 共通ヘルパー（handler/common）
 
-共通化できる処理はヘルパー関数として定義:
-
-```go
-// response.go
-func RespondError(c echo.Context, status int, code, message string) error
-func RespondValidationError(c echo.Context, details []string) error
-```
+共通化できる処理はヘルパー関数として定義（`RespondError`, `RespondValidationError` 等）
 
 ## Handler
 

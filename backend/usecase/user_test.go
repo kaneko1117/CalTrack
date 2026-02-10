@@ -174,12 +174,11 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 			Return(nil)
 
 		uc := usecase.NewUserUsecase(userRepo, txManager)
-		updatedUser, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
-			Nickname:      "newnick",
-			Height:        170.0,
-			Weight:        65.0,
-			ActivityLevel: "moderate",
-		})
+		nickname, _ := vo.NewNickname("newnick")
+		height, _ := vo.NewHeight(170.0)
+		weight, _ := vo.NewWeight(65.0)
+		activityLevel, _ := vo.NewActivityLevel("moderate")
+		updatedUser, err := uc.UpdateProfile(context.Background(), user.ID(), nickname, height, weight, activityLevel)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -210,39 +209,14 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 			Return(nil, nil)
 
 		uc := usecase.NewUserUsecase(userRepo, txManager)
-		_, err := uc.UpdateProfile(context.Background(), userID, usecase.UpdateProfileInput{
-			Nickname:      "newnick",
-			Height:        170.0,
-			Weight:        65.0,
-			ActivityLevel: "moderate",
-		})
+		nickname, _ := vo.NewNickname("newnick")
+		height, _ := vo.NewHeight(170.0)
+		weight, _ := vo.NewWeight(65.0)
+		activityLevel, _ := vo.NewActivityLevel("moderate")
+		_, err := uc.UpdateProfile(context.Background(), userID, nickname, height, weight, activityLevel)
 
 		if err != domainErrors.ErrUserNotFound {
 			t.Errorf("got %v, want ErrUserNotFound", err)
-		}
-	})
-
-	t.Run("異常系_バリデーションエラー", func(t *testing.T) {
-		userRepo, txManager, ctrl := setupUserMocks(t)
-		defer ctrl.Finish()
-
-		user := reconstructedUser(t)
-
-		setupTxManagerExecute(txManager)
-		userRepo.EXPECT().
-			FindByID(gomock.Any(), gomock.Eq(user.ID())).
-			Return(user, nil)
-
-		uc := usecase.NewUserUsecase(userRepo, txManager)
-		_, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
-			Nickname:      "", // ニックネームが空
-			Height:        170.0,
-			Weight:        65.0,
-			ActivityLevel: "moderate",
-		})
-
-		if err != domainErrors.ErrNicknameRequired {
-			t.Errorf("got %v, want ErrNicknameRequired", err)
 		}
 	})
 
@@ -259,12 +233,11 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 			Return(nil, repoErr)
 
 		uc := usecase.NewUserUsecase(userRepo, txManager)
-		_, err := uc.UpdateProfile(context.Background(), userID, usecase.UpdateProfileInput{
-			Nickname:      "newnick",
-			Height:        170.0,
-			Weight:        65.0,
-			ActivityLevel: "moderate",
-		})
+		nickname, _ := vo.NewNickname("newnick")
+		height, _ := vo.NewHeight(170.0)
+		weight, _ := vo.NewWeight(65.0)
+		activityLevel, _ := vo.NewActivityLevel("moderate")
+		_, err := uc.UpdateProfile(context.Background(), userID, nickname, height, weight, activityLevel)
 
 		if !errors.Is(err, repoErr) {
 			t.Errorf("got %v, want repoErr", err)
@@ -287,12 +260,11 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 			Return(updateErr)
 
 		uc := usecase.NewUserUsecase(userRepo, txManager)
-		_, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
-			Nickname:      "newnick",
-			Height:        170.0,
-			Weight:        65.0,
-			ActivityLevel: "moderate",
-		})
+		nickname, _ := vo.NewNickname("newnick")
+		height, _ := vo.NewHeight(170.0)
+		weight, _ := vo.NewWeight(65.0)
+		activityLevel, _ := vo.NewActivityLevel("moderate")
+		_, err := uc.UpdateProfile(context.Background(), user.ID(), nickname, height, weight, activityLevel)
 
 		if !errors.Is(err, updateErr) {
 			t.Errorf("got %v, want updateErr", err)
@@ -314,12 +286,11 @@ func TestUserUsecase_UpdateProfile(t *testing.T) {
 			Return(nil)
 
 		uc := usecase.NewUserUsecase(userRepo, txManager)
-		updatedUser, err := uc.UpdateProfile(context.Background(), user.ID(), usecase.UpdateProfileInput{
-			Nickname:      "updatednick",
-			Height:        180.0,
-			Weight:        75.0,
-			ActivityLevel: "active",
-		})
+		nickname, _ := vo.NewNickname("updatednick")
+		height, _ := vo.NewHeight(180.0)
+		weight, _ := vo.NewWeight(75.0)
+		activityLevel, _ := vo.NewActivityLevel("active")
+		updatedUser, err := uc.UpdateProfile(context.Background(), user.ID(), nickname, height, weight, activityLevel)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

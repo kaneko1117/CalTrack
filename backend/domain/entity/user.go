@@ -278,3 +278,17 @@ func (u *User) UpdateProfile(
 
 	return nil
 }
+
+// ApplyProfile はVO変換済みの値でプロフィールを更新する
+func (u *User) ApplyProfile(
+	nickname vo.Nickname,
+	height vo.Height,
+	weight vo.Weight,
+	activityLevel vo.ActivityLevel,
+) {
+	u.nickname = nickname
+	u.height = height
+	u.weight = weight
+	u.activityLevel = activityLevel
+	u.updatedAt = time.Now()
+}

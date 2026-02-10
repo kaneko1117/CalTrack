@@ -27,15 +27,18 @@ usecase/
 
 ## 入出力
 
-- **入力**: Handler層で変換された`*entity.{Domain}`を受け取る
-- **出力**: `*entity.{Domain}`をそのまま返す（Output DTOは不要）
+### 入力
+- Handler層で変換済みの **Entity または VO** を受け取る
+- **Usecase層でプリミティブ→VO変換を行ってはならない**
+- `vo.NewXxx()` / `vo.ParseXxx()` 等のVO生成はHandler層の責務
+- Usecaseメソッドの引数にプリミティブ型（`string`, `float64` 等）を使わない
+- `Input` 構造体（プリミティブを束ねたDTO）をUsecase層に定義しない
 
-### 方針
-- **基本的にドメイン（Entity/VO）を使用する**
-- Usecase専用のInput/Output DTOは原則として定義しない
-- どうしても必要な場合のみ、Usecase層内にDTOを定義してよい
-  - 例: 複数Entityをまとめて返す必要がある場合
-  - 例: ドメインに存在しない集計結果を返す場合
+### 出力
+- 単一Entityの場合: `*entity.{Domain}` をそのまま返す
+- 複数の値を組み合わせる場合: **Usecase層に `{Action}Output` 構造体を定義**して返す
+  - 例: `LoginOutput`（Session + User）、`StatisticsOutput`（集計結果）
+  - DB・外部API（Gemini等）からの結果を組み合わせる場合もUsecase層のOutput構造体を使用する
 
 ## Repository Interface
 
@@ -70,11 +73,10 @@ Delete(ctx context.Context, id ID) error
 - 1 Usecase = 1 ユーザーアクション
 
 ### 処理フロー
-1. Inputバリデーション
-2. Repository経由でデータ取得
-3. Entityの振る舞い呼び出し
-4. Repository経由でデータ保存
-5. Output生成・返却
+1. Repository経由でデータ取得
+2. Entityの振る舞い呼び出し
+3. Repository経由でデータ保存
+4. Output生成・返却
 
 ### 集計を含む処理フロー
 - 基本的な集計はRepository経由でSQL集計結果を取得する（`architecture.md` の集計方針を参照）

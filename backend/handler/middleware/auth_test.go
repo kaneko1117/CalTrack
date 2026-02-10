@@ -22,12 +22,12 @@ func init() {
 
 // MockAuthSessionValidator はAuthSessionValidatorのモック実装
 type MockAuthSessionValidator struct {
-	ValidateSessionFunc func(ctx context.Context, sessionIDStr string) (*entity.Session, error)
+	ValidateSessionFunc func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error)
 }
 
-func (m *MockAuthSessionValidator) ValidateSession(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+func (m *MockAuthSessionValidator) ValidateSession(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 	if m.ValidateSessionFunc != nil {
-		return m.ValidateSessionFunc(ctx, sessionIDStr)
+		return m.ValidateSessionFunc(ctx, sessionID)
 	}
 	return nil, nil
 }
@@ -49,7 +49,7 @@ func TestAuthMiddleware(t *testing.T) {
 		testSession := createTestSession(t, testUserID)
 
 		mockValidator := &MockAuthSessionValidator{
-			ValidateSessionFunc: func(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+			ValidateSessionFunc: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 				return testSession, nil
 			},
 		}
@@ -117,7 +117,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("異常系_無効なセッションID", func(t *testing.T) {
 		mockValidator := &MockAuthSessionValidator{
-			ValidateSessionFunc: func(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+			ValidateSessionFunc: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 				return nil, domainErrors.ErrInvalidSessionID
 			},
 		}
@@ -153,7 +153,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("異常系_セッションが見つからない", func(t *testing.T) {
 		mockValidator := &MockAuthSessionValidator{
-			ValidateSessionFunc: func(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+			ValidateSessionFunc: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 				return nil, domainErrors.ErrSessionNotFound
 			},
 		}
@@ -182,7 +182,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("異常系_セッション期限切れ", func(t *testing.T) {
 		mockValidator := &MockAuthSessionValidator{
-			ValidateSessionFunc: func(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+			ValidateSessionFunc: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 				return nil, domainErrors.ErrSessionExpired
 			},
 		}
@@ -219,7 +219,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("異常系_内部エラー", func(t *testing.T) {
 		mockValidator := &MockAuthSessionValidator{
-			ValidateSessionFunc: func(ctx context.Context, sessionIDStr string) (*entity.Session, error) {
+			ValidateSessionFunc: func(ctx context.Context, sessionID vo.SessionID) (*entity.Session, error) {
 				return nil, domainErrors.ErrSessionIDGenerationFailed
 			},
 		}
