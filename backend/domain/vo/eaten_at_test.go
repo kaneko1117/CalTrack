@@ -90,33 +90,40 @@ func TestEatenAt_Equals(t *testing.T) {
 }
 
 func TestEatenAt_MealType(t *testing.T) {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+
 	tests := []struct {
 		name     string
-		hour     int
+		jstHour  int
 		wantType MealType
 		wantName string
 	}{
 		// 朝食 (5:00 - 11:00)
-		{"5時は朝食", 5, MealTypeBreakfast, "朝食"},
-		{"10時は朝食", 10, MealTypeBreakfast, "朝食"},
+		{"JST 5時は朝食", 5, MealTypeBreakfast, "朝食"},
+		{"JST 10時は朝食", 10, MealTypeBreakfast, "朝食"},
 		// 昼食 (11:00 - 14:00)
-		{"11時は昼食", 11, MealTypeLunch, "昼食"},
-		{"13時は昼食", 13, MealTypeLunch, "昼食"},
+		{"JST 11時は昼食", 11, MealTypeLunch, "昼食"},
+		{"JST 13時は昼食", 13, MealTypeLunch, "昼食"},
 		// 間食 (14:00 - 17:00)
-		{"14時は間食", 14, MealTypeSnack, "間食"},
-		{"16時は間食", 16, MealTypeSnack, "間食"},
+		{"JST 14時は間食", 14, MealTypeSnack, "間食"},
+		{"JST 16時は間食", 16, MealTypeSnack, "間食"},
 		// 夕食 (17:00 - 21:00)
-		{"17時は夕食", 17, MealTypeDinner, "夕食"},
-		{"20時は夕食", 20, MealTypeDinner, "夕食"},
+		{"JST 17時は夕食", 17, MealTypeDinner, "夕食"},
+		{"JST 20時は夕食", 20, MealTypeDinner, "夕食"},
 		// 夜食 (21:00 - 5:00)
-		{"21時は夜食", 21, MealTypeLateNight, "夜食"},
-		{"0時は夜食", 0, MealTypeLateNight, "夜食"},
-		{"4時は夜食", 4, MealTypeLateNight, "夜食"},
+		{"JST 21時は夜食", 21, MealTypeLateNight, "夜食"},
+		{"JST 0時は夜食", 0, MealTypeLateNight, "夜食"},
+		{"JST 4時は夜食", 4, MealTypeLateNight, "夜食"},
+		// 境界値: UTC時刻がJSTに変換されることを確認
+		// JST 12:00 = UTC 03:00 → 昼食であること（UTCの3時は朝食ではない）
+		{"JST 12時(UTC 3時)は昼食", 12, MealTypeLunch, "昼食"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eatenAt := ReconstructEatenAt(time.Date(2024, 6, 15, tt.hour, 0, 0, 0, time.UTC))
+			// JSTで時刻を作成し、UTCに変換（DBではUTCで保存される想定）
+			jstTime := time.Date(2024, 6, 15, tt.jstHour, 0, 0, 0, jst)
+			eatenAt := ReconstructEatenAt(jstTime.UTC())
 
 			if got := eatenAt.MealType(); got != tt.wantType {
 				t.Errorf("MealType() = %v, want %v", got, tt.wantType)
@@ -139,33 +146,35 @@ func TestMealType_String(t *testing.T) {
 }
 
 func TestEatenAt_TimeContext(t *testing.T) {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+
 	tests := []struct {
 		name         string
-		hour         int
+		jstHour      int
 		wantContains []string
 	}{
 		{
-			"8時は朝食の時間帯コンテキストを返す",
+			"JST 8時は朝食の時間帯コンテキストを返す",
 			8,
 			[]string{"8時", "朝食", "昼食・夕食がまだ残っています"},
 		},
 		{
-			"12時は昼食の時間帯コンテキストを返す",
+			"JST 12時は昼食の時間帯コンテキストを返す",
 			12,
 			[]string{"12時", "昼食", "夕食がまだ残っています"},
 		},
 		{
-			"15時は間食の時間帯コンテキストを返す",
+			"JST 15時は間食の時間帯コンテキストを返す",
 			15,
 			[]string{"15時", "間食", "夕食がまだ残っています"},
 		},
 		{
-			"19時は夕食の時間帯コンテキストを返す",
+			"JST 19時は夕食の時間帯コンテキストを返す",
 			19,
 			[]string{"19時", "夕食", "ほぼ終わり"},
 		},
 		{
-			"23時は夜食の時間帯コンテキストを返す",
+			"JST 23時は夜食の時間帯コンテキストを返す",
 			23,
 			[]string{"23時", "夜食", "遅い時間"},
 		},
@@ -173,7 +182,8 @@ func TestEatenAt_TimeContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eatenAt := ReconstructEatenAt(time.Date(2024, 6, 15, tt.hour, 30, 0, 0, time.UTC))
+			jstTime := time.Date(2024, 6, 15, tt.jstHour, 30, 0, 0, jst)
+			eatenAt := ReconstructEatenAt(jstTime.UTC())
 			got := eatenAt.TimeContext()
 
 			for _, want := range tt.wantContains {
