@@ -1,7 +1,7 @@
 ---
 paths:
-  - "frontend/src/**/*.ts"
-  - "frontend/src/**/*.tsx"
+  - "web/src/**/*.ts"
+  - "web/src/**/*.tsx"
 ---
 
 # Frontend層規則
@@ -29,7 +29,7 @@ cat .claude/skills/web-design-guidelines/AGENTS.md
 ## ディレクトリ構成
 
 ```
-frontend/src/
+web/src/
 ├── domain/             # DDD Domain層
 │   ├── shared/         # 共通型（Result, DomainError）
 │   ├── valueObjects/   # Value Object

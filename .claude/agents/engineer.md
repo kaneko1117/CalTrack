@@ -83,7 +83,7 @@ Backend（Go）とFrontend（TypeScript/React）の両方に対応。
 
 ### Frontend (TypeScript/React)
 - 型は厳密に定義（any禁止）
-- ビルド確認: `cd frontend && npm run build`
+- ビルド確認: `cd web && npm run build`
 
 ---
 

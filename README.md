@@ -78,7 +78,7 @@ flowchart TB
 - **ホットリロード**: Air
 - **APIドキュメント**: Swagger (swaggo)
 
-### Frontend
+### Web (Frontend)
 - **言語**: TypeScript
 - **フレームワーク**: React + Vite
 - **UIライブラリ**: shadcn/ui
@@ -87,6 +87,11 @@ flowchart TB
 - **HTTP**: Axios
 - **テスト**: Vitest + React Testing Library
 - **コンポーネントカタログ**: Storybook
+
+### Mobile (予定)
+- **フレームワーク**: React Native + Expo
+- **ルーティング**: Expo Router
+- **スタイリング**: NativeWind
 
 ### インフラ
 - Docker Compose
@@ -110,7 +115,7 @@ make down
 
 | サービス | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
+| Web | http://localhost:5173 |
 | Backend API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger/index.html |
 | Storybook | http://localhost:6006 |
@@ -134,7 +139,7 @@ make clean           # コンテナとボリューム削除
 ```bash
 make logs            # 全サービスのログ
 make logs-backend    # バックエンドのログ
-make logs-frontend   # フロントエンドのログ
+make logs-frontend   # Webのログ
 make logs-mysql      # MySQLのログ
 ```
 
@@ -144,7 +149,7 @@ make logs-mysql      # MySQLのログ
 make build           # 全サービスをビルド
 make test            # 全テスト実行
 make test-backend    # バックエンドテスト
-make test-frontend   # フロントエンドテスト
+make test-frontend   # Webテスト
 make lint            # 全Lint実行
 make fmt             # 全フォーマット実行
 ```
@@ -170,7 +175,7 @@ make migrate-new NAME=xxx  # 新規マイグレーション作成
 
 ```bash
 make shell-backend   # バックエンドコンテナに入る
-make shell-frontend  # フロントエンドコンテナに入る
+make shell-frontend  # Webコンテナに入る
 make shell-mysql     # MySQLコンテナに入る
 ```
 
@@ -246,12 +251,12 @@ CalTrack/
 │   ├── config/           # DB設定
 │   ├── docs/             # Swagger自動生成
 │   └── migrations/       # sql-migrate
-├── frontend/
+├── web/                   # Web版 (React + Vite)
 │   ├── .storybook/       # Storybook設定
 │   └── src/
+│       ├── domain/       # DDD Domain層 (VO, Entity)
 │       ├── features/     # 機能単位
 │       │   └── {feature}/
-│       │       ├── types/
 │       │       ├── api/
 │       │       ├── hooks/
 │       │       └── components/
@@ -260,6 +265,16 @@ CalTrack/
 │       ├── routes/       # React Router設定
 │       ├── hooks/        # 共通Hooks
 │       └── lib/          # ユーティリティ
+├── mobile/                # モバイル版 (React Native + Expo)
+│   ├── app/              # Expo Router (ファイルベースルーティング)
+│   ├── components/       # RN用UIコンポーネント (NativeWind)
+│   ├── features/         # RN用featureコンポーネント (UIのみ)
+│   └── lib/              # RN固有ユーティリティ
+├── packages/
+│   └── shared/           # Web/Mobile共有コード
+│       ├── domain/       # VO, Entity, Result型
+│       ├── features/     # 共有hooks, helpers
+│       └── lib/          # 共有ユーティリティ
 └── Makefile
 ```
 
@@ -278,7 +293,7 @@ CalTrack/
 
 | サービス | ポート |
 |---------|--------|
-| Frontend | 5173 |
+| Web | 5173 |
 | Backend | 8080 |
 | MySQL | 3307 |
 | Storybook | 6006 |
