@@ -1,8 +1,8 @@
 ---
 paths:
   - "backend/**/*.go"
-  - "frontend/src/**/*.ts"
-  - "frontend/src/**/*.tsx"
+  - "web/src/**/*.ts"
+  - "web/src/**/*.tsx"
 ---
 
 # 共通規約

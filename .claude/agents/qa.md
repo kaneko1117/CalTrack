@@ -83,8 +83,8 @@ cd backend && go test ./... -v  # 全体テスト
 
 ### Frontend (TypeScript/React)
 ```bash
-cd frontend && npm run test -- --run
-cd frontend && npm run lint
+cd web && npm run test -- --run
+cd web && npm run lint
 ```
 
 ---
