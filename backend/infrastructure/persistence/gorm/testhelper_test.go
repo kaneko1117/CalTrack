@@ -174,3 +174,25 @@ func recordItemColumns() []string {
 		"calories",
 	}
 }
+
+// recordPfcColumns はRecordPfcsテーブルのカラム一覧を返す
+func recordPfcColumns() []string {
+	return []string{
+		"id",
+		"record_id",
+		"protein",
+		"fat",
+		"carbs",
+	}
+}
+
+// adviceCacheColumns はAdviceCachesテーブルのカラム一覧を返す
+func adviceCacheColumns() []string {
+	return []string{
+		"id",
+		"user_id",
+		"cache_date",
+		"advice",
+		"created_at",
+	}
+}
