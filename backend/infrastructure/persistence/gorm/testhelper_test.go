@@ -1,67 +1,46 @@
 package gorm_test
 
 import (
-	"context"
-	"log"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
+	"github.com/DATA-DOG/go-sqlmock"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
 	"caltrack/domain/entity"
 	"caltrack/domain/vo"
-	gormPkg "caltrack/infrastructure/persistence/gorm"
-	"caltrack/infrastructure/persistence/gorm/model"
 )
 
-var testDB *gorm.DB
-
-// TestMain は全テストの前後処理を行う
-func TestMain(m *testing.M) {
-	// SQLite in-memoryでDB接続
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("failed to open sqlite in-memory: %v", err)
-	}
-	testDB = db
-
-	// AutoMigrateで全モデルのテーブル作成
-	if err := testDB.AutoMigrate(
-		&model.User{},
-		&model.Record{},
-		&model.RecordItem{},
-		&model.RecordPfc{},
-		&model.Session{},
-		&model.AdviceCache{},
-	); err != nil {
-		log.Fatalf("failed to auto migrate: %v", err)
-	}
-
-	// テスト実行
-	code := m.Run()
-	os.Exit(code)
-}
-
-// cleanupTables は全テーブルを削除する（SQLite用）
-func cleanupTables(t *testing.T) {
+// setupMockDB はgo-sqlmockでモックDBを作成し、GORMのDBインスタンスを返す
+func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 
-	// 外部キー制約を無視して全レコードを削除
-	tables := []string{
-		"record_items",
-		"record_pfcs",
-		"records",
-		"sessions",
-		"advice_caches",
-		"users",
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to open sqlmock: %v", err)
 	}
-	for _, table := range tables {
-		if err := testDB.Exec("DELETE FROM " + table).Error; err != nil {
-			t.Fatalf("failed to delete from %s: %v", table, err)
+
+	// mysqlダイアレクタでGORMを初期化
+	dialector := mysql.New(mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	})
+
+	db, err := gorm.Open(dialector, &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open gorm db: %v", err)
+	}
+
+	// クリーンアップ: 期待値が全て消費されたか確認
+	t.Cleanup(func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("unfulfilled expectations: %v", err)
 		}
-	}
+		sqlDB.Close()
+	})
+
+	return db, mock
 }
 
 // ============================================================================
@@ -136,84 +115,22 @@ func testRecordPfc(t *testing.T, recordID vo.RecordID, protein, fat, carbs float
 }
 
 // ============================================================================
-// Repository Helpers
+// カラム定義ヘルパー
 // ============================================================================
 
-// newUserRepo は新しいGormUserRepositoryを生成する
-func newUserRepo() *gormPkg.GormUserRepository {
-	return gormPkg.NewGormUserRepository(testDB)
-}
-
-// newRecordRepo は新しいGormRecordRepositoryを生成する
-func newRecordRepo() *gormPkg.GormRecordRepository {
-	return gormPkg.NewGormRecordRepository(testDB)
-}
-
-// newRecordPfcRepo は新しいGormRecordPfcRepositoryを生成する
-func newRecordPfcRepo() *gormPkg.GormRecordPfcRepository {
-	return gormPkg.NewGormRecordPfcRepository(testDB)
-}
-
-// newSessionRepo は新しいGormSessionRepositoryを生成する
-func newSessionRepo() *gormPkg.GormSessionRepository {
-	return gormPkg.NewGormSessionRepository(testDB)
-}
-
-// newAdviceCacheRepo は新しいGormAdviceCacheRepositoryを生成する
-func newAdviceCacheRepo() *gormPkg.GormAdviceCacheRepository {
-	return gormPkg.NewGormAdviceCacheRepository(testDB)
-}
-
-// newTxManager は新しいGormTransactionManagerを生成する
-func newTxManager() *gormPkg.GormTransactionManager {
-	return gormPkg.NewGormTransactionManager(testDB)
-}
-
-// ============================================================================
-// Data Setup Helpers
-// ============================================================================
-
-// saveTestUser はテスト用ユーザーをDBに保存する
-func saveTestUser(t *testing.T, user *entity.User) {
-	t.Helper()
-	repo := newUserRepo()
-	if err := repo.Save(context.Background(), user); err != nil {
-		t.Fatalf("failed to save test user: %v", err)
-	}
-}
-
-// saveTestRecord はテスト用RecordをDBに保存する
-func saveTestRecord(t *testing.T, record *entity.Record) {
-	t.Helper()
-	repo := newRecordRepo()
-	if err := repo.Save(context.Background(), record); err != nil {
-		t.Fatalf("failed to save test record: %v", err)
-	}
-}
-
-// saveTestRecordPfc はテスト用RecordPfcをDBに保存する
-func saveTestRecordPfc(t *testing.T, recordPfc *entity.RecordPfc) {
-	t.Helper()
-	repo := newRecordPfcRepo()
-	if err := repo.Save(context.Background(), recordPfc); err != nil {
-		t.Fatalf("failed to save test record pfc: %v", err)
-	}
-}
-
-// saveTestSession はテスト用SessionをDBに保存する
-func saveTestSession(t *testing.T, session *entity.Session) {
-	t.Helper()
-	repo := newSessionRepo()
-	if err := repo.Save(context.Background(), session); err != nil {
-		t.Fatalf("failed to save test session: %v", err)
-	}
-}
-
-// saveTestAdviceCache はテスト用AdviceCacheをDBに保存する
-func saveTestAdviceCache(t *testing.T, cache *entity.AdviceCache) {
-	t.Helper()
-	repo := newAdviceCacheRepo()
-	if err := repo.Save(context.Background(), cache); err != nil {
-		t.Fatalf("failed to save test advice cache: %v", err)
+// userColumns はUsersテーブルのカラム一覧を返す
+func userColumns() []string {
+	return []string{
+		"id",
+		"email",
+		"hashed_password",
+		"nickname",
+		"weight",
+		"height",
+		"birth_date",
+		"gender",
+		"activity_level",
+		"created_at",
+		"updated_at",
 	}
 }
