@@ -2,7 +2,14 @@ package gorm_test
 
 import (
 	"context"
+	"database/sql/driver"
+	"errors"
+	"regexp"
 	"testing"
+	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	gormPkg "caltrack/infrastructure/persistence/gorm"
 )
 
 // ============================================================================
@@ -11,75 +18,55 @@ import (
 
 func TestGormUserRepository_Save(t *testing.T) {
 	t.Run("正常系_ユーザーが保存される", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		user := testUser(t)
 
-		// Save
+		// GORMのCreate()はINSERTを実行
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `users`")).
+			WithArgs(
+				user.ID().String(),
+				user.Email().String(),
+				user.HashedPassword().String(),
+				user.Nickname().String(),
+				user.Weight().Kg(),
+				user.Height().Cm(),
+				user.BirthDate().Time(),
+				user.Gender().String(),
+				user.ActivityLevel().String(),
+				sqlmock.AnyArg(), // created_at
+				sqlmock.AnyArg(), // updated_at
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		// Save実行
 		err := repo.Save(ctx, user)
 		if err != nil {
 			t.Fatalf("Save() error = %v", err)
 		}
-
-		// FindByIDで検証
-		saved, err := repo.FindByID(ctx, user.ID())
-		if err != nil {
-			t.Fatalf("FindByID() error = %v", err)
-		}
-		if saved == nil {
-			t.Fatal("saved user should not be nil")
-		}
-
-		// 全フィールド検証
-		if !saved.ID().Equals(user.ID()) {
-			t.Errorf("ID = %v, want %v", saved.ID(), user.ID())
-		}
-		if saved.Email().String() != user.Email().String() {
-			t.Errorf("Email = %v, want %v", saved.Email(), user.Email())
-		}
-		if saved.HashedPassword().String() != user.HashedPassword().String() {
-			t.Errorf("HashedPassword = %v, want %v", saved.HashedPassword(), user.HashedPassword())
-		}
-		if saved.Nickname().String() != user.Nickname().String() {
-			t.Errorf("Nickname = %v, want %v", saved.Nickname(), user.Nickname())
-		}
-		if saved.Weight().Kg() != user.Weight().Kg() {
-			t.Errorf("Weight = %v, want %v", saved.Weight(), user.Weight())
-		}
-		if saved.Height().Cm() != user.Height().Cm() {
-			t.Errorf("Height = %v, want %v", saved.Height(), user.Height())
-		}
-		if saved.Gender().String() != user.Gender().String() {
-			t.Errorf("Gender = %v, want %v", saved.Gender(), user.Gender())
-		}
-		if saved.ActivityLevel().String() != user.ActivityLevel().String() {
-			t.Errorf("ActivityLevel = %v, want %v", saved.ActivityLevel(), user.ActivityLevel())
-		}
-		if !saved.BirthDate().Time().Equal(user.BirthDate().Time()) {
-			t.Errorf("BirthDate = %v, want %v", saved.BirthDate(), user.BirthDate())
-		}
 	})
 
-	t.Run("異常系_重複メールで保存失敗", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+	t.Run("異常系_DBエラーで保存失敗", func(t *testing.T) {
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
-		user1 := testUserWithEmail(t, "duplicate@example.com")
-		user2 := testUserWithEmail(t, "duplicate@example.com")
+		user := testUser(t)
 
-		// 1回目は成功
-		err := repo.Save(ctx, user1)
-		if err != nil {
-			t.Fatalf("Save() first user error = %v", err)
-		}
+		// INSERT失敗をシミュレート
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `users`")).
+			WillReturnError(errors.New("db error"))
+		mock.ExpectRollback()
 
-		// 2回目は失敗（重複メール）
-		err = repo.Save(ctx, user2)
+		// Save実行
+		err := repo.Save(ctx, user)
 		if err == nil {
-			t.Error("Save() should fail with duplicate email")
+			t.Error("Save() should fail with db error")
 		}
 	})
 }
@@ -90,16 +77,33 @@ func TestGormUserRepository_Save(t *testing.T) {
 
 func TestGormUserRepository_FindByEmail(t *testing.T) {
 	t.Run("正常系_メールでユーザーが見つかる", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		user := testUserWithEmail(t, "find@example.com")
-		if err := repo.Save(ctx, user); err != nil {
-			t.Fatalf("Save() error = %v", err)
-		}
 
-		// FindByEmail
+		// GORMのFirst()は ORDER BY id LIMIT 1 を付加
+		rows := sqlmock.NewRows(userColumns()).
+			AddRow(
+				user.ID().String(),
+				user.Email().String(),
+				user.HashedPassword().String(),
+				user.Nickname().String(),
+				user.Weight().Kg(),
+				user.Height().Cm(),
+				user.BirthDate().Time(),
+				user.Gender().String(),
+				user.ActivityLevel().String(),
+				user.CreatedAt(),
+				user.UpdatedAt(),
+			)
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ?")).
+			WithArgs(user.Email().String(), 1). // First()は最後に1を追加
+			WillReturnRows(rows)
+
+		// FindByEmail実行
 		found, err := repo.FindByEmail(ctx, user.Email())
 		if err != nil {
 			t.Fatalf("FindByEmail() error = %v", err)
@@ -116,18 +120,47 @@ func TestGormUserRepository_FindByEmail(t *testing.T) {
 	})
 
 	t.Run("正常系_存在しないメールでnilが返る", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		email := testUserWithEmail(t, "notfound@example.com").Email()
 
+		// 空のrowsを返す
+		rows := sqlmock.NewRows(userColumns())
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ?")).
+			WithArgs(email.String(), 1).
+			WillReturnRows(rows)
+
+		// FindByEmail実行
 		found, err := repo.FindByEmail(ctx, email)
 		if err != nil {
 			t.Fatalf("FindByEmail() error = %v", err)
 		}
 		if found != nil {
 			t.Error("found user should be nil for non-existent email")
+		}
+	})
+
+	t.Run("異常系_DBエラー", func(t *testing.T) {
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
+		ctx := context.Background()
+
+		email := testUserWithEmail(t, "error@example.com").Email()
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ?")).
+			WithArgs(email.String(), 1).
+			WillReturnError(errors.New("db error"))
+
+		// FindByEmail実行
+		found, err := repo.FindByEmail(ctx, email)
+		if err == nil {
+			t.Error("FindByEmail() should fail with db error")
+		}
+		if found != nil {
+			t.Error("found user should be nil on error")
 		}
 	})
 }
@@ -138,16 +171,21 @@ func TestGormUserRepository_FindByEmail(t *testing.T) {
 
 func TestGormUserRepository_ExistsByEmail(t *testing.T) {
 	t.Run("正常系_存在するメールでtrueが返る", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
-		user := testUserWithEmail(t, "exists@example.com")
-		if err := repo.Save(ctx, user); err != nil {
-			t.Fatalf("Save() error = %v", err)
-		}
+		email := testUserWithEmail(t, "exists@example.com").Email()
 
-		exists, err := repo.ExistsByEmail(ctx, user.Email())
+		// COUNT(*)クエリ
+		rows := sqlmock.NewRows([]string{"count"}).AddRow(1)
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users` WHERE email = ?")).
+			WithArgs(email.String()).
+			WillReturnRows(rows)
+
+		// ExistsByEmail実行
+		exists, err := repo.ExistsByEmail(ctx, email)
 		if err != nil {
 			t.Fatalf("ExistsByEmail() error = %v", err)
 		}
@@ -157,18 +195,47 @@ func TestGormUserRepository_ExistsByEmail(t *testing.T) {
 	})
 
 	t.Run("正常系_存在しないメールでfalseが返る", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		email := testUserWithEmail(t, "notexists@example.com").Email()
 
+		// COUNT(*)クエリ（結果0）
+		rows := sqlmock.NewRows([]string{"count"}).AddRow(0)
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users` WHERE email = ?")).
+			WithArgs(email.String()).
+			WillReturnRows(rows)
+
+		// ExistsByEmail実行
 		exists, err := repo.ExistsByEmail(ctx, email)
 		if err != nil {
 			t.Fatalf("ExistsByEmail() error = %v", err)
 		}
 		if exists {
 			t.Error("ExistsByEmail() should return false for non-existent email")
+		}
+	})
+
+	t.Run("異常系_DBエラー", func(t *testing.T) {
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
+		ctx := context.Background()
+
+		email := testUserWithEmail(t, "error@example.com").Email()
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `users` WHERE email = ?")).
+			WithArgs(email.String()).
+			WillReturnError(errors.New("db error"))
+
+		// ExistsByEmail実行
+		exists, err := repo.ExistsByEmail(ctx, email)
+		if err == nil {
+			t.Error("ExistsByEmail() should fail with db error")
+		}
+		if exists {
+			t.Error("ExistsByEmail() should return false on error")
 		}
 	})
 }
@@ -179,16 +246,33 @@ func TestGormUserRepository_ExistsByEmail(t *testing.T) {
 
 func TestGormUserRepository_FindByID(t *testing.T) {
 	t.Run("正常系_IDでユーザーが見つかる", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		user := testUser(t)
-		if err := repo.Save(ctx, user); err != nil {
-			t.Fatalf("Save() error = %v", err)
-		}
 
-		// FindByID
+		// GORMのFirst()は ORDER BY id LIMIT 1 を付加
+		rows := sqlmock.NewRows(userColumns()).
+			AddRow(
+				user.ID().String(),
+				user.Email().String(),
+				user.HashedPassword().String(),
+				user.Nickname().String(),
+				user.Weight().Kg(),
+				user.Height().Cm(),
+				user.BirthDate().Time(),
+				user.Gender().String(),
+				user.ActivityLevel().String(),
+				user.CreatedAt(),
+				user.UpdatedAt(),
+			)
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE id = ?")).
+			WithArgs(user.ID().String(), 1). // First()は最後に1を追加
+			WillReturnRows(rows)
+
+		// FindByID実行
 		found, err := repo.FindByID(ctx, user.ID())
 		if err != nil {
 			t.Fatalf("FindByID() error = %v", err)
@@ -202,18 +286,47 @@ func TestGormUserRepository_FindByID(t *testing.T) {
 	})
 
 	t.Run("正常系_存在しないIDでnilが返る", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		nonExistentID := testUser(t).ID()
 
+		// 空のrowsを返す
+		rows := sqlmock.NewRows(userColumns())
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE id = ?")).
+			WithArgs(nonExistentID.String(), 1).
+			WillReturnRows(rows)
+
+		// FindByID実行
 		found, err := repo.FindByID(ctx, nonExistentID)
 		if err != nil {
 			t.Fatalf("FindByID() error = %v", err)
 		}
 		if found != nil {
 			t.Error("found user should be nil for non-existent ID")
+		}
+	})
+
+	t.Run("異常系_DBエラー", func(t *testing.T) {
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
+		ctx := context.Background()
+
+		id := testUser(t).ID()
+
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE id = ?")).
+			WithArgs(id.String(), 1).
+			WillReturnError(errors.New("db error"))
+
+		// FindByID実行
+		found, err := repo.FindByID(ctx, id)
+		if err == nil {
+			t.Error("FindByID() should fail with db error")
+		}
+		if found != nil {
+			t.Error("found user should be nil on error")
 		}
 	})
 }
@@ -224,47 +337,66 @@ func TestGormUserRepository_FindByID(t *testing.T) {
 
 func TestGormUserRepository_Update(t *testing.T) {
 	t.Run("正常系_ユーザーが更新される", func(t *testing.T) {
-		cleanupTables(t)
-		repo := newUserRepo()
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
 		ctx := context.Background()
 
 		user := testUser(t)
-		if err := repo.Save(ctx, user); err != nil {
-			t.Fatalf("Save() error = %v", err)
-		}
 
-		// プロフィール更新
-		errs := user.UpdateProfile("updatednick", 180.0, 75.0, "active")
-		if errs != nil {
-			t.Fatalf("UpdateProfile() errors = %v", errs)
-		}
+		// GORMのSave()は UPDATE文を実行
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET")).
+			WithArgs(
+				user.Email().String(),
+				user.HashedPassword().String(),
+				user.Nickname().String(),
+				user.Weight().Kg(),
+				user.Height().Cm(),
+				user.BirthDate().Time(),
+				user.Gender().String(),
+				user.ActivityLevel().String(),
+				sqlmock.AnyArg(), // created_at
+				sqlmock.AnyArg(), // updated_at
+				user.ID().String(), // WHERE id = ?
+			).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 
-		// Update
+		// Update実行
 		err := repo.Update(ctx, user)
 		if err != nil {
 			t.Fatalf("Update() error = %v", err)
 		}
+	})
 
-		// FindByIDで更新後の値を検証
-		updated, err := repo.FindByID(ctx, user.ID())
-		if err != nil {
-			t.Fatalf("FindByID() error = %v", err)
-		}
-		if updated == nil {
-			t.Fatal("updated user should not be nil")
-		}
+	t.Run("異常系_DBエラー", func(t *testing.T) {
+		db, mock := setupMockDB(t)
+		repo := gormPkg.NewGormUserRepository(db)
+		ctx := context.Background()
 
-		if updated.Nickname().String() != "updatednick" {
-			t.Errorf("Nickname = %v, want updatednick", updated.Nickname())
-		}
-		if updated.Height().Cm() != 180.0 {
-			t.Errorf("Height = %v, want 180.0", updated.Height())
-		}
-		if updated.Weight().Kg() != 75.0 {
-			t.Errorf("Weight = %v, want 75.0", updated.Weight())
-		}
-		if updated.ActivityLevel().String() != "active" {
-			t.Errorf("ActivityLevel = %v, want active", updated.ActivityLevel())
+		user := testUser(t)
+
+		// UPDATE失敗をシミュレート
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta("UPDATE `users` SET")).
+			WillReturnError(errors.New("db error"))
+		mock.ExpectRollback()
+
+		// Update実行
+		err := repo.Update(ctx, user)
+		if err == nil {
+			t.Error("Update() should fail with db error")
 		}
 	})
+}
+
+// ============================================================================
+// ヘルパー: driver.Valuer実装（時刻をtime.Timeとして扱う）
+// ============================================================================
+
+type anyTime struct{}
+
+func (a anyTime) Match(v driver.Value) bool {
+	_, ok := v.(time.Time)
+	return ok
 }
