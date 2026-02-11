@@ -134,3 +134,13 @@ func userColumns() []string {
 		"updated_at",
 	}
 }
+
+// sessionColumns はSessionsテーブルのカラム一覧を返す
+func sessionColumns() []string {
+	return []string{
+		"id",
+		"user_id",
+		"expires_at",
+		"created_at",
+	}
+}
