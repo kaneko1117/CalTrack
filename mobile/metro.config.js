@@ -14,7 +14,6 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
-// packages/shared をトランスパイル対象に追加
 config.resolver.disableHierarchicalLookup = true;
 
 module.exports = withNativeWind(config, {
