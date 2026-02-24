@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -9,54 +10,51 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GeminiClient はGemini APIクライアントのグローバルインスタンス
-var GeminiClient *genai.Client
+const defaultGeminiModelName = "gemini-3-flash-preview"
 
-// GeminiModelName は使用するGeminiモデル名
-var GeminiModelName string
+// GeminiConfig はGemini APIクライアントと設定を保持する構造体
+type GeminiConfig struct {
+	Client    *genai.Client
+	modelName string
+}
 
-// InitGemini はGeminiクライアントを初期化する
-// アプリケーション起動時に1回だけ呼び出す
-func InitGemini() {
+// NewGeminiConfig はGeminiクライアントを初期化し、GeminiConfig構造体を返す
+// APIキーが未設定の場合、Client=nilのGeminiConfigを返す（画像解析機能は無効）
+func NewGeminiConfig() (*GeminiConfig, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		log.Println("GEMINI_API_KEY is not set. Image analysis feature will be disabled.")
-		return
+		return &GeminiConfig{Client: nil, modelName: defaultGeminiModelName}, nil
 	}
 
-	// モデル名を環境変数から取得（デフォルト: gemini-3-flash-preview）
-	GeminiModelName = os.Getenv("GEMINI_MODEL_NAME")
-	if GeminiModelName == "" {
-		GeminiModelName = "gemini-3-flash-preview"
+	modelName := os.Getenv("GEMINI_MODEL_NAME")
+	if modelName == "" {
+		modelName = defaultGeminiModelName
 	}
-	log.Printf("Gemini model: %s", GeminiModelName)
+	log.Printf("Gemini model: %s", modelName)
 
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
-		log.Printf("Failed to create Gemini client: %v", err)
-		return
+		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	GeminiClient = client
 	log.Println("Gemini client initialized")
+	return &GeminiConfig{Client: client, modelName: modelName}, nil
 }
 
-// CloseGemini はGeminiクライアントをクローズする
-// アプリケーション終了時に呼び出す
-func CloseGemini() {
-	if GeminiClient != nil {
-		if err := GeminiClient.Close(); err != nil {
+// Close はGeminiクライアントをクローズする
+func (g *GeminiConfig) Close() {
+	if g.Client != nil {
+		if err := g.Client.Close(); err != nil {
 			log.Printf("Failed to close Gemini client: %v", err)
 		}
 		log.Println("Gemini client closed")
 	}
 }
 
-// DefaultAIConfig はデフォルトのAI設定を提供する
-type DefaultAIConfig struct{}
-
 // GeminiModelName は使用するGeminiモデル名を返す
-func (c DefaultAIConfig) GeminiModelName() string {
-	return GeminiModelName
+// usecase.AIConfig インターフェースを満たす
+func (g *GeminiConfig) GeminiModelName() string {
+	return g.modelName
 }

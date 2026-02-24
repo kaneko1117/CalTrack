@@ -9,9 +9,13 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
+// Database はDB接続を保持する構造体
+type Database struct {
+	DB *gorm.DB
+}
 
-func ConnectDatabase() {
+// NewDatabase はDB接続を確立し、Database構造体を返す
+func NewDatabase() (*Database, error) {
 	host := getEnv("DB_HOST", "localhost")
 	port := getEnv("DB_PORT", "3306")
 	user := getEnv("DB_USER", "caltrack")
@@ -23,11 +27,11 @@ func ConnectDatabase() {
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	DB = db
 	log.Println("Database connection established")
+	return &Database{DB: db}, nil
 }
 
 func getEnv(key, defaultValue string) string {

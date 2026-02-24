@@ -36,35 +36,40 @@ func main() {
 		panic(err)
 	}
 
-	// Connect to database
-	config.ConnectDatabase()
+	// DB接続
+	database, err := config.NewDatabase()
+	if err != nil {
+		logger.Error("DB接続失敗", "error", err.Error())
+		panic(err)
+	}
 
 	// Geminiクライアント初期化
-	config.InitGemini()
-	defer config.CloseGemini()
+	geminiConfig, err := config.NewGeminiConfig()
+	if err != nil {
+		logger.Error("Geminiクライアント初期化失敗", "error", err.Error())
+		panic(err)
+	}
+	defer geminiConfig.Close()
 
 	// DI - Repository
-	userRepo := gormPersistence.NewGormUserRepository(config.DB)
-	sessionRepo := gormPersistence.NewGormSessionRepository(config.DB)
-	recordRepo := gormPersistence.NewGormRecordRepository(config.DB)
-	recordPfcRepo := gormPersistence.NewGormRecordPfcRepository(config.DB)
-	adviceCacheRepo := gormPersistence.NewGormAdviceCacheRepository(config.DB)
-	txManager := gormPersistence.NewGormTransactionManager(config.DB)
+	userRepo := gormPersistence.NewGormUserRepository(database.DB)
+	sessionRepo := gormPersistence.NewGormSessionRepository(database.DB)
+	recordRepo := gormPersistence.NewGormRecordRepository(database.DB)
+	recordPfcRepo := gormPersistence.NewGormRecordPfcRepository(database.DB)
+	adviceCacheRepo := gormPersistence.NewGormAdviceCacheRepository(database.DB)
+	txManager := gormPersistence.NewGormTransactionManager(database.DB)
 
 	// DI - Service
-	imageAnalyzer := infraService.NewGeminiImageAnalyzer(config.GeminiClient)
-	pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(config.GeminiClient)
-	pfcEstimator := infraService.NewGeminiPfcEstimator(config.GeminiClient)
-
-	// DI - Config
-	aiConfig := config.DefaultAIConfig{}
+	imageAnalyzer := infraService.NewGeminiImageAnalyzer(geminiConfig.Client)
+	pfcAnalyzer := infraService.NewGeminiPfcAnalyzer(geminiConfig.Client)
+	pfcEstimator := infraService.NewGeminiPfcEstimator(geminiConfig.Client)
 
 	// DI - Usecase
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 	authUsecase := usecase.NewAuthUsecase(userRepo, sessionRepo, txManager)
-	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, aiConfig)
-	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer, aiConfig)
-	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, pfcAnalyzer, aiConfig)
+	recordUsecase := usecase.NewRecordUsecase(recordRepo, recordPfcRepo, userRepo, adviceCacheRepo, txManager, pfcEstimator, geminiConfig)
+	analyzeUsecase := usecase.NewAnalyzeUsecase(imageAnalyzer, geminiConfig)
+	nutritionUsecase := usecase.NewNutritionUsecase(userRepo, recordRepo, recordPfcRepo, adviceCacheRepo, pfcAnalyzer, geminiConfig)
 
 	// DI - Handler
 	userHandler := user.NewUserHandler(userUsecase)
