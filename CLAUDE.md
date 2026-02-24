@@ -20,7 +20,7 @@
 - **マイグレーション**: sql-migrate
 - **ホットリロード**: Air
 
-### Frontend
+### Web (Frontend)
 - **言語**: TypeScript
 - **フレームワーク**: React + Vite
 - **UIライブラリ**: shadcn/ui
@@ -49,10 +49,10 @@ CalTrack/
 │   │   └── {domain}/     # dto/, handler.go
 │   ├── config/           # DB設定
 │   └── migrations/       # sql-migrate
-├── frontend/src/
+├── web/src/               # Web版 (React + Vite)
+│   ├── domain/           # DDD Domain層 (VO, Entity)
 │   ├── features/         # 機能単位
 │   │   └── {feature}/
-│   │       ├── types/    # 型定義・定数
 │   │       ├── api/      # API関数
 │   │       ├── hooks/    # カスタムフック
 │   │       └── components/
@@ -61,6 +61,16 @@ CalTrack/
 │   ├── routes/           # React Router設定
 │   ├── hooks/            # 共通Hooks
 │   └── lib/              # ユーティリティ
+├── mobile/                # モバイル版 (React Native + Expo)
+│   ├── app/              # Expo Router
+│   ├── components/       # RN用UIコンポーネント
+│   ├── features/         # RN用featureコンポーネント
+│   └── lib/              # RN固有ユーティリティ
+├── packages/
+│   └── shared/           # Web/Mobile共有コード
+│       ├── domain/       # VO, Entity, Result型
+│       ├── features/     # 共有hooks, helpers
+│       └── lib/          # 共有ユーティリティ
 └── .claude/
     ├── agents/           # チームメンバー定義
     └── rules/            # コーディングルール
@@ -78,12 +88,12 @@ docker compose up --build
 ### ポート
 | サービス | ポート |
 |---------|--------|
-| Frontend | 5173 |
+| Web | 5173 |
 | Backend | 8080 |
 | MySQL | 3307 |
 
 ### ヘルスチェック
-- Frontend: http://localhost:5173
+- Web: http://localhost:5173
 - Backend: http://localhost:8080/health
 
 ---
@@ -96,11 +106,11 @@ cd backend && go build ./...     # ビルド
 cd backend && go test ./... -v   # テスト
 ```
 
-### Frontend
+### Web
 ```bash
-cd frontend && npm run build     # ビルド
-cd frontend && npm run test      # テスト
-cd frontend && npm run lint      # Lint
+cd web && npm run build     # ビルド
+cd web && npm run test      # テスト
+cd web && npm run lint      # Lint
 ```
 
 ---

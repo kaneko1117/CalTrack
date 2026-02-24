@@ -114,6 +114,16 @@ func testRecordPfc(t *testing.T, recordID vo.RecordID, protein, fat, carbs float
 	return entity.NewRecordPfc(recordID, protein, fat, carbs)
 }
 
+// testStatisticsPeriod はテスト用StatisticsPeriodを生成する
+func testStatisticsPeriod(t *testing.T, periodStr string) vo.StatisticsPeriod {
+	t.Helper()
+	period, err := vo.NewStatisticsPeriod(periodStr)
+	if err != nil {
+		t.Fatalf("failed to create test statistics period: %v", err)
+	}
+	return period
+}
+
 // ============================================================================
 // カラム定義ヘルパー
 // ============================================================================
@@ -141,6 +151,48 @@ func sessionColumns() []string {
 		"id",
 		"user_id",
 		"expires_at",
+		"created_at",
+	}
+}
+
+// recordColumns はRecordsテーブルのカラム一覧を返す
+func recordColumns() []string {
+	return []string{
+		"id",
+		"user_id",
+		"eaten_at",
+		"created_at",
+	}
+}
+
+// recordItemColumns はRecordItemsテーブルのカラム一覧を返す
+func recordItemColumns() []string {
+	return []string{
+		"id",
+		"record_id",
+		"name",
+		"calories",
+	}
+}
+
+// recordPfcColumns はRecordPfcsテーブルのカラム一覧を返す
+func recordPfcColumns() []string {
+	return []string{
+		"id",
+		"record_id",
+		"protein",
+		"fat",
+		"carbs",
+	}
+}
+
+// adviceCacheColumns はAdviceCachesテーブルのカラム一覧を返す
+func adviceCacheColumns() []string {
+	return []string{
+		"id",
+		"user_id",
+		"cache_date",
+		"advice",
 		"created_at",
 	}
 }
