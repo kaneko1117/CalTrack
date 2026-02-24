@@ -14,5 +14,8 @@
     "shared:build": "npm run build --workspace=@caltrack/shared",
     "test:web": "npm run test --workspace=frontend",
     "lint:web": "npm run lint --workspace=frontend"
+  },
+  "dependencies": {
+    "semver": "^7.7.4"
   }
 }

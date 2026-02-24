@@ -11,23 +11,24 @@
   },
   "dependencies": {
     "@caltrack/shared": "*",
+    "@types/react": "~19.1.10",
     "axios": "^1.13.4",
-    "expo": "~53.0.0",
-    "expo-constants": "~17.1.0",
-    "expo-linking": "~7.1.0",
-    "expo-router": "~5.0.0",
-    "expo-status-bar": "~2.2.0",
-    "nativewind": "^4.1.23",
-    "react": "^19.0.0",
-    "react-native": "~0.79.0",
-    "react-native-safe-area-context": "~5.4.0",
-    "react-native-screens": "~4.10.0",
-    "react-native-web": "~0.19.13",
-    "tailwindcss": "^3.4.11"
+    "expo": "~54.0.0",
+    "expo-constants": "~18.0.13",
+    "expo-linking": "~8.0.11",
+    "expo-router": "~6.0.23",
+    "expo-status-bar": "~3.0.9",
+    "is-arrayish": "^0.3.4",
+    "nativewind": "^4.2.2",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@types/react": "^19.2.10",
+    "@types/react": "~19.1.10",
     "typescript": "^5.5.4"
   }
 }
