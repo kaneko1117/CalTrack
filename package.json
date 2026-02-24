@@ -1,0 +1,18 @@
+{
+  "name": "caltrack",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "frontend",
+    "mobile",
+    "packages/*"
+  ],
+  "scripts": {
+    "web": "npm run dev --workspace=frontend",
+    "mobile": "npm run start --workspace=mobile",
+    "mobile:ios": "npm run ios --workspace=mobile",
+    "shared:build": "npm run build --workspace=@caltrack/shared",
+    "test:web": "npm run test --workspace=frontend",
+    "lint:web": "npm run lint --workspace=frontend"
+  }
+}

@@ -35,3 +35,20 @@ npm-debug.log*
 
 *storybook.log
 storybook-static
+
+# Expo
+.expo/
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Metro
+.metro-health-check*
+
+# Expo EAS
+eas-*.json
